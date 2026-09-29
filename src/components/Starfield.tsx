@@ -1,79 +1,142 @@
-import React, { useMemo } from 'react';
+/**
+ * Sfondo stellato ad alte prestazioni su <canvas>.
+ *
+ * - Le stelle sono disegnate in un bitmap offscreen (1×) e riutilizzato:
+ *   il costo per frame è un solo drawImage, non centinaia di nodi DOM.
+ * - Lo scintillio (twinkle) anima solo le ~30 stelle più luminose.
+ * - Gestisce devicePixelRatio, resize e prefers-reduced-motion.
+ */
+import { useEffect, useRef } from 'react';
 
 interface Star {
-  x: number; // %
-  y: number; // %
-  s: number; // px
-  d: number; // delay (s)
-  dur: number; // twinkle duration (s)
-  o: number; // base opacity
+  x: number; // px
+  y: number; // px
+  r: number; // raggio px
+  o: number; // opacità base
 }
 
 const NEBULAE = [
-  { top: '8%', left: '12%', size: 480, color: 'rgba(109, 91, 222, 0.16)' },
-  { top: '58%', left: '68%', size: 560, color: 'rgba(56, 130, 246, 0.12)' },
-  { top: '72%', left: '8%', size: 420, color: 'rgba(217, 70, 160, 0.10)' },
-  { top: '18%', left: '74%', size: 380, color: 'rgba(45, 212, 191, 0.08)' },
+  { fx: 0.12, fy: 0.14, size: 480, color: 'rgba(109, 91, 222, 0.16)' },
+  { fx: 0.72, fy: 0.6, size: 560, color: 'rgba(56, 130, 246, 0.12)' },
+  { fx: 0.14, fy: 0.78, size: 420, color: 'rgba(217, 70, 160, 0.10)' },
+  { fx: 0.8, fy: 0.2, size: 380, color: 'rgba(45, 212, 191, 0.08)' },
 ];
 
-/**
- * Sfondo stellato generato proceduralmente (memoizzato):
- * - stelle con scintillio (twinkle) a durata casuale
- * - alcune stelle "grandi" con bagliore
- * - nebulose sfocate per dare profondità
- */
-export default function Starfield({ count = 140 }: { count?: number }) {
-  const stars = useMemo<Star[]>(
-    () =>
-      Array.from({ length: count }, () => ({
-        x: Math.random() * 100,
-        y: Math.random() * 100,
-        s: Math.random() < 0.85 ? 1 + Math.random() : 2 + Math.random() * 1.5,
-        d: Math.random() * 6,
-        dur: 2.5 + Math.random() * 4,
-        o: 0.3 + Math.random() * 0.7,
-      })),
-    [count]
-  );
+export default function Starfield({ count = 400 }: { count?: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let stars: Star[] = [];
+    let twinklers: (Star & { phase: number; speed: number })[] = [];
+    let layer: HTMLCanvasElement | null = null;
+    let rafId = 0;
+    let w = 0;
+    let h = 0;
+
+    const buildLayer = () => {
+      // Bitmap offscreen con tutte le stelle statiche
+      layer = document.createElement('canvas');
+      layer.width = w;
+      layer.height = h;
+      const lctx = layer.getContext('2d');
+      if (!lctx) return;
+      for (const s of stars) {
+        lctx.globalAlpha = s.o;
+        lctx.fillStyle = '#fff';
+        lctx.beginPath();
+        lctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        lctx.fill();
+        if (s.r > 1.4) {
+          // bagliore per le stelle grandi
+          lctx.globalAlpha = s.o * 0.25;
+          lctx.beginPath();
+          lctx.arc(s.x, s.y, s.r * 3, 0, Math.PI * 2);
+          lctx.fill();
+        }
+      }
+      lctx.globalAlpha = 1;
+    };
+
+    const paintBackground = () => {
+      ctx.clearRect(0, 0, w, h);
+      for (const n of NEBULAE) {
+        const g = ctx.createRadialGradient(n.fx * w, n.fy * h, 0, n.fx * w, n.fy * h, n.size);
+        g.addColorStop(0, n.color);
+        g.addColorStop(1, 'transparent');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, w, h);
+      }
+    };
+
+    const draw = (t: number) => {
+      paintBackground();
+      if (layer) ctx.drawImage(layer, 0, 0);
+      // Twinkle: ridisegna solo le poche stelle animate
+      for (const s of twinklers) {
+        const alpha = s.o * (0.35 + 0.65 * Math.abs(Math.sin((t / 1000) * s.speed + s.phase)));
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    };
+
+    const loop = (t: number) => {
+      draw(t);
+      rafId = requestAnimationFrame(loop);
+    };
+
+    const regenerate = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      w = Math.floor(canvas.clientWidth * dpr);
+      h = Math.floor(canvas.clientHeight * dpr);
+      canvas.width = w;
+      canvas.height = h;
+
+      stars = Array.from({ length: count }, () => {
+        const big = Math.random() >= 0.85;
+        return {
+          x: Math.random() * w,
+          y: Math.random() * h,
+          r: (big ? 1 + Math.random() * 1.2 : 0.4 + Math.random() * 0.6) * dpr,
+          o: 0.25 + Math.random() * 0.7,
+        };
+      });
+      // Solo le stelle più luminose scintillano (costo per frame limitato)
+      twinklers = stars
+        .filter((s) => s.o > 0.8)
+        .slice(0, 30)
+        .map((s) => ({ ...s, phase: Math.random() * Math.PI * 2, speed: 0.5 + Math.random() }));
+
+      buildLayer();
+      draw(0);
+    };
+
+    const onResize = () => regenerate();
+
+    regenerate();
+    window.addEventListener('resize', onResize);
+    if (!reducedMotion) rafId = requestAnimationFrame(loop);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [count]);
 
   return (
-    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-      {/* Nebulose */}
-      {NEBULAE.map((n, i) => (
-        <div
-          key={i}
-          style={{
-            position: 'absolute',
-            top: n.top,
-            left: n.left,
-            width: n.size,
-            height: n.size,
-            borderRadius: '50%',
-            background: `radial-gradient(circle, ${n.color}, transparent 70%)`,
-            filter: 'blur(30px)',
-            transform: 'translate(-50%, -50%)',
-          }}
-        />
-      ))}
-
-      {/* Stelle */}
-      {stars.map((st, i) => (
-        <div
-          key={i}
-          style={{
-            position: 'absolute',
-            top: `${st.y}%`,
-            left: `${st.x}%`,
-            width: st.s,
-            height: st.s,
-            borderRadius: '50%',
-            background: 'white',
-            opacity: st.o,
-            boxShadow: st.s > 2 ? '0 0 6px rgba(255,255,255,0.8)' : undefined,
-            animation: `twinkle ${st.dur}s ease-in-out ${st.d}s infinite`,
-          }}
-        />
-      ))}
-    </div>
+    <canvas
+      ref={canvasRef}
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 h-full w-full"
+    />
   );
 }

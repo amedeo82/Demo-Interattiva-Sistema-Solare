@@ -14,7 +14,13 @@ body,
   height: 100%;
   overflow: hidden;
   background: radial-gradient(ellipse at 50% 35%, #10102b 0%, var(--bg-deep) 70%);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
   color: white;
   -webkit-font-smoothing: antialiased;
 }
@@ -38,31 +44,6 @@ body,
 }
 
 /* ---------- Keyframes ---------- */
-@keyframes orbit {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-@keyframes counter-orbit {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(-360deg);
-  }
-}
-@keyframes twinkle {
-  0%,
-  100% {
-    opacity: 0.2;
-  }
-  50% {
-    opacity: 1;
-  }
-}
 @keyframes sun-pulse {
   0%,
   100% {
@@ -271,4 +252,44 @@ body,
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ---------- Cometa occasionale (solo decorativa) ---------- */
+@keyframes comet {
+  from {
+    transform: rotate(215deg) translateX(-60vw);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    transform: rotate(215deg) translateX(60vw);
+    opacity: 0;
+  }
+}
+.comet {
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  width: 140px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.9));
+  filter: drop-shadow(0 0 6px rgba(180, 210, 255, 0.8));
+  animation: comet 9s ease-in infinite;
+  animation-delay: 6s;
+  pointer-events: none;
+}
+
+/* ---------- Focus visibile coerente ---------- */
+:focus-visible {
+  outline: 2px solid #a855f7;
+  outline-offset: 2px;
+}
+button:focus:not(:focus-visible) {
+  outline: none;
 }

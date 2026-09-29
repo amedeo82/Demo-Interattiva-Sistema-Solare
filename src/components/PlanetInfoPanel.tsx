@@ -1,5 +1,6 @@
-import React from 'react';
+import { useEffect, useRef } from 'react';
 import type { PlanetData } from '../data/planets';
+import { formatNumber, formatOrbitalPeriod } from '../utils/format';
 
 interface Props {
   planet: PlanetData;
@@ -16,10 +17,14 @@ function StatRow({ label, value }: { label: string; value: string }) {
 }
 
 export default function PlanetInfoPanel({ planet, onClose }: Props) {
-  const periodLabel =
-    planet.orbitalPeriod < 365
-      ? `${planet.orbitalPeriod.toLocaleString('it-IT')} giorni`
-      : `${(planet.orbitalPeriod / 365.25).toFixed(1)} anni (${planet.orbitalPeriod.toLocaleString('it-IT')} giorni)`;
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  // Accessibilità: focus iniziale sul pulsante di chiusura del dialog
+  useEffect(() => {
+    closeRef.current?.focus();
+  }, [planet.name]);
+
+  const periodLabel = formatOrbitalPeriod(planet.orbitalPeriod);
 
   return (
     <aside
@@ -33,6 +38,7 @@ export default function PlanetInfoPanel({ planet, onClose }: Props) {
           <p className="text-white/40 text-xs mt-0.5 uppercase tracking-widest">{planet.name}</p>
         </div>
         <button
+          ref={closeRef}
           onClick={onClose}
           aria-label="Chiudi pannello"
           className="rounded-lg p-1.5 text-white/50 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400"
@@ -62,8 +68,11 @@ export default function PlanetInfoPanel({ planet, onClose }: Props) {
       <p className="mb-4 text-sm italic leading-relaxed text-white/70">{planet.description}</p>
 
       <div className="flex flex-col">
-        <StatRow label="Diametro" value={`${planet.diameter.toLocaleString('it-IT')} km`} />
-        <StatRow label="Distanza dal Sole" value={`${planet.distanceFromSun.toLocaleString('it-IT')} mln km`} />
+        <StatRow label="Diametro" value={`${formatNumber(planet.diameter)} km`} />
+        <StatRow
+          label="Distanza dal Sole"
+          value={`${formatNumber(planet.distanceFromSun)} mln km`}
+        />
         <StatRow label="Periodo orbitale" value={periodLabel} />
       </div>
     </aside>
