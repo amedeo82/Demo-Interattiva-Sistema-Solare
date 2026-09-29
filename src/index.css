@@ -1,15 +1,274 @@
-/* Base reset */
-*, *::before, *::after {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+/* ---------- Design tokens ---------- */
+:root {
+  --bg-deep: #060614;
+  --accent-purple: rgba(168, 85, 247, 0.5);
 }
 
-html, body, #root {
+html,
+body,
+#root {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #0a0a1a;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: radial-gradient(ellipse at 50% 35%, #10102b 0%, var(--bg-deep) 70%);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   color: white;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(168, 85, 247, 0.4);
+}
+
+/* Scrollbar sottile e coerente col tema */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+}
+
+/* ---------- Keyframes ---------- */
+@keyframes orbit {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes counter-orbit {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes sun-pulse {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.18);
+    opacity: 1;
+  }
+}
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- Sole ---------- */
+.sun {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle at 32% 30%, #fff9c4, #ffe066 30%, #ffab2e 65%, #ff7300);
+  box-shadow:
+    0 0 30px rgba(255, 200, 60, 0.9),
+    0 0 90px rgba(255, 160, 40, 0.45),
+    0 0 180px rgba(255, 140, 30, 0.25);
+  z-index: 10;
+}
+.sun-corona {
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 200, 70, 0.35), transparent 70%);
+  animation: sun-pulse 5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* ---------- Orbite ---------- */
+.orbit-ring {
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  transition:
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+.orbit-ring.selected {
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 0 18px rgba(168, 85, 247, 0.18);
+}
+
+/* ---------- Pianeti ---------- */
+.planet {
+  cursor: pointer;
+  transition: filter 0.2s ease;
+}
+.planet:hover {
+  filter: brightness(1.35);
+}
+.planet:focus-visible {
+  outline: 2px solid #a855f7;
+  outline-offset: 3px;
+}
+.saturn-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 190%;
+  height: 60%;
+  transform: translate(-50%, -50%) rotate(-20deg);
+  border: 2px solid rgba(232, 208, 136, 0.55);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.planet-label {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 4px;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  color: rgba(255, 255, 255, 0.75);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ---------- Pannello informazioni ---------- */
+.panel-in {
+  background: rgba(16, 16, 42, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55);
+  animation: panel-in 0.25s ease-out;
+}
+
+/* ---------- Controlli ---------- */
+.btn-play {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  border: 1px solid rgba(34, 197, 94, 0.45);
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.28), rgba(34, 197, 94, 0.1));
+  color: #86efac;
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease,
+    color 0.25s ease,
+    transform 0.15s ease;
+}
+.btn-play:hover {
+  transform: translateY(-1px);
+}
+.btn-play:active {
+  transform: translateY(0);
+}
+.btn-play.playing {
+  border-color: rgba(245, 158, 11, 0.5);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(245, 158, 11, 0.1));
+  color: #fcd34d;
+}
+
+.chip {
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+.chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.85);
+}
+.chip.active {
+  background: rgba(168, 85, 247, 0.35);
+  border-color: var(--accent-purple);
+  color: #e9d5ff;
+}
+
+.planet-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.8);
+  background: transparent;
+  border: 1px solid transparent;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.15s ease;
+}
+.planet-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateX(2px);
+}
+.planet-row.active {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 10px;
+  font-family: inherit;
+}
+
+/* ---------- Accessibilità: riduci movimento ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

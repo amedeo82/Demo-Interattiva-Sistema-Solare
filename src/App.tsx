@@ -1,510 +1,184 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { planets, type PlanetData } from './data/planets';
+import Starfield from './components/Starfield';
+import PlanetInfoPanel from './components/PlanetInfoPanel';
+import ControlsSidebar from './components/ControlsSidebar';
 
-interface PlanetData {
-  name: string;
-  nameIt: string;
-  diameter: number;
-  distanceFromSun: number;
-  orbitalPeriod: number;
-  color: string;
-  size: number;
-  orbitRadius: number;
-  description: string;
-  animationDuration: number;
+const SPEED_OPTIONS = [0.25, 0.5, 1, 2, 5, 10];
+const STAGE = 800; // lato del "palco" quadrato del sistema solare (px)
+
+/** Fissa l'angolo iniziale di ogni pianeta: orbitRadius e periodo sono
+ *  correlati (3ª legge di Keplero), quindi tutti partirebbero allineati in
+ *  cima. Un offset sfalsato rende la scena più naturale. */
+const START_ANGLES: Record<string, number> = {
+  Mercury: 40,
+  Venus: 160,
+  Earth: 300,
+  Mars: 95,
+  Jupiter: 220,
+  Saturn: 15,
+  Uranus: 135,
+  Neptune: 260,
+};
+
+function useSystemScale() {
+  const [scale, setScale] = useState(0.7);
+  useEffect(() => {
+    const update = () => {
+      const availW = window.innerWidth - (window.innerWidth >= 1024 ? 272 : 32);
+      const availH = window.innerHeight - 110;
+      const s = Math.min(availW / STAGE, availH / STAGE, 1);
+      setScale(Math.max(s, 0.3));
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+  return scale;
 }
 
-const planets: PlanetData[] = [
-  {
-    name: 'Mercury',
-    nameIt: 'Mercurio',
-    diameter: 4879,
-    distanceFromSun: 57.9,
-    orbitalPeriod: 88,
-    color: '#b5b5b5',
-    size: 8,
-    orbitRadius: 60,
-    description: 'Il pianeta più piccolo e più vicino al Sole.',
-    animationDuration: 4,
-  },
-  {
-    name: 'Venus',
-    nameIt: 'Venere',
-    diameter: 12104,
-    distanceFromSun: 108.2,
-    orbitalPeriod: 225,
-    color: '#e8cda0',
-    size: 12,
-    orbitRadius: 90,
-    description: 'Il pianeta più caldo del sistema solare.',
-    animationDuration: 7,
-  },
-  {
-    name: 'Earth',
-    nameIt: 'Terra',
-    diameter: 12756,
-    distanceFromSun: 149.6,
-    orbitalPeriod: 365,
-    color: '#4fa4e8',
-    size: 13,
-    orbitRadius: 125,
-    description: 'Il nostro pianeta, l\'unico con vita conosciuta.',
-    animationDuration: 10,
-  },
-  {
-    name: 'Mars',
-    nameIt: 'Marte',
-    diameter: 6792,
-    distanceFromSun: 227.9,
-    orbitalPeriod: 687,
-    color: '#e07040',
-    size: 10,
-    orbitRadius: 160,
-    description: 'Il pianeta rosso, obiettivo di esplorazione umana.',
-    animationDuration: 15,
-  },
-  {
-    name: 'Jupiter',
-    nameIt: 'Giove',
-    diameter: 142984,
-    distanceFromSun: 778.6,
-    orbitalPeriod: 4333,
-    color: '#c8a060',
-    size: 28,
-    orbitRadius: 210,
-    description: 'Il pianeta più grande del sistema solare.',
-    animationDuration: 25,
-  },
-  {
-    name: 'Saturn',
-    nameIt: 'Saturno',
-    diameter: 120536,
-    distanceFromSun: 1433.5,
-    orbitalPeriod: 10759,
-    color: '#e8d088',
-    size: 24,
-    orbitRadius: 270,
-    description: 'Famoso per i suoi magnifici anelli.',
-    animationDuration: 35,
-  },
-  {
-    name: 'Uranus',
-    nameIt: 'Urano',
-    diameter: 51118,
-    distanceFromSun: 2872.5,
-    orbitalPeriod: 30687,
-    color: '#7de8e8',
-    size: 18,
-    orbitRadius: 330,
-    description: 'Un gigante di ghiaccio che ruota su un fianco.',
-    animationDuration: 50,
-  },
-  {
-    name: 'Neptune',
-    nameIt: 'Nettuno',
-    diameter: 49528,
-    distanceFromSun: 4495.1,
-    orbitalPeriod: 60190,
-    color: '#4060e0',
-    size: 17,
-    orbitRadius: 380,
-    description: 'Il pianeta più lontano dal Sole.',
-    animationDuration: 70,
-  },
-];
-
-function App() {
+export default function App() {
   const [isPlaying, setIsPlaying] = useState(true);
   const [speed, setSpeed] = useState(1);
   const [selectedPlanet, setSelectedPlanet] = useState<PlanetData | null>(null);
+  const [showLabels, setShowLabels] = useState(true);
+  const scale = useSystemScale();
 
-  const speedOptions = [0.25, 0.5, 1, 2, 5, 10];
+  // Scorciatoie da tastiera
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const idx = SPEED_OPTIONS.indexOf(speed);
+      switch (e.key) {
+        case ' ':
+          e.preventDefault();
+          setIsPlaying((p) => !p);
+          break;
+        case 'ArrowRight':
+          setSpeed(SPEED_OPTIONS[Math.min(idx + 1, SPEED_OPTIONS.length - 1)]);
+          break;
+        case 'ArrowLeft':
+          setSpeed(SPEED_OPTIONS[Math.max(idx - 1, 0)]);
+          break;
+        case 'Escape':
+          setSelectedPlanet(null);
+          break;
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [speed]);
 
   return (
-    <div style={{
-      width: '100%',
-      height: '100vh',
-      background: '#0a0a1a',
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      color: 'white'
-    }}>
+    <div className="relative flex h-screen w-screen flex-col overflow-hidden text-white">
+      <Starfield />
+
       {/* Header */}
-      <header style={{
-        flexShrink: 0,
-        padding: '12px 16px',
-        background: 'linear-gradient(to right, #0d1b3e, #1a0a3e)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-        textAlign: 'center'
-      }}>
-        <h1 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '4px' }}>
-          🌌 Sistema Solare Interattivo
+      <header className="relative z-10 flex shrink-0 items-center justify-between gap-4 border-b border-white/10 bg-gradient-to-r from-[#0d1b3e]/90 to-[#1a0a3e]/90 px-4 py-3 backdrop-blur-md">
+        <h1 className="text-lg font-bold tracking-wide md:text-xl">
+          <span aria-hidden>🌌</span> Sistema Solare Interattivo
         </h1>
-        <p style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.75rem' }}>
-          Clicca su un pianeta per scoprire le sue informazioni
-        </p>
+        <button
+          onClick={() => setShowLabels((v) => !v)}
+          aria-pressed={showLabels}
+          className={`chip hidden sm:block ${showLabels ? 'active' : ''}`}
+        >
+          Etichette
+        </button>
       </header>
 
-      {/* Main content */}
-      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        {/* Solar system visualization */}
-        <div style={{
-          flex: 1,
-          position: 'relative',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: '#0a0a1a'
-        }}>
-          <div style={{
-            position: 'relative',
-            width: '800px',
-            height: '800px',
-            transform: 'scale(0.7)'
-          }}>
-            {/* Sun */}
-            <div style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: '50px',
-              height: '50px',
-              borderRadius: '50%',
-              background: 'radial-gradient(circle at 30% 30%, #fff7a0, #ffdd44 30%, #ff9900 70%, #ff6600)',
-              boxShadow: '0 0 60px rgba(255, 200, 50, 0.5)',
-              zIndex: 10
-            }}></div>
+      {/* Contenuto principale */}
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col-reverse lg:flex-row">
+        {/* Visualizzazione */}
+        <main
+          className="relative flex min-h-0 flex-1 items-center justify-center"
+          aria-label="Simulazione del sistema solare"
+        >
+          <div
+            className="relative shrink-0"
+            style={{ width: STAGE, height: STAGE, transform: `scale(${scale})` }}
+          >
+            {/* Sole */}
+            <div className="sun" role="img" aria-label="Sole">
+              <div className="sun-corona" />
+            </div>
 
-            {/* Orbits and planets */}
-            {planets.map((planet) => (
-              <div key={planet.name} style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)'
-              }}>
-                {/* Orbit */}
-                <div style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  width: `${planet.orbitRadius * 2}px`,
-                  height: `${planet.orbitRadius * 2}px`,
-                  borderRadius: '50%',
-                  border: '1px solid rgba(255, 255, 255, 0.1)'
-                }}></div>
-
-                {/* Planet wrapper for animation */}
-                <div style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  width: `${planet.orbitRadius * 2}px`,
-                  height: `${planet.orbitRadius * 2}px`,
-                  borderRadius: '50%',
-                  animation: isPlaying ? `orbit ${planet.animationDuration / speed}s linear infinite` : 'none'
-                }}>
-                  {/* Planet */}
+            {/* Orbite e pianeti */}
+            {planets.map((planet) => {
+              const isSelected = selectedPlanet?.name === planet.name;
+              const duration = planet.animationDuration / speed;
+              const startAngle = START_ANGLES[planet.name] ?? 0;
+              return (
+                <div
+                  key={planet.name}
+                  className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                  style={{ width: planet.orbitRadius * 2, height: planet.orbitRadius * 2 }}
+                >
+                  {/* Traccia orbita */}
                   <div
-                    onClick={() => setSelectedPlanet(planet)}
+                    className={`orbit-ring absolute inset-0 rounded-full ${isSelected ? 'selected' : ''}`}
+                  />
+
+                  {/* Wrapper animato */}
+                  <div
+                    className="absolute inset-0 rounded-full"
                     style={{
-                      position: 'absolute',
-                      width: `${planet.size}px`,
-                      height: `${planet.size}px`,
-                      borderRadius: '50%',
-                      backgroundColor: planet.color,
-                      boxShadow: `0 0 ${planet.size}px ${planet.color}66`,
-                      top: `-${planet.size / 2}px`,
-                      left: `${planet.orbitRadius - planet.size / 2}px`,
-                      cursor: 'pointer',
-                      zIndex: 5,
-                      border: selectedPlanet?.name === planet.name ? '2px solid white' : 'none'
+                      animation: isPlaying ? `orbit ${duration}s linear infinite` : 'none',
+                      rotate: `${startAngle}deg`,
                     }}
                   >
-                    <span style={{
-                      position: 'absolute',
-                      top: '100%',
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      marginTop: '4px',
-                      fontSize: '10px',
-                      color: 'rgba(255, 255, 255, 0.7)',
-                      whiteSpace: 'nowrap',
-                      animation: isPlaying ? `counter-rotate ${planet.animationDuration / speed}s linear infinite` : 'none'
-                    }}>
-                      {planet.nameIt}
-                    </span>
-                    {planet.name === 'Saturn' && (
-                      <div style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%) rotate(-20deg)',
-                        width: '180%',
-                        height: '50%',
-                        border: '2px solid rgba(232, 208, 136, 0.5)',
-                        borderRadius: '50%',
-                        pointerEvents: 'none'
-                      }}></div>
-                    )}
+                    {/* Pianeta (contro-rotazione per mantenere l'etichetta leggibile) */}
+                    <div
+                      className="planet absolute rounded-full focus-visible:outline-none"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Seleziona ${planet.nameIt}`}
+                      onClick={() => setSelectedPlanet(planet)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSelectedPlanet(planet);
+                        }
+                      }}
+                      style={{
+                        width: planet.size,
+                        height: planet.size,
+                        background: planet.gradient,
+                        boxShadow: `0 0 ${planet.size}px ${planet.color}66${
+                          isSelected ? ', 0 0 0 2px rgba(255,255,255,0.9)' : ''
+                        }`,
+                        top: -planet.size / 2,
+                        left: planet.orbitRadius - planet.size / 2,
+                        animation: isPlaying ? `counter-orbit ${duration}s linear infinite` : 'none',
+                      }}
+                    >
+                      {planet.name === 'Saturn' && <div className="saturn-ring" />}
+                      {showLabels && <span className="planet-label">{planet.nameIt}</span>}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          {/* Planet info panel */}
+          {/* Pannello informazioni */}
           {selectedPlanet && (
-            <div style={{
-              position: 'absolute',
-              top: '16px',
-              right: '16px',
-              background: 'rgba(26, 26, 62, 0.95)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              borderRadius: '12px',
-              padding: '20px',
-              width: '280px',
-              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5)',
-              zIndex: 100
-            }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '12px'
-              }}>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>{selectedPlanet.nameIt}</h2>
-                <button
-                  onClick={() => setSelectedPlanet(null)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'rgba(255, 255, 255, 0.5)',
-                    fontSize: '1.1rem',
-                    cursor: 'pointer',
-                    padding: '4px 8px',
-                    borderRadius: '4px'
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
-              <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '50%',
-                margin: '16px auto',
-                backgroundColor: selectedPlanet.color,
-                boxShadow: `0 0 20px ${selectedPlanet.color}44`
-              }}></div>
-              <p style={{
-                color: 'rgba(255, 255, 255, 0.7)',
-                fontSize: '0.875rem',
-                fontStyle: 'italic',
-                marginBottom: '16px',
-                lineHeight: 1.4
-              }}>
-                {selectedPlanet.description}
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '6px 0',
-                  borderBottom: '1px solid rgba(255, 255, 255, 0.05)'
-                }}>
-                  <span style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.75rem' }}>Diametro</span>
-                  <span style={{ color: 'white', fontSize: '0.875rem', fontWeight: 500 }}>
-                    {selectedPlanet.diameter.toLocaleString()} km
-                  </span>
-                </div>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '6px 0',
-                  borderBottom: '1px solid rgba(255, 255, 255, 0.05)'
-                }}>
-                  <span style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.75rem' }}>Distanza dal Sole</span>
-                  <span style={{ color: 'white', fontSize: '0.875rem', fontWeight: 500 }}>
-                    {selectedPlanet.distanceFromSun.toLocaleString()} mln km
-                  </span>
-                </div>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '6px 0',
-                  borderBottom: '1px solid rgba(255, 255, 255, 0.05)'
-                }}>
-                  <span style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.75rem' }}>Periodo orbitale</span>
-                  <span style={{ color: 'white', fontSize: '0.875rem', fontWeight: 500 }}>
-                    {selectedPlanet.orbitalPeriod < 365
-                      ? `${selectedPlanet.orbitalPeriod} giorni`
-                      : `${(selectedPlanet.orbitalPeriod / 365.25).toFixed(1)} anni (${selectedPlanet.orbitalPeriod.toLocaleString()} giorni)`}
-                  </span>
-                </div>
-              </div>
-            </div>
+            <PlanetInfoPanel planet={selectedPlanet} onClose={() => setSelectedPlanet(null)} />
           )}
-        </div>
+        </main>
 
-        {/* Controls sidebar */}
-        <div style={{
-          flexShrink: 0,
-          width: '256px',
-          background: 'rgba(13, 13, 42, 0.9)',
-          borderLeft: '1px solid rgba(255, 255, 255, 0.1)',
-          padding: '16px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
-          overflowY: 'auto'
-        }}>
-          <h3 style={{
-            color: 'white',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em'
-          }}>
-            Controlli
-          </h3>
-
-          {/* Play/Pause */}
-          <button
-            onClick={() => setIsPlaying(!isPlaying)}
-            style={{
-              width: '100%',
-              padding: '10px 16px',
-              borderRadius: '8px',
-              fontWeight: 500,
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              border: '1px solid',
-              background: isPlaying ? 'rgba(245, 158, 11, 0.2)' : 'rgba(34, 197, 94, 0.2)',
-              color: isPlaying ? '#fcd34d' : '#86efac',
-              borderColor: isPlaying ? 'rgba(245, 158, 11, 0.4)' : 'rgba(34, 197, 94, 0.4)'
-            }}
-          >
-            {isPlaying ? '⏸ Pausa' : '▶ Riproduci'}
-          </button>
-
-          {/* Speed control */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{
-              color: 'rgba(255, 255, 255, 0.7)',
-              fontSize: '0.75rem',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em'
-            }}>
-              Velocità: {speed}x
-            </label>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: '6px'
-            }}>
-              {speedOptions.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSpeed(s)}
-                  style={{
-                    padding: '6px 8px',
-                    borderRadius: '6px',
-                    fontSize: '0.75rem',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    background: speed === s ? 'rgba(168, 85, 247, 0.4)' : 'rgba(255, 255, 255, 0.05)',
-                    color: speed === s ? '#e9d5ff' : 'rgba(255, 255, 255, 0.6)',
-                    border: `1px solid ${speed === s ? 'rgba(168, 85, 247, 0.5)' : 'rgba(255, 255, 255, 0.1)'}`
-                  }}
-                >
-                  {s}x
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Planet list */}
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            <h4 style={{
-              color: 'rgba(255, 255, 255, 0.7)',
-              fontSize: '0.75rem',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              marginBottom: '8px'
-            }}>
-              Pianeti
-            </h4>
-            {planets.map((planet) => (
-              <button
-                key={planet.name}
-                onClick={() => setSelectedPlanet(planet)}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 12px',
-                  borderRadius: '8px',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  background: selectedPlanet?.name === planet.name ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
-                  border: selectedPlanet?.name === planet.name ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid transparent',
-                  color: 'rgba(255, 255, 255, 0.8)',
-                  fontSize: '0.875rem',
-                  marginBottom: '4px'
-                }}
-              >
-                <div style={{
-                  width: '16px',
-                  height: '16px',
-                  borderRadius: '50%',
-                  flexShrink: 0,
-                  backgroundColor: planet.color
-                }}></div>
-                <span>{planet.nameIt}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Legend */}
-          <div style={{
-            borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-            paddingTop: '12px'
-          }}>
-            <p style={{
-              color: 'rgba(255, 255, 255, 0.4)',
-              fontSize: '0.75rem',
-              textAlign: 'center',
-              lineHeight: 1.4
-            }}>
-              Le orbite non sono in scala. Dimensioni e distanze sono rappresentate schematicamente.
-            </p>
-          </div>
-        </div>
+        {/* Sidebar controlli */}
+        <ControlsSidebar
+          isPlaying={isPlaying}
+          onTogglePlay={() => setIsPlaying((p) => !p)}
+          speed={speed}
+          onSpeedChange={setSpeed}
+          speedOptions={SPEED_OPTIONS}
+          planets={planets}
+          selectedName={selectedPlanet?.name ?? null}
+          onSelectPlanet={setSelectedPlanet}
+        />
       </div>
-
-      {/* CSS Animations */}
-      <style>{`
-        @keyframes orbit {
-          from { transform: translate(-50%, -50%) rotate(0deg); }
-          to { transform: translate(-50%, -50%) rotate(360deg); }
-        }
-        @keyframes counter-rotate {
-          from { transform: translateX(-50%) rotate(0deg); }
-          to { transform: translateX(-50%) rotate(-360deg); }
-        }
-      `}</style>
     </div>
   );
 }
-
-export default App;
