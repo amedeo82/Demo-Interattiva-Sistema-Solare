@@ -1,35 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { planets, type PlanetData } from './data/planets';
 import Starfield from './components/Starfield';
 import PlanetInfoPanel from './components/PlanetInfoPanel';
 import ControlsSidebar from './components/ControlsSidebar';
+import { useOrbitEngine } from './hooks/useOrbitEngine';
+import { computeSystemScale } from './utils/format';
 
 const SPEED_OPTIONS = [0.25, 0.5, 1, 2, 5, 10];
 const STAGE = 800; // lato del "palco" quadrato del sistema solare (px)
 
-/** Fissa l'angolo iniziale di ogni pianeta: orbitRadius e periodo sono
- *  correlati (3ª legge di Keplero), quindi tutti partirebbero allineati in
- *  cima. Un offset sfalsato rende la scena più naturale. */
-const START_ANGLES: Record<string, number> = {
-  Mercury: 40,
-  Venus: 160,
-  Earth: 300,
-  Mars: 95,
-  Jupiter: 220,
-  Saturn: 15,
-  Uranus: 135,
-  Neptune: 260,
-};
-
 function useSystemScale() {
   const [scale, setScale] = useState(0.7);
   useEffect(() => {
-    const update = () => {
-      const availW = window.innerWidth - (window.innerWidth >= 1024 ? 272 : 32);
-      const availH = window.innerHeight - 110;
-      const s = Math.min(availW / STAGE, availH / STAGE, 1);
-      setScale(Math.max(s, 0.3));
-    };
+    const update = () => setScale(computeSystemScale(window.innerWidth, window.innerHeight, STAGE));
     update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
@@ -43,6 +26,8 @@ export default function App() {
   const [selectedPlanet, setSelectedPlanet] = useState<PlanetData | null>(null);
   const [showLabels, setShowLabels] = useState(true);
   const scale = useSystemScale();
+  // Motore animativo requestAnimationFrame: simulazione continua, senza scatti
+  const { angles } = useOrbitEngine(planets, isPlaying, speed);
 
   // Scorciatoie da tastiera
   useEffect(() => {
@@ -72,6 +57,7 @@ export default function App() {
   return (
     <div className="relative flex h-screen w-screen flex-col overflow-hidden text-white">
       <Starfield />
+      <div className="comet" aria-hidden="true" />
 
       {/* Header */}
       <header className="relative z-10 flex shrink-0 items-center justify-between gap-4 border-b border-white/10 bg-gradient-to-r from-[#0d1b3e]/90 to-[#1a0a3e]/90 px-4 py-3 backdrop-blur-md">
@@ -106,8 +92,11 @@ export default function App() {
             {/* Orbite e pianeti */}
             {planets.map((planet) => {
               const isSelected = selectedPlanet?.name === planet.name;
-              const duration = planet.animationDuration / speed;
-              const startAngle = START_ANGLES[planet.name] ?? 0;
+              const angle = angles[planet.name] ?? 0;
+              const rad = (angle * Math.PI) / 180;
+              // Posizione sul cerchio d'orbita (0° = in alto, senso orario)
+              const px = planet.orbitRadius + planet.orbitRadius * Math.sin(rad);
+              const py = planet.orbitRadius - planet.orbitRadius * Math.cos(rad);
               return (
                 <div
                   key={planet.name}
@@ -119,42 +108,32 @@ export default function App() {
                     className={`orbit-ring absolute inset-0 rounded-full ${isSelected ? 'selected' : ''}`}
                   />
 
-                  {/* Wrapper animato */}
+                  {/* Pianeta (posizionato dal motore rAF: niente scatti su pausa/velocità) */}
                   <div
-                    className="absolute inset-0 rounded-full"
+                    className="planet absolute rounded-full focus-visible:outline-none"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Seleziona ${planet.nameIt}`}
+                    onClick={() => setSelectedPlanet(planet)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelectedPlanet(planet);
+                      }
+                    }}
                     style={{
-                      animation: isPlaying ? `orbit ${duration}s linear infinite` : 'none',
-                      rotate: `${startAngle}deg`,
+                      width: planet.size,
+                      height: planet.size,
+                      background: planet.gradient,
+                      boxShadow: `0 0 ${planet.size}px ${planet.color}66${
+                        isSelected ? ', 0 0 0 2px rgba(255,255,255,0.9)' : ''
+                      }`,
+                      transform: `translate(${px - planet.size / 2}px, ${py - planet.size / 2}px)`,
+                      willChange: 'transform',
                     }}
                   >
-                    {/* Pianeta (contro-rotazione per mantenere l'etichetta leggibile) */}
-                    <div
-                      className="planet absolute rounded-full focus-visible:outline-none"
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`Seleziona ${planet.nameIt}`}
-                      onClick={() => setSelectedPlanet(planet)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          setSelectedPlanet(planet);
-                        }
-                      }}
-                      style={{
-                        width: planet.size,
-                        height: planet.size,
-                        background: planet.gradient,
-                        boxShadow: `0 0 ${planet.size}px ${planet.color}66${
-                          isSelected ? ', 0 0 0 2px rgba(255,255,255,0.9)' : ''
-                        }`,
-                        top: -planet.size / 2,
-                        left: planet.orbitRadius - planet.size / 2,
-                        animation: isPlaying ? `counter-orbit ${duration}s linear infinite` : 'none',
-                      }}
-                    >
-                      {planet.name === 'Saturn' && <div className="saturn-ring" />}
-                      {showLabels && <span className="planet-label">{planet.nameIt}</span>}
-                    </div>
+                    {planet.name === 'Saturn' && <div className="saturn-ring" />}
+                    {showLabels && <span className="planet-label">{planet.nameIt}</span>}
                   </div>
                 </div>
               );

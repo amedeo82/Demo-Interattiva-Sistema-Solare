@@ -1,4 +1,4 @@
-import React from 'react';
+import type { CSSProperties } from 'react';
 import type { PlanetData } from '../data/planets';
 
 interface Props {
@@ -12,7 +12,7 @@ interface Props {
   onSelectPlanet: (p: PlanetData) => void;
 }
 
-const sectionTitle: React.CSSProperties = {
+const sectionTitle: CSSProperties = {
   color: 'rgba(255,255,255,0.7)',
   fontSize: '0.72rem',
   fontWeight: 600,
