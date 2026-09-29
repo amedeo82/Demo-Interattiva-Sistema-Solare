@@ -15,12 +15,12 @@ describe('formatNumber', () => {
 });
 
 describe('formatOrbitalPeriod', () => {
-  it('sotto l\'anno mostra solo i giorni', () => {
+  it("sotto l'anno mostra solo i giorni", () => {
     expect(formatOrbitalPeriod(88)).toContain('giorni');
     expect(formatOrbitalPeriod(88)).not.toContain('anni');
   });
 
-  it('oltre l\'anno mostra anni e giorni', () => {
+  it("oltre l'anno mostra anni e giorni", () => {
     const label = formatOrbitalPeriod(4333);
     expect(label).toContain('anni');
     expect(label).toContain('giorni');
@@ -47,7 +47,7 @@ describe('computeSystemScale', () => {
     expect(computeSystemScale(200, 200, STAGE)).toBe(0.3);
   });
 
-  it('scala in base all\'altezza disponibile', () => {
+  it("scala in base all'altezza disponibile", () => {
     // 700px di altezza - 110 = 590 → 590/800 ≈ 0.7375
     expect(computeSystemScale(2000, 700, STAGE)).toBeCloseTo(590 / 800, 4);
   });
