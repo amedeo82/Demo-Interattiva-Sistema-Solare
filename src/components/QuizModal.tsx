@@ -9,9 +9,11 @@ import type { PlanetData } from '../data/planets';
 interface Props {
   planets: PlanetData[];
   onClose: () => void;
+  /** RNG iniettabile per rendere deterministico lo shuffle nei test. */
+  rnd?: () => number;
 }
 
-interface Question {
+export interface Question {
   prompt: string;
   options: string[];
   answerIndex: number;
@@ -26,8 +28,15 @@ function shuffle<T>(arr: T[], rnd: () => number): T[] {
   return a;
 }
 
-function buildQuestions(planets: PlanetData[]): Question[] {
-  const rnd = Math.random;
+/**
+ * Genera le domande del quiz a partire dal dataset.
+ * `rnd` è iniettabile (default: Math.random) così i test possono usare un RNG
+ * deterministico senza dover mockare globalmente Math.random. NB: la funzione
+ * consuma un numero fisso di chiamate a rnd (4 per ciascuna delle 3 domande
+ * "curated"): chi la richiama con lo stesso generatore deve ripartire dallo
+ * stesso stato (seed), come fa il wrapper useMemo qui sotto.
+ */
+export function buildQuestions(planets: PlanetData[], rnd: () => number = Math.random): Question[] {
   const byDiameter = [...planets].sort((x, y) => x.diameter - y.diameter);
   const biggest = byDiameter[byDiameter.length - 1];
   const smallest = byDiameter[0];
@@ -85,8 +94,8 @@ function buildQuestions(planets: PlanetData[]): Question[] {
   }));
 }
 
-export default function QuizModal({ planets, onClose }: Props) {
-  const questions = useMemo(() => buildQuestions(planets), [planets]);
+export default function QuizModal({ planets, onClose, rnd = Math.random }: Props) {
+  const questions = useMemo(() => buildQuestions(planets, rnd), [planets, rnd]);
   const [index, setIndex] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
   const [score, setScore] = useState(0);
@@ -158,6 +167,7 @@ export default function QuizModal({ planets, onClose }: Props) {
                   <button
                     key={i}
                     className={cls}
+                    data-testid="quiz-option"
                     onClick={() => pick(i)}
                     disabled={picked !== null}
                   >
