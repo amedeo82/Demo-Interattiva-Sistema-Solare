@@ -88,10 +88,15 @@ describe('anglesForDate / simTimeForDate — coerenza con il motore kepleriano',
     // È la condizione necessaria e sufficiente perché, partito da t₀,
     // ogni pianeta compia giri completi esatti e resti sincronizzato
     // con la data: 360·t₀/P_anim(p) ≡ 0 (mod 360)  ∀ p.
+    // Verifica in aritmetica intera: con le durate multiple di 0.2 s,
+    // k = t₀·5/P_anim·... è intero ESATTO (niente falsi negativi da
+    // arrotondamenti in virgola mobile sul `% 360`).
     for (const date of dates) {
       const t = simTimeForDate(earth, date, planets);
       expect(t).toBeGreaterThanOrEqual(0);
       for (const p of planets) {
+        const turns = t / p.animationDuration;
+        expect(Math.abs(turns - Math.round(turns))).toBeLessThan(1e-9);
         expect(((360 / p.animationDuration) * t) % 360).toBeCloseTo(0, 6);
       }
     }
@@ -107,9 +112,11 @@ describe('anglesForDate / simTimeForDate — coerenza con il motore kepleriano',
     // periodicità sopra non possono passare.
     expect(maxScaleMismatch(planets, earth)).toBeLessThan(0.05);
     // Il PPCM dei periodi animativi (epoca di partenza del motore) deve
-    // restare piccolo: durate intere commensurabili → sincronismo esatto.
+    // restare piccolo: durate multiple di 0.2 s e commensurabili → il PPCM
+    // scalato L = 5·t₀ è intero e t₀ resta ben sotto i 100 s di simulazione.
     const t0 = simTimeForDate(earth, new Date(J2000_MS), planets);
-    expect(t0).toBeLessThan(1e4);
+    expect(t0).toBeLessThan(100);
+    expect((t0 * 5) % 1).toBe(0); // multiplo esatto di 0.2 s
   });
 
   it('offset e tempo sono puri: stesse date → stessi valori', () => {

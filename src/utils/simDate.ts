@@ -72,13 +72,20 @@ function gcd(a: number, b: number): number {
   return a;
 }
 
-/** PPCM esatto di una lista di durate animative (arrotondate a interi > 0). */
-function lcmAll(durations: number[]): number {
-  return durations.reduce((acc, d) => {
-    const p = Math.round(Math.abs(d));
-    if (!(p > 0)) return acc;
-    return (acc / gcd(acc, p)) * p;
-  }, 1);
+/**
+ * PPCM ESATTO (in virgola mobile, valori ben sotto 2^53) di una lista di
+ * numeri ≥ 0. Le durate animative del dataset sono multiple di 0.2 s:
+ * moltiplicate per 5 diventano interi, il PPCM intero L si calcola con
+ * aritmetica esatta MCD/PPCM e il risultato è t₀ = L/5 — niente arrotondamenti
+ * (con i decimali binari tipo 2.4, un lcm "continuo" accumulava errori che
+ * facevano fallire la condizione di giri interi).
+ */
+function lcmExact(durations: number[]): number {
+  const ints = durations.map((d) => Math.round(Math.abs(d) * 5));
+  if (ints.some((v) => !(v > 0))) return 0;
+  let l = 1;
+  for (const v of ints) l = (l / gcd(l, v)) * v;
+  return l / 5;
 }
 
 /**
@@ -115,7 +122,7 @@ export function simTimeForDate(earth: PlanetData, date: Date, allPlanets?: Plane
   // per ogni pianeta (vedi header). Con la lista completa: PPCM dei periodi
   // animativi → sincrono per TUTTI, a qualsiasi epoca.
   if (allPlanets && allPlanets.length > 0) {
-    return lcmAll(allPlanets.map((p) => p.animationDuration));
+    return lcmExact(allPlanets.map((p) => p.animationDuration));
   }
   // Fallback senza lista: il più piccolo t > 0 coerente per il solo pianeta
   // di riferimento è un suo giro completo: t₀ = P_anim(Terra).

@@ -41,8 +41,9 @@ export interface PlanetData {
    * proporzionale a `orbitalPeriod` con lo STESSO taro per tutti i pianeti
    * (Terra = CONFIG.earthYearSimSeconds secondi ↔ 365 giorni), così la
    * longitudine media mostrata avanza esattamente come il calendario reale.
-   * Valori interi e commensurabili (PPCM = 2100 s) perché il PPCM dei
-   * periodi animativi, usato da `simTimeForDate`, resti piccolo.
+   * Le durate sono multiple di 0.2 s (interi ÷ 5): moltiplicandole per 5 si
+   * ottengono interi commensurabili → il PPCM scalato, usato da
+   * `simTimeForDate`, è calcolabile ESATTAMENTE con aritmetica intera.
    */
   animationDuration: number;
   /** Inclinazione assiale in gradi (per rotazione e anelli realistici). */
@@ -71,7 +72,7 @@ export const planets: PlanetData[] = [
     size: 10,
     orbitRadius: 62,
     description: 'Il pianeta più piccolo e più vicino al Sole.',
-    animationDuration: 5,
+    animationDuration: 2.4, // 88 giorni ÷ 36.5 g/s (taro terrestre)
     axialTilt: 0.03,
     rotationHours: 1407.6,
     eccentricity: 0.2056,
@@ -102,7 +103,7 @@ export const planets: PlanetData[] = [
     size: 14,
     orbitRadius: 94,
     description: 'Il pianeta più caldo del sistema solare.',
-    animationDuration: 6,
+    animationDuration: 6.2, // ≈ 224.7 giorni ÷ 36.5 g/s (taro terrestre)
     axialTilt: 177.4,
     rotationHours: -5832.5,
     eccentricity: 0.0068,
@@ -133,7 +134,7 @@ export const planets: PlanetData[] = [
     size: 15,
     orbitRadius: 130,
     description: "Il nostro pianeta, l'unico con vita conosciuta.",
-    animationDuration: 10,
+    animationDuration: 10, // il "taro": CONFIG.earthYearSimSeconds ↔ 365 giorni
     axialTilt: 23.44,
     rotationHours: 23.93,
     eccentricity: 0.0167,
@@ -200,7 +201,7 @@ export const planets: PlanetData[] = [
     size: 30,
     orbitRadius: 216,
     description: 'Il pianeta più grande del sistema solare.',
-    animationDuration: 119,
+    animationDuration: 119, // 4333 giorni ÷ 36.5 g/s (taro terrestre)
     axialTilt: 3.13,
     rotationHours: 9.93,
     eccentricity: 0.0489,
@@ -236,7 +237,7 @@ export const planets: PlanetData[] = [
     size: 26,
     orbitRadius: 276,
     description: 'Famoso per i suoi magnifici anelli.',
-    animationDuration: 295,
+    animationDuration: 295, // 10759 giorni ÷ 36.5 g/s (taro terrestre)
     axialTilt: 26.73,
     rotationHours: 10.66,
     eccentricity: 0.0565,
@@ -270,7 +271,7 @@ export const planets: PlanetData[] = [
     size: 20,
     orbitRadius: 334,
     description: 'Un gigante di ghiaccio che ruota su un fianco.',
-    animationDuration: 840,
+    animationDuration: 840, // 30687 giorni ÷ 36.5 g/s (taro terrestre)
     axialTilt: 97.77,
     rotationHours: -17.24,
     eccentricity: 0.0457,
@@ -301,7 +302,7 @@ export const planets: PlanetData[] = [
     size: 19,
     orbitRadius: 388,
     description: 'Il pianeta più lontano dal Sole.',
-    animationDuration: 1648,
+    animationDuration: 1648, // 60190 giorni ÷ 36.5 g/s (taro terrestre)
     axialTilt: 28.32,
     rotationHours: 16.11,
     eccentricity: 0.0113,
