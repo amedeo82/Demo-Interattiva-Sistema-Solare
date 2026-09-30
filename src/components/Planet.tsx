@@ -24,7 +24,9 @@ export interface PlanetProps {
   realistic: boolean;
   onSelect: (p: PlanetData) => void;
   /** Abbonamento al flusso di frame del motore orbitale (vedi useOrbitEngine). */
-  subscribeFrames: (l: (positions: Record<string, SimPlanetState>, t: number) => void) => () => void;
+  subscribeFrames: (
+    l: (positions: Record<string, SimPlanetState>, t: number) => void
+  ) => () => void;
 }
 
 /** Posizione cartesiana sul palco a partire da angolo/raggio polari. */
@@ -33,7 +35,14 @@ function polarToXY(angleDeg: number, radius: number) {
   return { x: radius * Math.sin(rad), y: -radius * Math.cos(rad) };
 }
 
-function Planet({ planet, isSelected, showLabel, realistic, onSelect, subscribeFrames }: PlanetProps) {
+function Planet({
+  planet,
+  isSelected,
+  showLabel,
+  realistic,
+  onSelect,
+  subscribeFrames,
+}: PlanetProps) {
   const texture = usePlanetTexture(planet.name, planet.color);
   const rootRef = useRef<HTMLDivElement>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -127,7 +136,11 @@ function Planet({ planet, isSelected, showLabel, realistic, onSelect, subscribeF
       }}
     >
       {/* Disco con texture o gradiente base */}
-      <div ref={surfaceRef} className="planet-surface absolute inset-0 overflow-hidden rounded-full" style={layerStyle} />
+      <div
+        ref={surfaceRef}
+        className="planet-surface absolute inset-0 overflow-hidden rounded-full"
+        style={layerStyle}
+      />
 
       {/* Atmosfera (alone luminoso per i pianeti dotati di atmosfera densa) */}
       {['Venus', 'Earth', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'].includes(planet.name) && (

@@ -120,10 +120,7 @@ export function useOrbitEngine(
   const starts = initialAngles ?? START_ANGLES;
 
   const computeInto = useMemo(() => {
-    return (
-      t: number,
-      out: Record<string, SimPlanetState>
-    ): Record<string, SimPlanetState> => {
+    return (t: number, out: Record<string, SimPlanetState>): Record<string, SimPlanetState> => {
       for (const p of planets) {
         const pos = keplerPosition(p, t, starts[p.name] ?? 0);
         if (out[p.name]) {

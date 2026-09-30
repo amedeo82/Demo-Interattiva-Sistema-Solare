@@ -123,7 +123,6 @@ describe('Planet — interazioni', () => {
     expect(event.defaultPrevented).toBe(true);
     expect(onSelect).toHaveBeenCalledTimes(1);
   });
-
 });
 
 describe('Planet — memoizzazione (rev. 2)', () => {
@@ -133,9 +132,7 @@ describe('Planet — memoizzazione (rev. 2)', () => {
     openHarness(fullProps());
     emitFrame(45, 130, 1.2);
     expect(textureSpy).toHaveBeenCalledTimes(1);
-    const transform = screen
-      .getByRole('button', { name: 'Seleziona Terra' })
-      .style.transform;
+    const transform = screen.getByRole('button', { name: 'Seleziona Terra' }).style.transform;
     expect(transform).toContain('translate(');
     expect(transform).not.toBe('');
   });
@@ -154,7 +151,7 @@ describe('Planet — memoizzazione (rev. 2)', () => {
     expect(textureSpy).toHaveBeenCalledTimes(2);
   });
 
-  it('il click arriva all\'ultima callback anche con onSelect instabile', () => {
+  it("il click arriva all'ultima callback anche con onSelect instabile", () => {
     // Scenario reale: App passa setSelectedPlanet (identità stabile), ma un
     // wrapper inline potrebbe cambiarla tra i render. Il trucco "latest ref"
     // (ref mutato in render, pattern React ufficiale) fa sì che il click
