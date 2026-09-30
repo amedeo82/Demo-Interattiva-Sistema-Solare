@@ -5,10 +5,15 @@
  * scalate sulla simulazione), inclinazioni casuali e velocità angolari
  * secondo la 3ª legge di Keplero (periodo ∝ a^1.5). La generazione è
  * deterministica (PRNG con seed) così ogni render è stabile.
+ *
+ * Ottimizzazione 60fps: i nodi SVG sono creati UNA volta dal JSX; a ogni
+ * frame il motore scrive gli attributi cx/cy direttamente sui elementi
+ * (batch in un singolo loop), evitando il re-render React di ~350 figli.
  */
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { mulberry32 } from '../utils/random';
 import { EARTH_DEG_PER_SIM_SEC } from '../config';
+import type { SimPlanetState } from '../hooks/useOrbitEngine';
 
 export interface Asteroid {
   angle: number; // gradi iniziali
@@ -39,14 +44,36 @@ export function generateAsteroids(count = 350, seed = 42): Asteroid[] {
 }
 
 interface Props {
-  /** Tempo simulato accumulato (secondi a 1x). */
-  simTime: number;
+  /** Abbonamento al flusso di frame del motore orbitale. */
+  subscribeFrames: (
+    l: (positions: Record<string, SimPlanetState>, t: number) => void
+  ) => () => void;
 }
 
-export default function AsteroidBelt({ simTime }: Props) {
+/** Velocità angolare terrestre condivisa (CONFIG: 360° / 10s di simulazione a 1x) */
+const earthDegPerSec = EARTH_DEG_PER_SIM_SEC;
+
+export default function AsteroidBelt({ subscribeFrames }: Props) {
   const asteroids = useMemo(() => generateAsteroids(), []);
-  // Velocità angolare terrestre condivisa (CONFIG: 360° / 10s di simulazione a 1x)
-  const earthDegPerSec = EARTH_DEG_PER_SIM_SEC;
+  const nodesRef = useRef<(SVGCircleElement | null)[]>([]);
+
+  useEffect(
+    () =>
+      subscribeFrames((_positions, simTime) => {
+        // Pre-computiamo il termine temporale comune fuori dal loop.
+        const base = earthDegPerSec * simTime;
+        for (let i = 0; i < asteroids.length; i++) {
+          const el = nodesRef.current[i];
+          if (!el) continue;
+          const ast = asteroids[i];
+          const rad = ((ast.angle + base * ast.speed) * Math.PI) / 180;
+          el.setAttribute('cx', String(ast.radius * Math.sin(rad)));
+          el.setAttribute('cy', String(-ast.radius * Math.cos(rad)));
+        }
+      }),
+    [subscribeFrames, asteroids]
+  );
+
   return (
     <svg
       className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
@@ -55,13 +82,19 @@ export default function AsteroidBelt({ simTime }: Props) {
       viewBox="-260 -260 520 520"
       aria-hidden="true"
     >
-      {asteroids.map((ast, i) => {
-        const deg = ast.angle + earthDegPerSec * ast.speed * simTime;
-        const rad = (deg * Math.PI) / 180;
-        const x = ast.radius * Math.sin(rad);
-        const y = -ast.radius * Math.cos(rad);
-        return <circle key={i} cx={x} cy={y} r={ast.size} fill="#b9a58c" opacity={ast.opacity} />;
-      })}
+      {asteroids.map((ast, i) => (
+        <circle
+          key={i}
+          ref={(el) => {
+            nodesRef.current[i] = el;
+          }}
+          cx={ast.radius * Math.sin((ast.angle * Math.PI) / 180)}
+          cy={-ast.radius * Math.cos((ast.angle * Math.PI) / 180)}
+          r={ast.size}
+          fill="#b9a58c"
+          opacity={ast.opacity}
+        />
+      ))}
     </svg>
   );
 }

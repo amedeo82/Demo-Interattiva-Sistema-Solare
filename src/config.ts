@@ -24,6 +24,9 @@ export const CONFIG = {
    *  è animationDuration della Terra (10s) ed è il "taro" condiviso da
    *  data→tempo di simulazione, pannello laterale e fascia asteroidi. */
   earthYearSimSeconds: 10,
+  /** Età dei punti della scia orbitale, come frazione fissa del periodo
+   *  orbitale del pianeta (indipendente dalla velocità di simulazione). */
+  trailFractions: [0.012, 0.024, 0.038] as number[],
 };
 
 /** Velocità angolare media della Terra in gradi/secondo di simulazione a 1x. */
