@@ -11,8 +11,9 @@
  *
  * Il modello kepleriano della simulazione usa come offset iniziale l'anomalia
  * media M misurata dal perielio locale (λ - ϖ), non la longitudine assoluta:
- * `meanAnomalyAtDate` restituisce proprio M, da cui discende sia l'angolo
- * sia il tempo (t = M/360 · periodo animativo).
+ * `meanAnomalyAtDate` restituisce proprio M, da cui discende l'angolo;
+ * il tempo di partenza deriva invece dal PPCM dei periodi animativi (vedi
+ * `simTimeForDate`).
  */
 import type { PlanetData } from '../data/planets';
 import { meanAnomalyAtDate } from './kepler';
@@ -22,39 +23,32 @@ export function anglesForDate(planets: PlanetData[], date: Date): Record<string,
   return Object.fromEntries(planets.map((p) => [p.name, meanAnomalyAtDate(p, date)]));
 }
 
-/** Anomalia media di Giove alla data: "orologio" secolare del sistema solare.
- *  Giove (P = 4333 gg) è il pianeta lento con dati orbitali affidabili: la sua
- *  M individua univocamente l'anno, a differenza dell'angolo terrestre, che
- *  ripete sé stesso ogni anno. Serve come fase iniziale del tempo simulato. */
-function jupiterPhaseDeg(planets: PlanetData[], date: Date): number {
-  const jup = planets.find((p) => p.name === 'Jupiter');
-  return jup ? meanAnomalyAtDate(jup, date) : 0;
-}
-
 /**
  * Tempo simulato (secondi a 1x) corrispondente alla data scelta.
  *
- * Il motore fa compiere alla Terra un giro completo ogni
- * `animationDuration` secondi: il solo angolo terrestre non identifica
- * l'istante (ogni anno corrisponde allo stesso angolo). Usiamo quindi la
- * fase di Giove come "contatore di anni":
+ * Il motore fa avanzare TUTTI i pianeti con un unico tempo t: l'avanzamento
+ * angolare di ciascuno vale 360·t/P_anim(p). Affinché la scena mostri la
+ * configurazione reale della data, t₀ deve soddisfare
  *
- *     t₀ = (M_giove(data)/360 · P_anim·terra) + (M_terra(data)/360 · P_anim)
+ *     M_p(t₀) = M_p(data) + 360·t₀/P_anim(p) ≡ M_p(data)  (mod 360)  ∀ p
  *
- * Al tempo t₀ l'anomalia media del motore per la Terra vale
- * M₀_terra + 360·t₀/P_anim ≡ M₀_terra (mod 360): la scena mostra la
- * configurazione esatta della data, e il termine gioviano rende t₀ diverso
- * per anni diversi — così anche il calendario derivato da simTime
- * (`currentDateForSimTime`) resta sincronizzato a ogni epoca.
- *
- * Limiti noti (modello semplificato): la risoluzione temporale è legata al
- * moto di Giove (~1 giro animativo = 4333 giorni ≈ 12 anni); entro questo
- * arco le posizioni sono quelle reali della data (± equazione di Keplero).
+ * cioè 360·t₀/P_anim(p) deve essere multiplo intero di 360 per OGNI pianeta:
+ * il valore più piccolo con questa proprietà è il PPCM L di tutti i periodi
+ * animativi. A t = L le anomalie sono identiche a quelle della data per
+ * qualsiasi epoca — non solo per la Terra, come invece accadeva col vecchio
+ * "orologio di Giove" (fase gioviana · P_anim·terra), che lasciava gli altri
+ * pianeti incoerenti fino a ±180°.
  */
 export function simTimeForDate(earth: PlanetData, date: Date, allPlanets?: PlanetData[]): number {
-  const mEarth = meanAnomalyAtDate(earth, date);
-  const jPhase = allPlanets ? jupiterPhaseDeg(allPlanets, date) : 0;
-  return ((jPhase + mEarth) / 360) * earth.animationDuration;
+  const list = allPlanets ?? [earth];
+  const periods = list.map((p) => Math.round(p.animationDuration));
+  if (periods.some((d) => d <= 0)) return 0;
+  // PPCM di tutti i periodi animativi: ogni pianeta compie giri esatti in L secondi
+  return periods.reduce((a, b) => (a * b) / gcd(a, b), 1);
+}
+
+function gcd(a: number, b: number): number {
+  return b === 0 ? a : gcd(b, a % b);
 }
 
 /**
