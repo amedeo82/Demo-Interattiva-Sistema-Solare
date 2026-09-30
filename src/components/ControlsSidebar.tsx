@@ -50,9 +50,9 @@ export default function ControlsSidebar({
         </p>
       </div>
 
-      {/* Velocità */}
+      {/* Velocità: preset + slider continuo */}
       <div className="flex flex-col gap-2">
-        <label className="text-xs uppercase tracking-wider text-white/70">
+        <label className="text-xs uppercase tracking-wider text-white/70" htmlFor="speed-slider">
           Velocità: <strong className="text-white">{speed}x</strong>
         </label>
         <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Velocità simulazione">
@@ -67,6 +67,18 @@ export default function ControlsSidebar({
             </button>
           ))}
         </div>
+        <input
+          id="speed-slider"
+          type="range"
+          min={0.1}
+          max={20}
+          step={0.1}
+          value={speed}
+          onChange={(e) => onSpeedChange(Number(e.target.value))}
+          className="speed-slider"
+          aria-label="Regolazione continua della velocità di simulazione"
+          title="Trascina per una velocità personalizzata (0,1x – 20x)"
+        />
       </div>
 
       {/* Lista pianeti */}
@@ -91,7 +103,9 @@ export default function ControlsSidebar({
                 }}
               />
               <span className="flex-1 text-left">{planet.nameIt}</span>
-              <span className="text-white/30">{planet.symbol}</span>
+              <span className="text-white/30" aria-hidden="true">
+                {planet.symbol}
+              </span>
             </button>
           );
         })}
