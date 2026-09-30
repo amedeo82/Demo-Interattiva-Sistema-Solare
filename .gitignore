@@ -1,7 +1,7 @@
-# Dipendenze e artefatti
 node_modules/
 dist/
 coverage/
 .vite/
 *.log
 .DS_Store
+PR_BODY.md

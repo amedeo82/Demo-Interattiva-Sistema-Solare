@@ -67,6 +67,13 @@ interface AppProps {
   quizRnd?: () => number;
 }
 
+// Scie orbitali: aggiornate imperativamente a ogni frame. Bug storico
+// corretto: l'offset temporale dei punti era legato a `speed` (che è un
+// moltiplicatore del tempo), quindi cambiando velocità la scia cambiava
+// dimensione in modo contro-intuitivo. Ora l'età dei punti è una frazione
+// fissa del periodo orbitale, indipendente dalla velocità di simulazione.
+const TRAIL_FRACS = CONFIG.trailFractions;
+
 export default function App({ quizRnd }: AppProps = {}) {
   // Identità stabile: QuizModal rigenera le domande se cambia `rnd`, quindi il
   // generatore iniettato va memoizzato (in produzione: Math.random, sempre lo
@@ -221,12 +228,6 @@ export default function App({ quizRnd }: AppProps = {}) {
     setPan({ x: 0, y: 0 });
   };
 
-  // Scie orbitali: aggiornate imperativamente a ogni frame. Bug storico
-  // corretto: l'offset temporale dei punti era legato a `speed` (che è un
-  // moltiplicatore del tempo), quindi cambiando velocità la scia cambiava
-  // dimensione in modo contro-intuitivo. Ora l'età dei punti è una frazione
-  // fissa del periodo orbitale, indipendente dalla velocità di simulazione.
-const TRAIL_FRACS = [0.012, 0.024, 0.038]; // età punti scia, frazione fissa del periodo
   // Le scie si ricreano solo quando cambia l'insieme dei pianeti da tracciare.
   const trails = useMemo(() => {
     if (!selectedPlanet && !followMode) return [];

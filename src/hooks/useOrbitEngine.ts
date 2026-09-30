@@ -152,34 +152,40 @@ export function useOrbitEngine(
     };
   }, []);
 
-  const emit = () => {
+  const emitImpl = () => {
     for (const l of listenersRef.current) l(positionsRef.current, simTimeRef.current);
   };
+  // Latest-ref pattern: gli effetti sotto leggono sempre l'ultima chiusura,
+  // senza che l'identità della funzione entri nelle deps (stabilità garantita).
+  const emitRef = useRef(emitImpl);
+  emitRef.current = emitImpl;
 
   // Stato throttled del tempo simulato per i consumatori React.
   const [simTime, setSimTime] = useState(simTimeRef.current);
   const lastPublishRef = useRef(0);
-  const publishSimTime = (force = false) => {
+  const publishSimTimeImpl = (force = false) => {
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
     if (force || now - lastPublishRef.current >= SIM_TIME_PUBLISH_INTERVAL_MS) {
       lastPublishRef.current = now;
       setSimTime(simTimeRef.current);
     }
   };
+  const publishSimTimeRef = useRef(publishSimTimeImpl);
+  publishSimTimeRef.current = publishSimTimeImpl;
 
   // Quando cambia l'epoca di partenza (es. selezione di una data), riposiziona
   // la simulazione sul tempo corrispondente e ri-calcola subito le posizioni.
   useEffect(() => {
     simTimeRef.current = startSimTime;
     computeInto(startSimTime, positionsRef.current);
-    emit();
-    publishSimTime(true);
-  }, [startSimTime, computeInto, emit, publishSimTime]);
+    emitRef.current();
+    publishSimTimeRef.current(true);
+  }, [startSimTime, computeInto]);
 
   useEffect(() => {
     if (!isPlaying) {
       lastFrameRef.current = null;
-      publishSimTime(true);
+      publishSimTimeRef.current(true);
       return;
     }
     let rafId = 0;
@@ -189,13 +195,13 @@ export function useOrbitEngine(
       lastFrameRef.current = now;
       simTimeRef.current += dt * speedRef.current;
       computeInto(simTimeRef.current, positionsRef.current);
-      emit(); // ← nessun setState: il reconciler React non lavora a 60fps
-      publishSimTime();
+      emitRef.current(); // ← nessun setState: il reconciler React non lavora a 60fps
+      publishSimTimeRef.current();
       rafId = requestAnimationFrame(tick);
     };
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [isPlaying, computeInto, emit, publishSimTime]);
+  }, [isPlaying, computeInto]);
 
   const useSimTime = () => simTime;
 
