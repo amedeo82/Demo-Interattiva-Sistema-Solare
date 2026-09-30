@@ -16,6 +16,19 @@ function StatRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+/** Sezione espandibile del pannello (details/summary nativi accessibili). */
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <details className="group border-t border-white/10 py-2" open>
+      <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-semibold uppercase tracking-wider text-white/60 hover:text-white">
+        {title}
+        <span className="transition-transform group-open:rotate-90 text-white/40">▸</span>
+      </summary>
+      <div className="mt-2 text-sm leading-relaxed text-white/75">{children}</div>
+    </details>
+  );
+}
+
 export default function PlanetInfoPanel({ planet, onClose }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -74,6 +87,40 @@ export default function PlanetInfoPanel({ planet, onClose }: Props) {
           value={`${formatNumber(planet.distanceFromSun)} mln km`}
         />
         <StatRow label="Periodo orbitale" value={periodLabel} />
+        <StatRow label="Rotazione (giorno)" value={planet.facts.dayLength} />
+        <StatRow label="Inclinazione assiale" value={`${planet.axialTilt}°`} />
+        <StatRow label="Eccentricità orbita" value={planet.eccentricity.toFixed(4)} />
+        {planet.moons.length > 0 && (
+          <StatRow
+            label={`Satelliti mostrati (${planet.facts.moonsCount} totali)`}
+            value={planet.moons.map((m) => m.name).join(', ')}
+          />
+        )}
+      </div>
+
+      {/* Sezioni espandibili: atmosfera, missioni, curiosità */}
+      <div className="mt-3 max-h-[42vh] overflow-y-auto pr-1">
+        <Section title="Atmosfera e clima">
+          <p>{planet.facts.atmosphere}</p>
+          <p className="mt-1 text-white/60">🌡️ {planet.facts.temperature}</p>
+        </Section>
+        <Section title="Missioni spaziali">
+          <ul className="list-inside list-disc space-y-0.5">
+            {planet.facts.missions.map((m) => (
+              <li key={m}>{m}</li>
+            ))}
+          </ul>
+        </Section>
+        <Section title="Lo sapevi?">
+          <ul className="list-inside list-disc space-y-1">
+            {planet.facts.trivia.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ul>
+          <p className="mt-2 rounded-lg bg-white/5 px-2 py-1.5 text-xs text-emerald-200/90">
+            📏 {planet.facts.comparison}
+          </p>
+        </Section>
       </div>
     </aside>
   );

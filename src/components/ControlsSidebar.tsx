@@ -10,6 +10,7 @@ interface Props {
   planets: PlanetData[];
   selectedName: string | null;
   onSelectPlanet: (p: PlanetData) => void;
+  currentDate: Date;
 }
 
 const sectionTitle: CSSProperties = {
@@ -29,6 +30,7 @@ export default function ControlsSidebar({
   planets,
   selectedName,
   onSelectPlanet,
+  currentDate,
 }: Props) {
   return (
     <div className="flex w-full shrink-0 flex-col gap-4 overflow-y-auto bg-[#0d0d2a]/85 p-4 backdrop-blur-md md:w-64 lg:border-l lg:border-white/10">
@@ -50,9 +52,9 @@ export default function ControlsSidebar({
         </p>
       </div>
 
-      {/* Velocità */}
+      {/* Velocità: preset + slider continuo */}
       <div className="flex flex-col gap-2">
-        <label className="text-xs uppercase tracking-wider text-white/70">
+        <label className="text-xs uppercase tracking-wider text-white/70" htmlFor="speed-slider">
           Velocità: <strong className="text-white">{speed}x</strong>
         </label>
         <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Velocità simulazione">
@@ -67,6 +69,30 @@ export default function ControlsSidebar({
             </button>
           ))}
         </div>
+        <input
+          id="speed-slider"
+          type="range"
+          min={0.1}
+          max={20}
+          step={0.1}
+          value={speed}
+          onChange={(e) => onSpeedChange(Number(e.target.value))}
+          className="speed-slider"
+          aria-label="Regolazione continua della velocità di simulazione"
+          title="Trascina per una velocità personalizzata (0,1x – 20x)"
+        />
+      </div>
+
+      {/* Data corrente della simulazione */}
+      <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+        <p className="text-[10px] uppercase tracking-wider text-white/40">Data simulazione</p>
+        <p className="text-sm font-semibold tabular-nums text-white">
+          {currentDate.toLocaleDateString('it-IT', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })}
+        </p>
       </div>
 
       {/* Lista pianeti */}
@@ -91,7 +117,9 @@ export default function ControlsSidebar({
                 }}
               />
               <span className="flex-1 text-left">{planet.nameIt}</span>
-              <span className="text-white/30">{planet.symbol}</span>
+              <span className="text-white/30" aria-hidden="true">
+                {planet.symbol}
+              </span>
             </button>
           );
         })}
