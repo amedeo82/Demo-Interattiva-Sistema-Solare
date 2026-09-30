@@ -5,9 +5,14 @@
  * pausando), questo motore mantiene una simulazione continua con tempo
  * accumulato: pause, cambi di velocità e ri-render non causano scatti.
  *
- * Ritorna gli angoli orbitali correnti (in gradi) per ogni pianeta.
+ * Architettura (rev. 2 — ottimizzazione 60fps): il loop rAF NON chiama più
+ * `setState` a ogni frame. Le posizioni sono mutate in un buffer condiviso e
+ * propagate agli abbonati (componenti che scrivono direttamente nel DOM via
+ * ref imperativi) senza passare dal reconciler React. I consumatori React
+ * "lenti" (es. la data nella sidebar) usano `useSimTime`, che pubblica il
+ * tempo simulato con throttling (~4 Hz) per limitare i re-render.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PlanetData } from '../data/planets';
 import {
   normalizeDeg,
@@ -72,6 +77,12 @@ export function keplerPosition(
   return { angle, radius };
 }
 
+/** Callback invocata a ogni frame dal motore, con buffer e tempo correnti. */
+export type FrameListener = (positions: Record<string, SimPlanetState>, t: number) => void;
+
+/** Intervallo minimo (ms) fra due pubblicazioni React del tempo simulato. */
+const SIM_TIME_PUBLISH_INTERVAL_MS = 250;
+
 /**
  * Motore di animazione basato su requestAnimationFrame.
  *
@@ -82,6 +93,16 @@ export function keplerPosition(
  * Si possono sovrascrivere gli angoli iniziali (es. per una data storica)
  * tramite `initialAngles`: al variare di quest'ultimo la simulazione
  * riparte dagli offset forniti senza perdere il loop rAF.
+ *
+ * Ritorna:
+ * - `subscribeFrames(listener)`: abbonamento a bassissima latenza, invocato
+ *   a ogni frame con lo stesso oggetto-buffer (mutato in place). I componenti
+ *   che lo usano devono scrivere direttamente nel DOM (ref imperativi), NON
+ *   chiamare setState. Restituisce la funzione di unsubscribe.
+ * - `useSimTime()`: hook per consumatori React che hanno bisogno del tempo
+ *   simulato come stato; aggiornato al massimo ~4 volte al secondo (il valore
+ *   è sempre quello corrente al momento della pubblicazione).
+ * - `simTimeRef` / `positionsRef`: accesso sincrono (per handler, es. scie).
  */
 export function useOrbitEngine(
   planets: PlanetData[],
@@ -98,37 +119,68 @@ export function useOrbitEngine(
 
   const starts = initialAngles ?? START_ANGLES;
 
-  const computeAll = useMemo(() => {
-    return (t: number): Record<string, SimPlanetState> => {
-      const next: Record<string, SimPlanetState> = {};
+  const computeInto = useMemo(() => {
+    return (
+      t: number,
+      out: Record<string, SimPlanetState>
+    ): Record<string, SimPlanetState> => {
       for (const p of planets) {
-        next[p.name] = keplerPosition(p, t, starts[p.name] ?? 0);
+        const pos = keplerPosition(p, t, starts[p.name] ?? 0);
+        if (out[p.name]) {
+          // muta in place: gli abbonati leggono il buffer per riferimento
+          out[p.name].angle = pos.angle;
+          out[p.name].radius = pos.radius;
+        } else {
+          out[p.name] = pos;
+        }
       }
-      return next;
+      return out;
     };
   }, [planets, starts]);
 
-  const [state, setState] = useState<SimulationState>(() => ({
-    positions: computeAll(simTimeRef.current),
-    simTime: simTimeRef.current,
-  }));
+  // Buffer stabile delle posizioni: mai sostituito, solo mutato.
+  const positionsRef = useRef<Record<string, SimPlanetState>>({});
+  computeInto(simTimeRef.current, positionsRef.current);
 
-  // Keep refs of current planets for stable loop
-  const planetsRef = useRef(planets);
-  planetsRef.current = planets;
-  const computeRef = useRef(computeAll);
-  computeRef.current = computeAll;
+  const listenersRef = useRef(new Set<FrameListener>());
+  const subscribeFrames = useCallback((listener: FrameListener) => {
+    listenersRef.current.add(listener);
+    // Subito allineato allo stato corrente (pausa, prima selezione, ecc.)
+    listener(positionsRef.current, simTimeRef.current);
+    return () => {
+      listenersRef.current.delete(listener);
+    };
+  }, []);
+
+  const emit = () => {
+    for (const l of listenersRef.current) l(positionsRef.current, simTimeRef.current);
+  };
+
+  // Stato throttled del tempo simulato per i consumatori React.
+  const [simTime, setSimTime] = useState(simTimeRef.current);
+  const lastPublishRef = useRef(0);
+  const publishSimTime = (force = false) => {
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (force || now - lastPublishRef.current >= SIM_TIME_PUBLISH_INTERVAL_MS) {
+      lastPublishRef.current = now;
+      setSimTime(simTimeRef.current);
+    }
+  };
 
   // Quando cambia l'epoca di partenza (es. selezione di una data), riposiziona
   // la simulazione sul tempo corrispondente e ri-calcola subito le posizioni.
   useEffect(() => {
     simTimeRef.current = startSimTime;
-    setState({ positions: computeRef.current(startSimTime), simTime: startSimTime });
-  }, [startSimTime, computeAll]);
+    computeInto(startSimTime, positionsRef.current);
+    emit();
+    publishSimTime(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- emit/publish sono ref-stable wrappers; computeInto coperto da deps
+  }, [startSimTime, computeInto]);
 
   useEffect(() => {
     if (!isPlaying) {
       lastFrameRef.current = null;
+      publishSimTime(true);
       return;
     }
     let rafId = 0;
@@ -137,12 +189,32 @@ export function useOrbitEngine(
       const dt = Math.min((now - lastFrameRef.current) / 1000, 0.1); // clamp tab-inattivo
       lastFrameRef.current = now;
       simTimeRef.current += dt * speedRef.current;
-      setState({ positions: computeRef.current(simTimeRef.current), simTime: simTimeRef.current });
+      computeInto(simTimeRef.current, positionsRef.current);
+      emit(); // ← nessun setState: il reconciler React non lavora a 60fps
+      publishSimTime();
       rafId = requestAnimationFrame(tick);
     };
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [isPlaying]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loop stabile di proposito: legge tutto da ref; ri-registrarlo a ogni cambio di speed/planets ricreerebbe il loop inutilmente
+  }, [isPlaying, computeInto]);
 
-  return state;
+  const useSimTime = () => simTime;
+
+  return { subscribeFrames, useSimTime, simTimeRef, positionsRef };
+}
+
+/**
+ * Hook ausiliario: abbona un componente al flusso di frame del motore.
+ * La callback riceve lo stesso buffer `positions` mutato in place — usarla
+ * SOLO per scritture DOM dirette (style.transform, attribute set), mai per
+ * setState. La callback può cambiare a ogni render (viene letta da ref).
+ */
+export function useFrameSubscription(
+  subscribeFrames: (l: FrameListener) => () => void,
+  onFrame: FrameListener
+) {
+  const cbRef = useRef(onFrame);
+  cbRef.current = onFrame;
+  useEffect(() => subscribeFrames((p, t) => cbRef.current(p, t)), [subscribeFrames]);
 }

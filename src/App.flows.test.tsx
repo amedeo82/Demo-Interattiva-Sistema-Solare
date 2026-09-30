@@ -7,6 +7,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import App from './App';
 import { planets } from './data/planets';
 import { buildQuestions } from './components/QuizModal';
+import { seededRng } from './utils/random.test-fixtures';
 
 // NB: niente cleanup() manuale e niente fake timers globali — ci pensa
 // globals:true in vitest.config.ts (cleanup automatico) così i test async
@@ -28,11 +29,12 @@ describe('Flusso: apertura pannello → chiusura con Esc', () => {
 });
 
 describe('Flusso: modalità confronto pianeti', () => {
-  it('apre il confronto, cambia i pianeti nei due select e verifica i valori', () => {
+  // NB: CompareModal è caricato con React.lazy → serve findByRole (attende il chunk)
+  it('apre il confronto, cambia i pianeti nei due select e verifica i valori', async () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole('button', { name: /Confronto/i }));
-    const dialog = screen.getByRole('dialog', { name: /Confronto pianeti/i });
+    const dialog = await screen.findByRole('dialog', { name: /Confronto pianeti/i });
     expect(dialog).toBeInTheDocument();
 
     // default: Terra vs Giove — il rapporto dimensioni deve citare Giove
@@ -55,13 +57,11 @@ describe('Flusso: quiz mode a punteggio completo', () => {
   // RNG iniettivo nel test conosciamo in anticipo le opzioni shuffled e quindi
   // l'indice della risposta corretta per ogni domanda. Niente più mock globale
   // di Math.random né euristiche fragili su querySelectorAll('button.chip').
-  const mulberry32 = (seed: number) => () => {
-    seed |= 0;
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+  // NB: `seededRng` riparte dal seed a ogni chiamata — è la variante "senza
+  // stato" del PRNG, necessaria perché App memoizza l'RNG e QuizModal lo
+  // consuma: un istanza stateful condivisa tra atteso/reale sfaserebbe i due
+  // stream di numeri.
+  const mulberry32 = seededRng;
 
   it('rispondendo correttamente a tutte le domande si ottiene il punteggio massimo', async () => {
     // `rnd` viene chiamato due volte con lo stesso seed: la prima per generare
@@ -73,7 +73,7 @@ describe('Flusso: quiz mode a punteggio completo', () => {
 
     render(<App quizRnd={rnd} />);
     fireEvent.click(screen.getByRole('button', { name: /Quiz/i }));
-    const dialog = screen.getByRole('dialog', { name: /Quiz sul sistema solare/i });
+    const dialog = await screen.findByRole('dialog', { name: /Quiz sul sistema solare/i });
 
     for (let q = 0; q < questions.length; q++) {
       // re-interroga il DOM a ogni iterazione: le opzioni cambiano domanda per domanda
@@ -102,7 +102,7 @@ describe('Flusso: quiz mode a punteggio completo', () => {
 
     render(<App quizRnd={rnd} />);
     fireEvent.click(screen.getByRole('button', { name: /Quiz/i }));
-    const dialog = screen.getByRole('dialog', { name: /Quiz sul sistema solare/i });
+    const dialog = await screen.findByRole('dialog', { name: /Quiz sul sistema solare/i });
 
     const options = dialog.querySelectorAll<HTMLButtonElement>('[data-testid="quiz-option"]');
     fireEvent.click(options[wrongIndex]);
