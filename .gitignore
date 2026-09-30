@@ -1,10 +1,10 @@
 # Dependencies
 node_modules/
 
-# Build output
+# Build Artifacts
 dist/
 
-# Test coverage
+# Test & coverage
 coverage/
 
 # Logs
