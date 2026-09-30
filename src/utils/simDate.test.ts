@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest';
 import { planets } from '../data/planets';
 import { keplerPosition } from '../hooks/useOrbitEngine';
 import { meanAnomalyAtDate, meanLongitudeAt, J2000_MS } from './kepler';
-import { anglesForDate, simTimeForDate } from './simDate';
+import { anglesForDate, simTimeForDate, maxScaleMismatch } from './simDate';
 
 const earth = planets.find((p) => p.name === 'Earth')!;
 
@@ -95,6 +95,21 @@ describe('anglesForDate / simTimeForDate — coerenza con il motore kepleriano',
         expect(((360 / p.animationDuration) * t) % 360).toBeCloseTo(0, 6);
       }
     }
+  });
+
+  it('scala temporale coerente: P_anim ∝ P_reali con lo stesso taro per tutti i pianeti', () => {
+    // Invariante che il vecchio dataset violava (durate "arbitrarie"
+    // 4/7/10/15/25/35/50/70 s): l'avanzamento medio in scena deve battere
+    // ESATTAMENTE al ritmo del calendario reale (giorni-per-secondo
+    // identico per ogni pianeta, pari al taro terrestre). Senza questa
+    // proprietà, dopo Δt dalla data iniziale le longitudini divergono da
+    // λ(data+Δ) di scarti enormi (es. ~162° per Urano) e i test di
+    // periodicità sopra non possono passare.
+    expect(maxScaleMismatch(planets, earth)).toBeLessThan(0.05);
+    // Il PPCM dei periodi animativi (epoca di partenza del motore) deve
+    // restare piccolo: durate intere commensurabili → sincronismo esatto.
+    const t0 = simTimeForDate(earth, new Date(J2000_MS), planets);
+    expect(t0).toBeLessThan(1e4);
   });
 
   it('offset e tempo sono puri: stesse date → stessi valori', () => {
