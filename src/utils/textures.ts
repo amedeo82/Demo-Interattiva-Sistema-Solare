@@ -13,13 +13,7 @@
  */
 import { useMemo } from 'react';
 
-export type TextureKind =
-  | 'cratered'
-  | 'cloudy'
-  | 'earthlike'
-  | 'dusty'
-  | 'banded'
-  | 'icy';
+export type TextureKind = 'cratered' | 'cloudy' | 'earthlike' | 'dusty' | 'banded' | 'icy';
 
 const TEX_W = 128; // doppio della dimensione massima dei pianeti in scena
 const TEX_H = 64;
@@ -41,7 +35,12 @@ function fillBase(ctx: CanvasRenderingContext2D, color: string) {
   ctx.fillRect(0, 0, TEX_W, TEX_H);
 }
 
-function drawCraters(ctx: CanvasRenderingContext2D, rand: () => number, count: number, tone: number) {
+function drawCraters(
+  ctx: CanvasRenderingContext2D,
+  rand: () => number,
+  count: number,
+  tone: number
+) {
   for (let i = 0; i < count; i++) {
     const x = rand() * TEX_W;
     const y = rand() * TEX_H;
@@ -85,7 +84,13 @@ function drawBands(
   ctx.globalAlpha = 1;
 }
 
-function drawSpots(ctx: CanvasRenderingContext2D, rand: () => number, count: number, color: string, maxR = 4) {
+function drawSpots(
+  ctx: CanvasRenderingContext2D,
+  rand: () => number,
+  count: number,
+  color: string,
+  maxR = 4
+) {
   for (let i = 0; i < count; i++) {
     ctx.beginPath();
     ctx.ellipse(

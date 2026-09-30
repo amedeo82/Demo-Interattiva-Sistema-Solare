@@ -57,14 +57,18 @@ function buildQuestions(planets: PlanetData[]): Question[] {
     .slice(0, 2)
     .map((p) => {
       const correct = p.facts.trivia[0];
-      const others = planets
-        .filter((q) => q.name !== p.name && q.facts.trivia.length > 0)
-        .slice(0, 2)
-        .map((q) => q.facts.trivia[0]);
-      const options = shuffle([correct, ...others], rnd);
       return {
         prompt: `A quale pianeta si riferisce questo fatto? "${correct}"`,
-        options: shuffle([p.nameIt, ...planets.filter((q) => q.name !== p.name).slice(0, 2).map((q) => q.nameIt)], rnd),
+        options: shuffle(
+          [
+            p.nameIt,
+            ...planets
+              .filter((q) => q.name !== p.name)
+              .slice(0, 2)
+              .map((q) => q.nameIt),
+          ],
+          rnd
+        ),
         answerIndex: 0,
       } satisfies Question;
     });
@@ -108,7 +112,10 @@ export default function QuizModal({ planets, onClose }: Props) {
       aria-label="Quiz sul sistema solare"
       onClick={onClose}
     >
-      <div className="panel-in w-full max-w-md rounded-2xl p-5" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="panel-in w-full max-w-md rounded-2xl p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="mb-4 flex items-start justify-between gap-2">
           <h2 className="text-lg font-bold">🧠 Quiz spaziale</h2>
           <button
@@ -122,7 +129,9 @@ export default function QuizModal({ planets, onClose }: Props) {
 
         {finished ? (
           <div className="py-6 text-center">
-            <p className="text-4xl">{score === questions.length ? '🏆' : score >= questions.length / 2 ? '🌟' : '🚀'}</p>
+            <p className="text-4xl">
+              {score === questions.length ? '🏆' : score >= questions.length / 2 ? '🌟' : '🚀'}
+            </p>
             <p className="mt-3 text-lg font-semibold">
               Punteggio: {score}/{questions.length}
             </p>
@@ -146,7 +155,12 @@ export default function QuizModal({ planets, onClose }: Props) {
                   else if (i === picked) cls += ' !bg-red-500/25 !border-red-400/50';
                 }
                 return (
-                  <button key={i} className={cls} onClick={() => pick(i)} disabled={picked !== null}>
+                  <button
+                    key={i}
+                    className={cls}
+                    onClick={() => pick(i)}
+                    disabled={picked !== null}
+                  >
                     {opt}
                   </button>
                 );

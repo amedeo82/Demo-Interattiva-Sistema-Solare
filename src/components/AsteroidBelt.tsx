@@ -70,9 +70,7 @@ export default function AsteroidBelt({ simTime }: Props) {
         const rad = (deg * Math.PI) / 180;
         const x = ast.radius * Math.sin(rad);
         const y = -ast.radius * Math.cos(rad);
-        return (
-          <circle key={i} cx={x} cy={y} r={ast.size} fill="#b9a58c" opacity={ast.opacity} />
-        );
+        return <circle key={i} cx={x} cy={y} r={ast.size} fill="#b9a58c" opacity={ast.opacity} />;
       })}
     </svg>
   );

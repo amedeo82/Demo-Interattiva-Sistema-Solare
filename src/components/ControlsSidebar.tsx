@@ -10,6 +10,7 @@ interface Props {
   planets: PlanetData[];
   selectedName: string | null;
   onSelectPlanet: (p: PlanetData) => void;
+  currentDate: Date;
 }
 
 const sectionTitle: CSSProperties = {
@@ -29,6 +30,7 @@ export default function ControlsSidebar({
   planets,
   selectedName,
   onSelectPlanet,
+  currentDate,
 }: Props) {
   return (
     <div className="flex w-full shrink-0 flex-col gap-4 overflow-y-auto bg-[#0d0d2a]/85 p-4 backdrop-blur-md md:w-64 lg:border-l lg:border-white/10">
@@ -79,6 +81,18 @@ export default function ControlsSidebar({
           aria-label="Regolazione continua della velocità di simulazione"
           title="Trascina per una velocità personalizzata (0,1x – 20x)"
         />
+      </div>
+
+      {/* Data corrente della simulazione */}
+      <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+        <p className="text-[10px] uppercase tracking-wider text-white/40">Data simulazione</p>
+        <p className="text-sm font-semibold tabular-nums text-white">
+          {currentDate.toLocaleDateString('it-IT', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })}
+        </p>
       </div>
 
       {/* Lista pianeti */}

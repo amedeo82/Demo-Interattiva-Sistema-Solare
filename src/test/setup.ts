@@ -20,19 +20,24 @@ Object.defineProperty(window, 'matchMedia', {
 // restituisce un data-uri minimo, così i test possono renderizzare App.
 if (typeof HTMLCanvasElement !== 'undefined') {
   const noop = () => {};
+  const makeCtx = () => ({
+    fillStyle: '',
+    globalAlpha: 1,
+    clearRect: noop,
+    fillRect: noop,
+    beginPath: noop,
+    arc: noop,
+    ellipse: noop,
+    moveTo: noop,
+    lineTo: noop,
+    closePath: noop,
+    fill: noop,
+    drawImage: noop,
+    createRadialGradient: () => ({ addColorStop: noop }),
+    createLinearGradient: () => ({ addColorStop: noop }),
+  });
   HTMLCanvasElement.prototype.getContext = function () {
-    return {
-      fillStyle: '',
-      globalAlpha: 1,
-      fillRect: noop,
-      beginPath: noop,
-      arc: noop,
-      ellipse: noop,
-      moveTo: noop,
-      lineTo: noop,
-      closePath: noop,
-      fill: noop,
-    };
+    return makeCtx();
   } as unknown as typeof HTMLCanvasElement.prototype.getContext;
   HTMLCanvasElement.prototype.toDataURL = () => 'data:image/png;base64,iVBORw0KGgo=';
 }

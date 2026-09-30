@@ -63,7 +63,13 @@ export default function App() {
   // alla data: i pianeti appaiono nella configurazione del giorno scelto.
   const initialAngles = useMemo(() => (simDate ? anglesForDate(simDate) : undefined), [simDate]);
   const startSimTime = useMemo(() => (simDate ? simTimeForDate(simDate) : 0), [simDate]);
-  const { positions, simTime } = useOrbitEngine(planets, isPlaying, speed, initialAngles, startSimTime);
+  const { positions, simTime } = useOrbitEngine(
+    planets,
+    isPlaying,
+    speed,
+    initialAngles,
+    startSimTime
+  );
 
   // Data corrente della simulazione: epoca di partenza + tempo simulato
   // (1 anno terrestre = animationDuration Terra = 10s a velocità 1x).
@@ -158,7 +164,10 @@ export default function App() {
           <span aria-hidden>🌌</span> Sistema Solare Interattivo
         </h1>
         <div className="flex flex-wrap items-center gap-2">
-          <label className="hidden items-center gap-2 text-xs text-white/60 sm:flex" title="Mostra le posizioni dei pianeti a una data specifica">
+          <label
+            className="hidden items-center gap-2 text-xs text-white/60 sm:flex"
+            title="Mostra le posizioni dei pianeti a una data specifica"
+          >
             📅 Data
             <input
               type="date"
@@ -193,7 +202,11 @@ export default function App() {
           >
             ⚖️ Confronto
           </button>
-          <button onClick={() => setShowQuiz(true)} className="chip" title="Metti alla prova le tue conoscenze">
+          <button
+            onClick={() => setShowQuiz(true)}
+            className="chip"
+            title="Metti alla prova le tue conoscenze"
+          >
             🧠 Quiz
           </button>
         </div>
@@ -229,7 +242,9 @@ export default function App() {
             {planets.map((planet) => {
               const pos = positions[planet.name];
               if (!pos || (selectedPlanet?.name !== planet.name && !followMode)) return null;
-              const trail = [0.12, 0.24, 0.38].map((f) => keplerPosition(planet, simTime - f * speed));
+              const trail = [0.12, 0.24, 0.38].map((f) =>
+                keplerPosition(planet, simTime - f * speed)
+              );
               return (
                 <svg
                   key={`trail-${planet.name}`}
@@ -310,7 +325,12 @@ export default function App() {
             >
               －
             </button>
-            <button onClick={resetView} className="view-btn" aria-label="Reimposta visuale" title="Reimposta visuale">
+            <button
+              onClick={resetView}
+              className="view-btn"
+              aria-label="Reimposta visuale"
+              title="Reimposta visuale"
+            >
               ⟲
             </button>
             <button
@@ -344,6 +364,7 @@ export default function App() {
           planets={planets}
           selectedName={selectedPlanet?.name ?? null}
           onSelectPlanet={setSelectedPlanet}
+          currentDate={currentDate}
         />
       </div>
 

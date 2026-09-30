@@ -66,7 +66,8 @@ export function orbitalRadiusPx(radiusPx: number, ecc: number, trueAnomalyDeg: n
 /** Anomalia vera a partire dall'anomalia eccentrica (in gradi). */
 export function trueAnomalyFromEccentric(eccentricDeg: number, ecc: number): number {
   const E = eccentricDeg * DEG;
-  const nu = 2 * Math.atan2(Math.sqrt(1 + ecc) * Math.sin(E / 2), Math.sqrt(1 - ecc) * Math.cos(E / 2));
+  const nu =
+    2 * Math.atan2(Math.sqrt(1 + ecc) * Math.sin(E / 2), Math.sqrt(1 - ecc) * Math.cos(E / 2));
   return normalizeDeg(nu / DEG);
 }
 

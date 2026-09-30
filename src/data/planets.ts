@@ -140,7 +140,8 @@ export const planets: PlanetData[] = [
         'È l’unico pianeta non nominato da una divinità.',
         'La Luna si allontana di ~3,8 cm ogni anno.',
       ],
-      comparison: 'Sulla Terra potresti far "entrare" tutti gli altri pianeti nell’Oceano Pacifico.',
+      comparison:
+        'Sulla Terra potresti far "entrare" tutti gli altri pianeti nell’Oceano Pacifico.',
     },
   },
   {
@@ -307,7 +308,8 @@ export const planets: PlanetData[] = [
         'I venti superano i 2.000 km/h: i più veloci del sistema solare.',
         'Tritone orbita in senso retrogrado, forse un KBO catturato.',
       ],
-      comparison: 'Nettuno è grande ~4 volte la Terra ma con il 17% della massa terrestre... in peso specifico.',
+      comparison:
+        'Nettuno è grande ~4 volte la Terra ma con il 17% della massa terrestre... in peso specifico.',
     },
   },
 ];

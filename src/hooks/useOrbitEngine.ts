@@ -9,7 +9,12 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PlanetData } from '../data/planets';
-import { normalizeDeg, orbitalRadiusPx, solveKepler, trueAnomalyFromEccentric } from '../utils/kepler';
+import {
+  normalizeDeg,
+  orbitalRadiusPx,
+  solveKepler,
+  trueAnomalyFromEccentric,
+} from '../utils/kepler';
 
 export interface SimPlanetState {
   /** Longitudine eliocentrica corrente in gradi (0° = in alto, senso orario). */
@@ -101,7 +106,6 @@ export function useOrbitEngine(
       }
       return next;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planets, starts]);
 
   const [state, setState] = useState<SimulationState>(() => ({

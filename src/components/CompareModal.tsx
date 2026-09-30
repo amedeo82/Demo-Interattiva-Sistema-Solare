@@ -11,17 +11,36 @@ interface Props {
   onClose: () => void;
 }
 
-type Metric = 'diameter' | 'distanceFromSun' | 'orbitalPeriod' | 'moonsCount';
-
-const METRICS: { key: Metric; label: string; fmt: (p: PlanetData) => string }[] = [
-  { key: 'diameter', label: 'Diametro', fmt: (p) => `${formatNumber(p.diameter)} km` },
+const METRICS: {
+  key: string;
+  label: string;
+  value: (p: PlanetData) => number;
+  fmt: (p: PlanetData) => string;
+}[] = [
+  {
+    key: 'diameter',
+    label: 'Diametro',
+    value: (p) => p.diameter,
+    fmt: (p) => `${formatNumber(p.diameter)} km`,
+  },
   {
     key: 'distanceFromSun',
     label: 'Distanza dal Sole',
+    value: (p) => p.distanceFromSun,
     fmt: (p) => `${formatNumber(p.distanceFromSun)} mln km`,
   },
-  { key: 'orbitalPeriod', label: 'Anno planetario', fmt: (p) => formatOrbitalPeriod(p.orbitalPeriod) },
-  { key: 'moonsCount', label: 'Satelliti', fmt: (p) => `${p.facts.moonsCount}` },
+  {
+    key: 'orbitalPeriod',
+    label: 'Anno planetario',
+    value: (p) => p.orbitalPeriod,
+    fmt: (p) => formatOrbitalPeriod(p.orbitalPeriod),
+  },
+  {
+    key: 'moonsCount',
+    label: 'Satelliti',
+    value: (p) => p.facts.moonsCount,
+    fmt: (p) => `${p.facts.moonsCount}`,
+  },
 ];
 
 export default function CompareModal({ planets, onClose }: Props) {
@@ -92,15 +111,19 @@ export default function CompareModal({ planets, onClose }: Props) {
           </thead>
           <tbody>
             {METRICS.map((m) => {
-              const av = Number(a[m.key]);
-              const bv = Number(b[m.key]);
+              const av = m.value(a);
+              const bv = m.value(b);
               return (
                 <tr key={m.key} className="border-t border-white/10">
                   <td className="py-2 text-xs text-white/50">{m.label}</td>
-                  <td className={`py-2 tabular-nums ${av >= bv ? 'text-emerald-300' : 'text-white/80'}`}>
+                  <td
+                    className={`py-2 tabular-nums ${av >= bv ? 'text-emerald-300' : 'text-white/80'}`}
+                  >
                     {m.fmt(a)}
                   </td>
-                  <td className={`py-2 tabular-nums ${bv > av ? 'text-emerald-300' : 'text-white/80'}`}>
+                  <td
+                    className={`py-2 tabular-nums ${bv > av ? 'text-emerald-300' : 'text-white/80'}`}
+                  >
                     {m.fmt(b)}
                   </td>
                 </tr>

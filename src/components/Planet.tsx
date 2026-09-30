@@ -75,7 +75,10 @@ export default function Planet({
       }}
     >
       {/* Disco con texture o gradiente base */}
-      <div className="planet-surface absolute inset-0 overflow-hidden rounded-full" style={layerStyle} />
+      <div
+        className="planet-surface absolute inset-0 overflow-hidden rounded-full"
+        style={layerStyle}
+      />
 
       {/* Atmosfera (alone luminoso per i pianeti dotati di atmosfera densa) */}
       {['Venus', 'Earth', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'].includes(planet.name) && (
