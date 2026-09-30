@@ -83,3 +83,24 @@ export function meanLongitudeAt(
   const d = daysSinceJ2000(date);
   return normalizeDeg(meanLongitudeJ2000 + (360 / orbitalPeriodDays) * d);
 }
+
+/**
+ * Anomalia media "locale" di un pianeta a una data, a partire dalla sua
+ * longitudine media all'epoca J2000. L'anomalia media M = λ - ϖ è la
+ * posizione angolare misurata dal perielio dell'orbita; nel modello
+ * semplificato il perielio locale coincide con la direzione iniziale del
+ * pianeta sul palco, quindi M è esattamente l'offset angolare che il motore
+ * kepleriano deve applicare a t = 0 per rappresentare la data scelta.
+ */
+export function meanAnomalyAtDate(planet: KeplerPlanet, date: Date): number {
+  return normalizeDeg(
+    meanLongitudeAt(planet.meanLongitudeJ2000, planet.orbitalPeriod, date) -
+      planet.meanLongitudeJ2000
+  );
+}
+
+/** Sottoinsieme dei dati di un pianeta necessario alla cinematica kepleriana. */
+export interface KeplerPlanet {
+  meanLongitudeJ2000: number;
+  orbitalPeriod: number;
+}

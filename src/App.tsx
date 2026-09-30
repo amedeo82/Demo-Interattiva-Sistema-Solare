@@ -11,13 +11,14 @@ const CompareModal = lazy(() => import('./components/CompareModal'));
 const QuizModal = lazy(() => import('./components/QuizModal'));
 import { useOrbitEngine, keplerPosition } from './hooks/useOrbitEngine';
 import { computeSystemScale } from './utils/format';
-import { meanLongitudeAt } from './utils/kepler';
+import { anglesForDate, simTimeForDate } from './utils/simDate';
+import { saveJSON, usePersistentState, PREFS_KEYS } from './utils/prefs';
 import { CONFIG } from './config';
 
 const {
   stage: STAGE,
   speedOptions: SPEED_OPTIONS,
-  j2000Ms: J2000_MS,
+  defaultSpeed: DEFAULT_SPEED,
   zoomMin: ZOOM_MIN,
   zoomMax: ZOOM_MAX,
   zoomStep: ZOOM_STEP,
@@ -30,23 +31,8 @@ function zoomBy(z: number, step: number): number {
   return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +(z + step).toFixed(2)));
 }
 
-/** Offset angolari iniziali derivati dalle longitudini medie all'epoca J2000:
- *  la simulazione parte dalla configurazione reale dei pianeti alla data scelta. */
-function anglesForDate(date: Date): Record<string, number> {
-  return Object.fromEntries(
-    planets.map((p) => [p.name, meanLongitudeAt(p.meanLongitudeJ2000, p.orbitalPeriod, date)])
-  );
-}
-
-/** Congela il tempo simulato necessario per portare i pianeti alla data scelta.
- *  Risolve M = ω + n·t rispetto a t (in giorni), poi converte in secondi di
- *  simulazione: 1 anno terrestre = CONFIG.earthYearSimSeconds (10s). */
-function simTimeForDate(date: Date): number {
-  const earth = planets.find((p) => p.name === 'Earth') ?? planets[2];
-  const d = ((date.getTime() - J2000_MS) / 86_400_000) % earth.orbitalPeriod;
-  const daysPerSecond = earth.orbitalPeriod / EARTH_YEAR_SIM_SECONDS;
-  return d / daysPerSecond;
-}
+/** Limita lo zoom ai range configurati (usato da rotellina e pinch). */
+const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +z.toFixed(3)));
 
 function useSystemScale() {
   // useState dentro un custom hook: le regole dei hooks lo richiedono
@@ -74,16 +60,38 @@ interface AppProps {
 // fissa del periodo orbitale, indipendente dalla velocità di simulazione.
 const TRAIL_FRACS = CONFIG.trailFractions;
 
+/** Terra: riferimento per la scala temporale della simulazione
+ *  (1 anno terrestre = CONFIG.earthYearSimSeconds secondi di sim a 1x). */
+const earth = planets.find((p) => p.name === 'Earth') ?? planets[2];
+
 export default function App({ quizRnd }: AppProps = {}) {
   // Identità stabile: QuizModal rigenera le domande se cambia `rnd`, quindi il
   // generatore iniettato va memoizzato (in produzione: Math.random, sempre lo
   // stesso riferimento).
   const stableQuizRnd = useMemo(() => quizRnd ?? Math.random, [quizRnd]);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [speed, setSpeed] = useState(1);
+  // Preferenze persistite: velocità, etichette e realismo sopravvivono al
+  // refresh. I valori letti da localStorage sono validati (speed deve essere
+  // uno degli SPEED_OPTIONS; i flag devono essere booleani).
+  const [speed, setSpeed] = usePersistentState<number>(
+    PREFS_KEYS.speed,
+    DEFAULT_SPEED,
+    (v) => typeof v === 'number' && SPEED_OPTIONS.includes(v)
+  );
+  const [showLabels, setShowLabels] = usePersistentState<boolean>(
+    PREFS_KEYS.showLabels,
+    true,
+    (v) => typeof v === 'boolean'
+  );
+  const [realistic, setRealistic] = usePersistentState<boolean>(
+    PREFS_KEYS.realistic,
+    true,
+    (v) => typeof v === 'boolean'
+  );
+  useEffect(() => saveJSON(PREFS_KEYS.speed, speed), [speed]);
+  useEffect(() => saveJSON(PREFS_KEYS.showLabels, showLabels), [showLabels]);
+  useEffect(() => saveJSON(PREFS_KEYS.realistic, realistic), [realistic]);
   const [selectedPlanet, setSelectedPlanet] = useState<PlanetData | null>(null);
-  const [showLabels, setShowLabels] = useState(true);
-  const [realistic, setRealistic] = useState(true);
   const [followMode, setFollowMode] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -93,11 +101,19 @@ export default function App({ quizRnd }: AppProps = {}) {
   const baseScale = useSystemScale();
   const scale = baseScale * zoom;
   // Motore animativo requestAnimationFrame con orbite kepleriane ed eccentricità.
-  // Quando si sceglie una data, gli offset angolari derivano dalle longitudini
-  // medie reali (J2000) e il tempo simulato riparte dal valore che corrisponde
-  // alla data: i pianeti appaiono nella configurazione del giorno scelto.
-  const initialAngles = useMemo(() => (simDate ? anglesForDate(simDate) : undefined), [simDate]);
-  const startSimTime = useMemo(() => (simDate ? simTimeForDate(simDate) : 0), [simDate]);
+  // Quando si sceglie una data, offset angolari E tempo simulato di partenza
+  // derivano dalla stessa anomalia media (vedi utils/simDate): la scena mostra
+  // la configurazione reale dei pianeti nel giorno scelto, coerente anche per
+  // epoche lontane da J2000 e per pianeti con periodi non commensurabili.
+  const initialAngles = useMemo(
+    () => (simDate ? anglesForDate(planets, simDate) : undefined),
+    [simDate]
+  );
+  const startSimTime = useMemo(
+    () => (simDate ? simTimeForDate(earth, simDate) : 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- earth è una costante di modulo (planets non muta)
+    [simDate]
+  );
   const engine = useOrbitEngine(planets, isPlaying, speed, initialAngles, startSimTime);
   const { subscribeFrames, positionsRef } = engine;
   // `simTime` throttled (~4Hz): basta alla data in sidebar; NON riconduce la
@@ -106,7 +122,6 @@ export default function App({ quizRnd }: AppProps = {}) {
 
   // Data corrente della simulazione: epoca di partenza + tempo simulato
   // (1 anno terrestre = CONFIG.earthYearSimSeconds a velocità 1x).
-  const earth = planets.find((p) => p.name === 'Earth') ?? planets[2];
   const daysPerSec = earth.orbitalPeriod / EARTH_YEAR_SIM_SECONDS;
   const currentDate = useMemo(
     () => new Date((simDate ?? new Date()).getTime() + simTime * daysPerSec * 86_400_000),
@@ -195,32 +210,79 @@ export default function App({ quizRnd }: AppProps = {}) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Zoom con rotellina del mouse sulla scena
-  const onWheel = (e: React.WheelEvent) => {
-    setZoom((z) =>
-      Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +(z - e.deltaY * WHEEL_ZOOM_FACTOR).toFixed(3)))
-    );
-  };
-  // Pan col trascinamento: lo stato del drag vive in un useRef, NON in una
-  // variabile locale del corpo del componente (ogni frame rAF ne creava una
-  // nuova, perdendo coordinate e flag `active` → pan scattoso/invertito).
+  // Zoom con rotellina del mouse sulla scena. NON è possibile chiamare
+  // preventDefault() dall'handler React onWheel: dal React 17 l'evento
+  // `wheel` è registrato come passivo a livello di root, quindi il browser
+  // lo ignora e la pagina sotto può scrollare. Il listener va agganciato
+  // direttamente al <main> con { passive: false } (vedi effect qui sotto).
+  const mainRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    const onNativeWheel = (e: WheelEvent) => {
+      // blocca lo scroll della pagina mentre si fa zoom sulla scena
+      e.preventDefault();
+      setZoom((z) => clampZoom(z - e.deltaY * WHEEL_ZOOM_FACTOR));
+    };
+    el.addEventListener('wheel', onNativeWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onNativeWheel);
+  }, []);
+
+  // Pan col trascinamento e PINCH-to-zoom multitouch: i pointer attivi sono
+  // tracciati in una Map (ref, mai stato React). Con due dita la distanza
+  // fra i punti pilota lo zoom relativo; con una sola dito il pan.
+  const pointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const pinchDistRef = useRef(0);
   const dragRef = useRef({ x: 0, y: 0, active: false });
+  const scaleRef = useRef(scale);
+  scaleRef.current = scale;
+
+  const twoPointDistance = () => {
+    const pts = Array.from(pointersRef.current.values());
+    return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+  };
+
   const onPointerDown = (e: React.PointerEvent) => {
-    if (e.button !== 0) return;
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointersRef.current.size === 2) {
+      // inizia un pinch: molla il drag del singolo dito
+      dragRef.current.active = false;
+      pinchDistRef.current = twoPointDistance();
+      return;
+    }
+    if (e.button !== 0 || pointersRef.current.size > 2) return;
     dragRef.current.active = true;
     dragRef.current.x = e.clientX;
     dragRef.current.y = e.clientY;
   };
   const onPointerMove = (e: React.PointerEvent) => {
+    if (!pointersRef.current.has(e.pointerId)) return;
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointersRef.current.size === 2 && pinchDistRef.current > 0) {
+      const d = twoPointDistance();
+      const factor = d / pinchDistRef.current;
+      pinchDistRef.current = d;
+      setZoom((z) => clampZoom(z * factor));
+      return;
+    }
     if (!dragRef.current.active) return;
-    const dx = (e.clientX - dragRef.current.x) / scale;
-    const dy = (e.clientY - dragRef.current.y) / scale;
+    const dx = (e.clientX - dragRef.current.x) / scaleRef.current;
+    const dy = (e.clientY - dragRef.current.y) / scaleRef.current;
     dragRef.current.x = e.clientX;
     dragRef.current.y = e.clientY;
     setPan((p) => ({ x: p.x + dx, y: p.y + dy }));
   };
-  const onPointerUp = () => {
-    dragRef.current.active = false;
+  const endPointer = (e: React.PointerEvent) => {
+    pointersRef.current.delete(e.pointerId);
+    if (pointersRef.current.size < 2) pinchDistRef.current = 0;
+    if (pointersRef.current.size === 1) {
+      // rimasto un solo dito: riprende il pan dalla sua posizione corrente
+      const [remaining] = Array.from(pointersRef.current.values());
+      dragRef.current = { x: remaining.x, y: remaining.y, active: true };
+    } else if (pointersRef.current.size === 0) {
+      dragRef.current.active = false;
+    }
   };
 
   const resetView = () => {
@@ -334,13 +396,14 @@ export default function App({ quizRnd }: AppProps = {}) {
       <div className="relative z-10 flex min-h-0 flex-1 flex-col-reverse lg:flex-row">
         {/* Visualizzazione */}
         <main
+          ref={mainRef}
           className="relative flex min-h-0 flex-1 cursor-grab touch-none items-center justify-center overflow-hidden active:cursor-grabbing"
           aria-label="Simulazione del sistema solare"
-          onWheel={onWheel}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerLeave={onPointerUp}
+          onPointerUp={endPointer}
+          onPointerCancel={endPointer}
+          onPointerLeave={endPointer}
         >
           <div
             ref={stageRef}
