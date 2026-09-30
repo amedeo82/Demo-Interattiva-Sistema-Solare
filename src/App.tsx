@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { planets, type PlanetData } from './data/planets';
 import Starfield from './components/Starfield';
 import PlanetInfoPanel from './components/PlanetInfoPanel';
@@ -177,20 +177,20 @@ export default function App({ quizRnd }: AppProps = {}) {
   const dragRef = useRef({ x: 0, y: 0, active: false });
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
-    dragRef.active = true;
-    dragRef.x = e.clientX;
-    dragRef.y = e.clientY;
+    dragRef.current.active = true;
+    dragRef.current.x = e.clientX;
+    dragRef.current.y = e.clientY;
   };
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragRef.active) return;
-    const dx = (e.clientX - dragRef.x) / scale;
-    const dy = (e.clientY - dragRef.y) / scale;
-    dragRef.x = e.clientX;
-    dragRef.y = e.clientY;
+    if (!dragRef.current.active) return;
+    const dx = (e.clientX - dragRef.current.x) / scale;
+    const dy = (e.clientY - dragRef.current.y) / scale;
+    dragRef.current.x = e.clientX;
+    dragRef.current.y = e.clientY;
     setPan((p) => ({ x: p.x + dx, y: p.y + dy }));
   };
   const onPointerUp = () => {
-    dragRef.active = false;
+    dragRef.current.active = false;
   };
 
   const resetView = () => {
