@@ -5,9 +5,14 @@ import globals from 'globals';
 import prettierConfig from 'eslint-config-prettier';
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'node_modules/**', 'coverage/**'] },
+  { ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'docs/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  {
+    // Script Node.js (generazione screenshot): globals di Node, non del browser
+    files: ['scripts/**/*.{mjs,js}'],
+    languageOptions: { globals: { ...globals.node } },
+  },
   {
     files: ['src/**/*.{ts,tsx}'],
     languageOptions: {
