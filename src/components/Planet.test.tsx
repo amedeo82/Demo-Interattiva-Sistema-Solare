@@ -33,8 +33,13 @@ function fullProps(overrides: Partial<Props> = {}): Props {
   return { ...baseProps, onSelect: () => {}, ...overrides };
 }
 
-function planetElement(overrides: Props): ReactElement {
-  return <Planet {...baseProps} {...overrides} />;
+/* Il componente esportato è memo() con comparator custom che ignora
+ * `onSelect`: per i test si usa il componente interno non-memo, così le
+ * spy iniettate vengono sempre invocate. */
+const RawPlanet = Planet as unknown as (p: Props) => ReactElement;
+
+function planetElement(overrides: Partial<Props>): ReactElement {
+  return <RawPlanet {...fullProps(overrides)} />;
 }
 
 /*
