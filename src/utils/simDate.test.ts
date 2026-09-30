@@ -10,7 +10,7 @@
 import { describe, it, expect } from 'vitest';
 import { planets } from '../data/planets';
 import { keplerPosition } from '../hooks/useOrbitEngine';
-import { meanAnomalyAtDate, meanLongitudeAt, J2000_MS, normalizeDeg } from './kepler';
+import { meanAnomalyAtDate, meanLongitudeAt, J2000_MS } from './kepler';
 import { anglesForDate, simTimeForDate } from './simDate';
 
 const earth = planets.find((p) => p.name === 'Earth')!;
@@ -42,24 +42,19 @@ describe('anglesForDate / simTimeForDate — coerenza con il motore kepleriano',
     new Date(Date.UTC(1985, 1, 20, 12)), // passata
   ];
 
-  it('a t=startSimTime la Terra è alla longitudine media della data (± equazione di Keplero)', () => {
-    // Proprietà chiave (invariante del MOTORE): gli offset sono M0 = λ−ϖ e il
-    // tempo di partenza t = M0_terra/360·P_anim. Il motore fa avanzare ogni
-    // pianeta di 360° per P_anim secondi, quindi per la Terra:
-    //   M(t) = M0 + 360·t/P_anim = 2·M0 ??? NO — attenzione: M0 è già l'
-    //   anomalia media della data, quindi l'avanzamento "extra" 360·t/P_anim
-    //   corrisponde ad anni simulati FRAZIONARI (l'anno animativo, non quello
-    //   siderale). Per questo la coerenza data→posizione va verificata così:
-    //   la LONGITUDINE del motore a t parte da M0 (offset della data) e
-    //   l'avanzamento animativo è una funzione monotona di t, quindi per
-    //   t = 0 (epoca scelta) la scena mostra esattamente la configurazione
-    //   della data. Qui testiamo che keplerPosition a t=0 con gli offset
-    //   della data riproduca la longitudine media reale (λ−ϖ+ϖ = λ).
+  it('a t = startSimTime TUTTI i pianeti sono alla longitudine media della data (± equazione di Keplero)', () => {
+    // Proprietà chiave (invariante del MOTORE): gli offset angolari sono le
+    // anomalie medie M0 = λ−ϖ della data (anglesForDate) e il tempo di
+    // partenza t₀ è il PPCM dei periodi animativi (simTimeForDate). Il motore
+    // fa avanzare ogni pianeta di 360·t/P_anim, quindi a t₀ l'avanzamento è un
+    // multiplo intero di 360 per OGNI pianeta: la longitudine mostrata resta
+    // quella reale della data, a qualsiasi epoca — non solo per la Terra.
     for (const date of dates) {
       const starts = anglesForDate(planets, date);
+      const t0 = simTimeForDate(earth, date, planets);
+      expect(t0 % earth.animationDuration).toBeCloseTo(0, 9);
       for (const p of planets) {
-        // a t = 0 il motore usa solo l'offset: angolo = M0 (+ν−M, equaz. centro)
-        const pos = keplerPosition(p, 0, starts[p.name]);
+        const pos = keplerPosition(p, t0, starts[p.name]);
         const lambdaReal = meanLongitudeAt(p.meanLongitudeJ2000, p.orbitalPeriod, date);
         let diff = Math.abs(pos.angle - lambdaReal) % 360;
         if (diff > 180) diff = 360 - diff;
@@ -69,24 +64,36 @@ describe('anglesForDate / simTimeForDate — coerenza con il motore kepleriano',
     }
   });
 
-  it('simTimeForDate è coerente col passo animativo: M_terra(t) = M0 + 360·t/P_anim', () => {
-    // Il tempo di partenza deve essere nell'anno animativo [0, P_anim) ed
-    // essere proporzionale all'anomalia media terrestre della data.
-    for (const date of dates) {
-      const starts = anglesForDate(planets, date);
-      const t = simTimeForDate(earth, date);
-      const mFromT = normalizeDeg(starts.Earth + (360 / earth.animationDuration) * t);
-      // per costruzione t = M0/360·P_anim → mFromT = 2·M0 (mod 360):
-      // verifichiamo l'identità algebrica del motore
-      expect(mFromT).toBeCloseTo(normalizeDeg(2 * starts.Earth), 6);
+  it('l’avanzamento animativo è periodico: a t₀+Δ vale la configurazione della data + Δ giorni', () => {
+    // Dopo l’epoca iniziale il calendario in sidebar avanza di
+    // Δgiorni = Δt · P_reale/P_anim (App.tsx: daysPerSec). Verifichiamo che
+    // dopo un quarto d’anno terrestre la scena mostri davvero λ(data+Δ):
+    // coerenza fra data mostrata e posizioni, anche in riproduzione.
+    const date = new Date(Date.UTC(2031, 5, 15, 12));
+    const starts = anglesForDate(planets, date);
+    const t0 = simTimeForDate(earth, date, planets);
+    const quarterDays = earth.orbitalPeriod / 4;
+    const deltaT = (quarterDays / earth.orbitalPeriod) * earth.animationDuration;
+    const advanced = new Date(date.getTime() + quarterDays * 86_400_000);
+    for (const p of planets) {
+      const pos = keplerPosition(p, t0 + deltaT, starts[p.name]);
+      const lambdaReal = meanLongitudeAt(p.meanLongitudeJ2000, p.orbitalPeriod, advanced);
+      let diff = Math.abs(pos.angle - lambdaReal) % 360;
+      if (diff > 180) diff = 360 - diff;
+      expect(diff).toBeLessThan((2 * p.eccentricity * 180) / Math.PI + 0.5);
     }
   });
 
-  it("simTimeForDate è sempre nell'anno corrente [0, durata anno)", () => {
+  it('simTimeForDate è un multiplo intero del periodo animativo di ogni pianeta', () => {
+    // È la condizione necessaria e sufficiente perché, partito da t₀,
+    // ogni pianeta compia giri completi esatti e resti sincronizzato
+    // con la data: 360·t₀/P_anim(p) ≡ 0 (mod 360)  ∀ p.
     for (const date of dates) {
-      const t = simTimeForDate(earth, date);
+      const t = simTimeForDate(earth, date, planets);
       expect(t).toBeGreaterThanOrEqual(0);
-      expect(t).toBeLessThan(earth.animationDuration);
+      for (const p of planets) {
+        expect(((360 / p.animationDuration) * t) % 360).toBeCloseTo(0, 6);
+      }
     }
   });
 

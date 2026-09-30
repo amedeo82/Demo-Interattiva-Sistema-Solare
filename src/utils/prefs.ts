@@ -2,7 +2,7 @@
  * Persistenza delle preferenze utente (zoom, velocità, etichette, realismo…)
  * in localStorage, con letture difensive: valori corrotti/assenti → default.
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 /** Restituisce un reader/writer "sicuro": se localStorage non è disponibile
  *  (SSR, privacy mode, quota) le operazioni diventano no-op silenziosi. */
@@ -40,13 +40,30 @@ export function saveJSON(key: string, value: unknown): void {
 }
 
 /** Hook "lazy init" per uno stato persistito: legge da localStorage alla
- *  prima render (con validazione) e riscrive a ogni cambiamento. */
+ *  prima render (con validazione) e riscrive a ogni cambiamento. Il setter è
+ *  avvolto in useCallback (stabile per tutta la vita del componente): può
+ *  quindi essere messo fra le dipendenze di un useEffect senza causare
+ *  ri-registrazioni. */
 export function usePersistentState<T>(
   key: string,
   fallback: T,
   validate?: (v: unknown) => boolean
 ): [T, React.Dispatch<React.SetStateAction<T>>] {
-  return useState<T>(() => loadJSON(key, fallback, validate));
+  const [value, setValue] = useState<T>(() => loadJSON(key, fallback, validate));
+  const setPersisted = useCallback(
+    (update: React.SetStateAction<T>) => {
+      setValue((prev) => {
+        const next =
+          typeof update === 'function'
+            ? (update as (prevState: T) => T)(prev)
+            : update;
+        saveJSON(key, next); // scrittura immediata: niente effect dedicato
+        return next;
+      });
+    },
+    [key]
+  );
+  return [value, setPersisted];
 }
 
 /** Chiavi di persistenza condivise fra App e componenti. */

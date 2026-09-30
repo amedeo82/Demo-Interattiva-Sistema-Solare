@@ -12,7 +12,7 @@ const QuizModal = lazy(() => import('./components/QuizModal'));
 import { useOrbitEngine, keplerPosition } from './hooks/useOrbitEngine';
 import { computeSystemScale } from './utils/format';
 import { anglesForDate, simTimeForDate } from './utils/simDate';
-import { saveJSON, usePersistentState, PREFS_KEYS } from './utils/prefs';
+import { usePersistentState, PREFS_KEYS } from './utils/prefs';
 import { CONFIG } from './config';
 
 const {
@@ -88,9 +88,6 @@ export default function App({ quizRnd }: AppProps = {}) {
     true,
     (v) => typeof v === 'boolean'
   );
-  useEffect(() => saveJSON(PREFS_KEYS.speed, speed), [speed]);
-  useEffect(() => saveJSON(PREFS_KEYS.showLabels, showLabels), [showLabels]);
-  useEffect(() => saveJSON(PREFS_KEYS.realistic, realistic), [realistic]);
   const [selectedPlanet, setSelectedPlanet] = useState<PlanetData | null>(null);
   const [followMode, setFollowMode] = useState(false);
   const [zoom, setZoom] = useState(1);
@@ -109,11 +106,7 @@ export default function App({ quizRnd }: AppProps = {}) {
     () => (simDate ? anglesForDate(planets, simDate) : undefined),
     [simDate]
   );
-  const startSimTime = useMemo(
-    () => (simDate ? simTimeForDate(earth, simDate) : 0),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- earth è una costante di modulo (planets non muta)
-    [simDate]
-  );
+  const startSimTime = useMemo(() => (simDate ? simTimeForDate(earth, simDate) : 0), [simDate]);
   const engine = useOrbitEngine(planets, isPlaying, speed, initialAngles, startSimTime);
   const { subscribeFrames, positionsRef } = engine;
   // `simTime` throttled (~4Hz): basta alla data in sidebar; NON riconduce la
@@ -161,11 +154,16 @@ export default function App({ quizRnd }: AppProps = {}) {
     }
   }, [followedName, subscribeFrames, positionsRef, scale, pan]);
 
-  // Scorciatoie da tastiera. `speed` si legge da un ref (aggiornato a ogni
-  // render) così il listener non viene ri-registrato a ogni cambio velocità:
-  // i listener accumulati su window erano la causa dei doppi passi freccia.
+  // Scorciatoie da tastiera. I setter di useState/usePersistentState sono
+  // stabili per tutta la vita del componente, quindi il listener viene
+  // registrato una sola volta e legge `speed` da un ref (aggiornato a ogni
+  // render): niente ri-registrazioni a ogni cambio velocità (i listener
+  // accumulati su window erano la causa dei doppi passi freccia).
   const speedRef = useRef(speed);
   speedRef.current = speed;
+
+  const setSpeedRef = useRef(setSpeed);
+  setSpeedRef.current = setSpeed;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -187,10 +185,10 @@ export default function App({ quizRnd }: AppProps = {}) {
           setIsPlaying((p) => !p);
           break;
         case 'ArrowRight':
-          setSpeed(SPEED_OPTIONS[Math.min(idx + 1, SPEED_OPTIONS.length - 1)]);
+          setSpeedRef.current(SPEED_OPTIONS[Math.min(idx + 1, SPEED_OPTIONS.length - 1)]);
           break;
         case 'ArrowLeft':
-          setSpeed(SPEED_OPTIONS[Math.max(idx - 1, 0)]);
+          setSpeedRef.current(SPEED_OPTIONS[Math.max(idx - 1, 0)]);
           break;
         case 'Escape':
           setSelectedPlanet(null);
