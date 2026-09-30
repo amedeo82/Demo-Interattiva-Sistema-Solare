@@ -57,19 +57,35 @@ function angularSpeed(planet: PlanetData): number {
  * Posizione kepleriana di un pianeta dato il tempo simulato.
  *
  * Semplificazione: l'asse maggiore di ogni ellisse è allineato con la
- * direzione iniziale del pianeta nel modello. L'anomalia media M avanza a
- * velocità costante; da M si ricava l'anomalia eccentrica E (equazione di
- * Keplero) e quindi l'anomalia vera ν, che dà la longitudine visibile.
+ * direzione iniziale del pianeta nel modello ("perielio locale" in
+ * corrispondenza di `startAngleDeg`). L'anomalia media avanza a velocità
+ * costante dalla fase `meanAnomaly0` (default: perielio della data = 0°
+ * rispetto all'asse, comportamento storico); da essa si ricava l'anomalia
+ * eccentrica E (equazione di Keplero) e quindi l'anomalia vera ν, che dà la
+ * longitudine visibile:
+ *
+ *     angolo(t) = start + ν(M₀ + 360·t/P_anim − M₀)   con avanzamento medio
+ *
  * Il raggio segue l'ellisse polare r(ν) = a(1-e²)/(1+e·cos ν).
+ *
+ * @param t             tempo simulato (secondi a 1x)
+ * @param startAngleDeg longitudine mostrata quando ν = 0 (offset della data)
+ * @param meanAnomaly0  anomalia media reale alla data d'inizio (M_data):
+ *                      l'avanzamento kepleriano è misurato RELATIVO a essa,
+ *                      così all'istante di partenza (t = t₀, con
+ *                      360·(t−t₀)/P_anim ≡ 0 mod 360) ν = 0 ESATTO e la
+ *                      longitudine in scena coincide con λ_data senza il
+ *                      residuo dell'equazione del centro.
  */
 export function keplerPosition(
   planet: PlanetData,
   t: number,
-  startAngleDeg = START_ANGLES[planet.name] ?? 0
+  startAngleDeg = START_ANGLES[planet.name] ?? 0,
+  meanAnomaly0 = 0
 ): SimPlanetState {
-  const meanAnomaly = normalizeDeg(startAngleDeg + angularSpeed(planet) * t);
   const ecc = planet.eccentricity ?? 0;
-  const E = solveKepler(meanAnomaly - startAngleDeg, ecc);
+  const meanAdvance = normalizeDeg(angularSpeed(planet) * t - meanAnomaly0);
+  const E = solveKepler(meanAdvance, ecc);
   const nu = trueAnomalyFromEccentric(E, ecc);
   // longitudine visibile = direzione dell'asse + anomalia vera
   const angle = normalizeDeg(startAngleDeg + nu);
@@ -109,7 +125,8 @@ export function useOrbitEngine(
   isPlaying: boolean,
   speed: number,
   initialAngles?: Record<string, number>,
-  startSimTime = 0
+  startSimTime = 0,
+  initialAnomalies?: Record<string, number>
 ) {
   // Tempo simulato accumulato (secondi a speed=1), sopravvive ai cambi di speed
   const simTimeRef = useRef(startSimTime);
@@ -118,11 +135,12 @@ export function useOrbitEngine(
   speedRef.current = speed;
 
   const starts = initialAngles ?? START_ANGLES;
+  const anomalies = initialAnomalies ?? {};
 
   const computeInto = useMemo(() => {
     return (t: number, out: Record<string, SimPlanetState>): Record<string, SimPlanetState> => {
       for (const p of planets) {
-        const pos = keplerPosition(p, t, starts[p.name] ?? 0);
+        const pos = keplerPosition(p, t, starts[p.name] ?? 0, anomalies[p.name] ?? 0);
         if (out[p.name]) {
           // muta in place: gli abbonati leggono il buffer per riferimento
           out[p.name].angle = pos.angle;
@@ -133,7 +151,7 @@ export function useOrbitEngine(
       }
       return out;
     };
-  }, [planets, starts]);
+  }, [planets, starts, anomalies]);
 
   // Buffer stabile delle posizioni: mai sostituito, solo mutato.
   const positionsRef = useRef<Record<string, SimPlanetState>>({});

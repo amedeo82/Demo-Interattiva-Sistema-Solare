@@ -11,7 +11,7 @@ const CompareModal = lazy(() => import('./components/CompareModal'));
 const QuizModal = lazy(() => import('./components/QuizModal'));
 import { useOrbitEngine, keplerPosition } from './hooks/useOrbitEngine';
 import { computeSystemScale } from './utils/format';
-import { anglesForDate, simTimeForDate } from './utils/simDate';
+import { anglesForDate, anomaliesForDate, simTimeForDate, currentDateForSimTime } from './utils/simDate';
 import { usePersistentState, PREFS_KEYS } from './utils/prefs';
 import { CONFIG } from './config';
 
@@ -106,8 +106,14 @@ export default function App({ quizRnd }: AppProps = {}) {
     () => (simDate ? anglesForDate(planets, simDate) : undefined),
     [simDate]
   );
-  const startSimTime = useMemo(() => (simDate ? simTimeForDate(earth, simDate) : 0), [simDate]);
-  const engine = useOrbitEngine(planets, isPlaying, speed, initialAngles, startSimTime);
+  // Anomalie medie della data: origine dell'avanzamento kepleriano nel motore
+  // (vedi keplerPosition / utils/simDate): a t₀ ν = 0 ESATTO per tutti.
+  const initialAnomalies = useMemo(
+    () => (simDate ? anomaliesForDate(planets, simDate) : undefined),
+    [simDate]
+  );
+  const startSimTime = useMemo(() => (simDate ? simTimeForDate(earth, simDate, planets) : 0), [simDate]);
+  const engine = useOrbitEngine(planets, isPlaying, speed, initialAngles, startSimTime, initialAnomalies);
   const { subscribeFrames, positionsRef } = engine;
   // `simTime` throttled (~4Hz): basta alla data in sidebar; NON riconduce la
   // scena a 60fps come faceva il vecchio stato del motore.
@@ -115,10 +121,9 @@ export default function App({ quizRnd }: AppProps = {}) {
 
   // Data corrente della simulazione: epoca di partenza + tempo simulato
   // (1 anno terrestre = CONFIG.earthYearSimSeconds a velocità 1x).
-  const daysPerSec = earth.orbitalPeriod / EARTH_YEAR_SIM_SECONDS;
   const currentDate = useMemo(
-    () => new Date((simDate ?? new Date()).getTime() + simTime * daysPerSec * 86_400_000),
-    [simDate, simTime, daysPerSec]
+    () => currentDateForSimTime(earth, simDate ?? new Date(), simTime),
+    [simDate, simTime]
   );
 
   // Modalità orbita: centra il palco sul pianeta seguito. Il pan vive nello
