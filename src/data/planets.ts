@@ -35,6 +35,15 @@ export interface PlanetData {
   size: number;
   orbitRadius: number;
   description: string;
+  /**
+   * Periodo animativo: secondi di simulazione (a 1x) per un giro completo.
+   * Vincolo di coerenza (vedi utils/simDate.test): deve restare
+   * proporzionale a `orbitalPeriod` con lo STESSO taro per tutti i pianeti
+   * (Terra = CONFIG.earthYearSimSeconds secondi ↔ 365 giorni), così la
+   * longitudine media mostrata avanza esattamente come il calendario reale.
+   * Valori interi e commensurabili (PPCM = 2100 s) perché il PPCM dei
+   * periodi animativi, usato da `simTimeForDate`, resti piccolo.
+   */
   animationDuration: number;
   /** Inclinazione assiale in gradi (per rotazione e anelli realistici). */
   axialTilt: number;
@@ -62,7 +71,7 @@ export const planets: PlanetData[] = [
     size: 10,
     orbitRadius: 62,
     description: 'Il pianeta più piccolo e più vicino al Sole.',
-    animationDuration: 4,
+    animationDuration: 5,
     axialTilt: 0.03,
     rotationHours: 1407.6,
     eccentricity: 0.2056,
@@ -93,7 +102,7 @@ export const planets: PlanetData[] = [
     size: 14,
     orbitRadius: 94,
     description: 'Il pianeta più caldo del sistema solare.',
-    animationDuration: 7,
+    animationDuration: 6,
     axialTilt: 177.4,
     rotationHours: -5832.5,
     eccentricity: 0.0068,
@@ -156,7 +165,7 @@ export const planets: PlanetData[] = [
     size: 12,
     orbitRadius: 166,
     description: 'Il pianeta rosso, obiettivo di esplorazione umana.',
-    animationDuration: 15,
+    animationDuration: 19,
     axialTilt: 25.19,
     rotationHours: 24.62,
     eccentricity: 0.0934,
@@ -191,7 +200,7 @@ export const planets: PlanetData[] = [
     size: 30,
     orbitRadius: 216,
     description: 'Il pianeta più grande del sistema solare.',
-    animationDuration: 25,
+    animationDuration: 119,
     axialTilt: 3.13,
     rotationHours: 9.93,
     eccentricity: 0.0489,
@@ -227,7 +236,7 @@ export const planets: PlanetData[] = [
     size: 26,
     orbitRadius: 276,
     description: 'Famoso per i suoi magnifici anelli.',
-    animationDuration: 35,
+    animationDuration: 295,
     axialTilt: 26.73,
     rotationHours: 10.66,
     eccentricity: 0.0565,
@@ -261,7 +270,7 @@ export const planets: PlanetData[] = [
     size: 20,
     orbitRadius: 334,
     description: 'Un gigante di ghiaccio che ruota su un fianco.',
-    animationDuration: 50,
+    animationDuration: 840,
     axialTilt: 97.77,
     rotationHours: -17.24,
     eccentricity: 0.0457,
@@ -292,7 +301,7 @@ export const planets: PlanetData[] = [
     size: 19,
     orbitRadius: 388,
     description: 'Il pianeta più lontano dal Sole.',
-    animationDuration: 70,
+    animationDuration: 1648,
     axialTilt: 28.32,
     rotationHours: 16.11,
     eccentricity: 0.0113,

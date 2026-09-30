@@ -81,6 +81,35 @@ function lcmAll(durations: number[]): number {
   }, 1);
 }
 
+/**
+ * Moltiplicatore angolare del pianeta nel motore (`keplerPosition`):
+ * gradi di avanzamento medio per secondo di simulazione. È la quantità che
+ * deve coincidere con la velocità media reale della data (360°/P_reali al
+ * giorno), altrimenti scena e calendario divergono.
+ */
+export function angularRateDegPerSimSecond(planet: PlanetData): number {
+  return 360 / planet.animationDuration;
+}
+
+/**
+ * Coerenza scala temporale: verifica che il taro "gradi animativi per
+ * secondo di sim" di ogni pianeta sia proporzionale alla sua velocità media
+ * reale (360/P_reali), con lo STESSO fattore giorni-per-secondo per tutti i
+ * pianeti (il taro terrestre `CONFIG.earthYearSimSeconds`). Restituisce il
+ * massimo scarto relativo: 0 se la scala è perfettamente coerente.
+ */
+export function maxScaleMismatch(planets: PlanetData[], earth: PlanetData): number {
+  const earthDaysPerSec = earth.orbitalPeriod / earth.animationDuration;
+  let worst = 0;
+  for (const p of planets) {
+    // giorni reali che il pianeta "dovrebbe" percorrere per secondo di sim
+    // perché la longitudine media in scena avanzi come quella reale:
+    const daysPerSec = angularRateDegPerSimSecond(p) / (360 / p.orbitalPeriod);
+    worst = Math.max(worst, Math.abs(daysPerSec / earthDaysPerSec - 1));
+  }
+  return worst;
+}
+
 export function simTimeForDate(earth: PlanetData, date: Date, allPlanets?: PlanetData[]): number {
   // La data NON influenza il risultato: t₀ deve solo garantire giri interi
   // per ogni pianeta (vedi header). Con la lista completa: PPCM dei periodi
