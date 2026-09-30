@@ -43,7 +43,16 @@ function useSystemScale() {
   return scale;
 }
 
-export default function App() {
+interface AppProps {
+  /** RNG del quiz, iniettabile per test deterministici (in produzione: Math.random). */
+  quizRnd?: () => number;
+}
+
+export default function App({ quizRnd }: AppProps = {}) {
+  // Identità stabile: QuizModal rigenera le domande se cambia `rnd`, quindi il
+  // generatore iniettato va memoizzato (in produzione: Math.random, sempre lo
+  // stesso riferimento).
+  const stableQuizRnd = useMemo(() => quizRnd ?? Math.random, [quizRnd]);
   const [isPlaying, setIsPlaying] = useState(true);
   const [speed, setSpeed] = useState(1);
   const [selectedPlanet, setSelectedPlanet] = useState<PlanetData | null>(null);
@@ -369,7 +378,7 @@ export default function App() {
       </div>
 
       {showCompare && <CompareModal planets={planets} onClose={() => setShowCompare(false)} />}
-      {showQuiz && <QuizModal planets={planets} onClose={() => setShowQuiz(false)} />}
+      {showQuiz && <QuizModal planets={planets} onClose={() => setShowQuiz(false)} rnd={stableQuizRnd} />}
     </div>
   );
 }

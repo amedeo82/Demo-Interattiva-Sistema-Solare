@@ -9,9 +9,11 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    // Script Node.js (generazione screenshot): globals di Node, non del browser
+    // Script Node.js (generazione screenshot): qui servono BOTH gli globals di
+    // Node (fs/path/process) E quelli del browser, perché il codice passato a
+    // page.evaluate() gira nel contesto della pagina Puppeteer.
     files: ['scripts/**/*.{mjs,js}'],
-    languageOptions: { globals: { ...globals.node } },
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
   {
     files: ['src/**/*.{ts,tsx}'],

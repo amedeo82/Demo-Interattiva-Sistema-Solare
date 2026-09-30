@@ -2,14 +2,15 @@
  * Test end-to-end (RTL) dei flussi principali dell'app, pensati per la CI:
  * ogni test copre un'intera "user journey" della demo interattiva.
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import App from './App';
+import { planets } from './data/planets';
+import { buildQuestions } from './components/QuizModal';
 
-beforeEach(() => {
-  cleanup();
-  vi.useFakeTimers();
-});
+// NB: niente cleanup() manuale e niente fake timers globali — ci pensa
+// globals:true in vitest.config.ts (cleanup automatico) così i test async
+// (waitFor) non restano bloccati su timer che nessuno fa avanzare.
 
 describe('Flusso: apertura pannello → chiusura con Esc', () => {
   it('seleziona Giove dalla scena, apre le info e le richiude con Esc', () => {
@@ -50,59 +51,70 @@ describe('Flusso: modalità confronto pianeti', () => {
 });
 
 describe('Flusso: quiz mode a punteggio completo', () => {
+  // Le domande sono generate da buildQuestions(planets, rnd): usando lo stesso
+  // RNG iniettivo nel test conosciamo in anticipo le opzioni shuffled e quindi
+  // l'indice della risposta corretta per ogni domanda. Niente più mock globale
+  // di Math.random né euristiche fragili su querySelectorAll('button.chip').
+  const mulberry32 = (seed: number) => () => {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+
   it('rispondendo correttamente a tutte le domande si ottiene il punteggio massimo', async () => {
-    // Le opzioni sono i primi (total+1) pulsanti "chip" del dialog: total
-    // risposte + chip di progresso ("Domanda x di y"). Con Math.random
-    // mockato lo shuffle è deterministico: proviamo un indice alla volta e
-    // ripartiamo finché non otteniamo il punteggio pieno.
-    const spy = vi.spyOn(Math, 'random').mockReturnValue(0);
-    try {
-      let finalScore = '';
-      for (let attempt = 0; attempt < 4; attempt++) {
-        cleanup();
-        render(<App />);
-        fireEvent.click(screen.getByRole('button', { name: /Quiz/i }));
-        const dialog = screen.getByRole('dialog', { name: /Quiz sul sistema solare/i });
-        const total = Number(/Domanda 1 di (\d+)/.exec(dialog.textContent ?? '')?.[1] ?? 5);
+    // `rnd` viene chiamato due volte con lo stesso seed: la prima per generare
+    // le domande attese dal test, la seconda (dentro QuizModal) per generare
+    // quelle mostrate a schermo. Essendo deterministico, i due set coincidono.
+    const rnd = mulberry32(42);
+    const questions = buildQuestions(planets, mulberry32(42));
+    expect(questions.length).toBeGreaterThanOrEqual(2);
 
-        for (let q = 0; q < total; q++) {
-          const options = Array.from(dialog.querySelectorAll('button.chip')).slice(0, total + 1);
-          expect(options.length).toBeGreaterThanOrEqual(2);
-          fireEvent.click(options[attempt]); // stesso indice per tutte le domande
-          fireEvent.click(screen.getByRole('button', { name: /Prossima domanda|Vedi risultato/i }));
-          await Promise.resolve(); // lascia flushare gli update di React 18
-        }
+    render(<App quizRnd={rnd} />);
+    fireEvent.click(screen.getByRole('button', { name: /Quiz/i }));
+    const dialog = screen.getByRole('dialog', { name: /Quiz sul sistema solare/i });
 
-        finalScore = /Punteggio: (\d+\/\d+)/.exec(dialog.textContent ?? '')?.[1] ?? '';
-        if (finalScore === `${total}/${total}`) {
-          expect(dialog).toHaveTextContent(/Perfetto/);
-          return; // successo: punteggio massimo raggiunto rispondendo sempre giusto
-        }
-      }
-      throw new Error(
-        `Nessun indice di opzione produce il punteggio massimo (ultimo: ${finalScore})`
+    for (let q = 0; q < questions.length; q++) {
+      // re-interroga il DOM a ogni iterazione: le opzioni cambiano domanda per domanda
+      const options = dialog.querySelectorAll<HTMLButtonElement>('[data-testid="quiz-option"]');
+      expect(options.length).toBe(questions[q].options.length);
+      fireEvent.click(options[questions[q].answerIndex]);
+      fireEvent.click(
+        screen.getByRole('button', { name: /Prossima domanda|Vedi risultato/i })
       );
-    } finally {
-      spy.mockRestore();
+      await waitFor(() => {
+        if (q + 1 < questions.length) {
+          expect(dialog).toHaveTextContent(`Domanda ${q + 2} di`);
+        } else {
+          expect(dialog).toHaveTextContent(/Punteggio:/);
+        }
+      });
     }
+
+    expect(dialog).toHaveTextContent(
+      `Punteggio: ${questions.length}/${questions.length}`
+    );
+    expect(dialog).toHaveTextContent(/Perfetto/);
   });
 
-  it('una risposta errata non blocca il flusso del quiz', () => {
-    const spy = vi.spyOn(Math, 'random').mockReturnValue(0);
-    try {
-      render(<App />);
-      fireEvent.click(screen.getByRole('button', { name: /Quiz/i }));
-      const dialog = screen.getByRole('dialog', { name: /Quiz sul sistema solare/i });
-      const options = Array.from(dialog.querySelectorAll('button.chip')) as HTMLButtonElement[];
-      fireEvent.click(options[0]);
-      // dopo la selezione le opzioni sono disabilitate (niente double-pick)
-      expect(options.every((o) => o.disabled)).toBe(true);
-      // ma si può andare avanti comunque
-      fireEvent.click(screen.getByRole('button', { name: /Prossima domanda/i }));
-      expect(dialog).toHaveTextContent(/Domanda 2 di/);
-    } finally {
-      spy.mockRestore();
-    }
+  it('una risposta errata non blocca il flusso del quiz', async () => {
+    // stesse domande del componente: generatore atteso e reale partono dallo stesso seed
+    const rnd = mulberry32(7);
+    const questions = buildQuestions(planets, mulberry32(7));
+    const wrongIndex = (questions[0].answerIndex + 1) % questions[0].options.length;
+
+    render(<App quizRnd={rnd} />);
+    fireEvent.click(screen.getByRole('button', { name: /Quiz/i }));
+    const dialog = screen.getByRole('dialog', { name: /Quiz sul sistema solare/i });
+
+    const options = dialog.querySelectorAll<HTMLButtonElement>('[data-testid="quiz-option"]');
+    fireEvent.click(options[wrongIndex]);
+    // dopo la selezione le opzioni sono disabilitate (niente double-pick)
+    expect(Array.from(options).every((o) => o.disabled)).toBe(true);
+    // ma si può andare avanti comunque
+    fireEvent.click(screen.getByRole('button', { name: /Prossima domanda/i }));
+    await waitFor(() => expect(dialog).toHaveTextContent(/Domanda 2 di/));
   });
 });
 
