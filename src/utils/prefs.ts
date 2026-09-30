@@ -53,10 +53,7 @@ export function usePersistentState<T>(
   const setPersisted = useCallback(
     (update: React.SetStateAction<T>) => {
       setValue((prev) => {
-        const next =
-          typeof update === 'function'
-            ? (update as (prevState: T) => T)(prev)
-            : update;
+        const next = typeof update === 'function' ? (update as (prevState: T) => T)(prev) : update;
         saveJSON(key, next); // scrittura immediata: niente effect dedicato
         return next;
       });
