@@ -78,8 +78,16 @@ export default function App({ quizRnd }: AppProps = {}) {
     DEFAULT_SPEED,
     (v) => typeof v === 'number' && SPEED_OPTIONS.includes(v)
   );
-  const [showLabels, setShowLabels] = usePersistentState<boolean>(PREFS_KEYS.showLabels, true, (v) => typeof v === 'boolean');
-  const [realistic, setRealistic] = usePersistentState<boolean>(PREFS_KEYS.realistic, true, (v) => typeof v === 'boolean');
+  const [showLabels, setShowLabels] = usePersistentState<boolean>(
+    PREFS_KEYS.showLabels,
+    true,
+    (v) => typeof v === 'boolean'
+  );
+  const [realistic, setRealistic] = usePersistentState<boolean>(
+    PREFS_KEYS.realistic,
+    true,
+    (v) => typeof v === 'boolean'
+  );
   useEffect(() => saveJSON(PREFS_KEYS.speed, speed), [speed]);
   useEffect(() => saveJSON(PREFS_KEYS.showLabels, showLabels), [showLabels]);
   useEffect(() => saveJSON(PREFS_KEYS.realistic, realistic), [realistic]);
