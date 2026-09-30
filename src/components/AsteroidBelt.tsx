@@ -7,6 +7,8 @@
  * deterministica (PRNG con seed) così ogni render è stabile.
  */
 import { useMemo } from 'react';
+import { mulberry32 } from '../utils/random';
+import { EARTH_DEG_PER_SIM_SEC } from '../config';
 
 export interface Asteroid {
   angle: number; // gradi iniziali
@@ -14,18 +16,6 @@ export interface Asteroid {
   size: number; // px
   speed: number; // moltiplicatore angolare relativo alla Terra
   opacity: number;
-}
-
-/** PRNG mulberry32: deterministico e veloce. */
-function mulberry32(seed: number) {
-  let a = seed >>> 0;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
 }
 
 export function generateAsteroids(count = 350, seed = 42): Asteroid[] {
@@ -55,8 +45,8 @@ interface Props {
 
 export default function AsteroidBelt({ simTime }: Props) {
   const asteroids = useMemo(() => generateAsteroids(), []);
-  // Velocità angolare terrestre: 360° / 10s di simulazione a 1x
-  const earthDegPerSec = 360 / 10;
+  // Velocità angolare terrestre condivisa (CONFIG: 360° / 10s di simulazione a 1x)
+  const earthDegPerSec = EARTH_DEG_PER_SIM_SEC;
   return (
     <svg
       className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"

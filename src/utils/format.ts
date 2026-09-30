@@ -31,12 +31,3 @@ export function computeSystemScale(
   const availH = innerHeight - 110;
   return clamp(Math.min(availW / stageSize, availH / stageSize, 1), 0.3, 1);
 }
-
-/**
- * Durata effettiva dell'animazione orbitale data la velocità di simulazione.
- * Garantisce che duration > 0 anche con input anomali.
- */
-export function orbitDuration(baseDuration: number, speed: number): number {
-  const safeSpeed = speed > 0 ? speed : 1;
-  return baseDuration / safeSpeed;
-}
