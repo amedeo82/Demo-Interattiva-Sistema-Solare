@@ -58,9 +58,9 @@ describe('Scorciatoia Spazio ≡ pulsante Play/Pausa', () => {
   it('le frecce sinistra/destra regolano la velocità in modo simmetrico', () => {
     render(<App />);
     const pressedChip = () =>
-      screen.getByRole('group', { name: /Velocità simulazione/i }).querySelectorAll(
-        '[aria-pressed="true"]'
-      )[0]?.textContent;
+      screen
+        .getByRole('group', { name: /Velocità simulazione/i })
+        .querySelectorAll('[aria-pressed="true"]')[0]?.textContent;
 
     expect(pressedChip()).toBe('1x');
     fireEvent.keyDown(window, { key: 'ArrowRight' });

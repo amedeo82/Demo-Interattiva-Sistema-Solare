@@ -80,9 +80,7 @@ describe('Flusso: quiz mode a punteggio completo', () => {
       const options = dialog.querySelectorAll<HTMLButtonElement>('[data-testid="quiz-option"]');
       expect(options.length).toBe(questions[q].options.length);
       fireEvent.click(options[questions[q].answerIndex]);
-      fireEvent.click(
-        screen.getByRole('button', { name: /Prossima domanda|Vedi risultato/i })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /Prossima domanda|Vedi risultato/i }));
       await waitFor(() => {
         if (q + 1 < questions.length) {
           expect(dialog).toHaveTextContent(`Domanda ${q + 2} di`);
@@ -92,9 +90,7 @@ describe('Flusso: quiz mode a punteggio completo', () => {
       });
     }
 
-    expect(dialog).toHaveTextContent(
-      `Punteggio: ${questions.length}/${questions.length}`
-    );
+    expect(dialog).toHaveTextContent(`Punteggio: ${questions.length}/${questions.length}`);
     expect(dialog).toHaveTextContent(/Perfetto/);
   });
 

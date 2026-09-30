@@ -25,7 +25,7 @@ describe('normalizeDeg', () => {
 });
 
 describe('daysSinceJ2000', () => {
-  it('vale 0 all\'epoca J2000.0', () => {
+  it("vale 0 all'epoca J2000.0", () => {
     expect(daysSinceJ2000(new Date(J2000_MS))).toBe(0);
   });
 
@@ -41,11 +41,11 @@ describe('daysSinceJ2000', () => {
 });
 
 describe('solveKepler — equazione M = E - e·sin(E)', () => {
-  it('con eccentricità nulla l\'anomalia eccentrica coincide con quella media', () => {
+  it("con eccentricità nulla l'anomalia eccentrica coincide con quella media", () => {
     expect(solveKepler(123.4, 0)).toBeCloseTo(123.4, 6);
   });
 
-  it('per ogni anomalia media la soluzione soddisfa l\'equazione di Keplero', () => {
+  it("per ogni anomalia media la soluzione soddisfa l'equazione di Keplero", () => {
     const ecc = 0.2056; // eccentricità di Mercurio (caso peggiore del sistema solare)
     for (let Mdeg = 0; Mdeg < 360; Mdeg += 7) {
       const Edeg = solveKepler(Mdeg, ecc);
@@ -59,7 +59,7 @@ describe('solveKepler — equazione M = E - e·sin(E)', () => {
     }
   });
 
-  it('rispetta le simmetrie note dell\'orbita', () => {
+  it("rispetta le simmetrie note dell'orbita", () => {
     expect(solveKepler(0, 0.9)).toBeCloseTo(0, 6);
     expect(solveKepler(180, 0.9)).toBeCloseTo(180, 6);
     // per M = 90° con e alta, E deve essere > M (l'equazione "rallenta" vicino al perielio)
@@ -79,7 +79,7 @@ describe('orbitalRadiusPx — ellisse polare r(θ) = a(1-e²)/(1+e·cos θ)', ()
     expect(orbitalRadiusPx(a, e, 0)).toBeCloseTo(a * (1 - e), 4);
   });
 
-  it('all\'afelio (θ=180°) restituisce il raggio massimo a(1+e)', () => {
+  it("all'afelio (θ=180°) restituisce il raggio massimo a(1+e)", () => {
     expect(orbitalRadiusPx(a, e, 180)).toBeCloseTo(a * (1 + e), 4);
   });
 
@@ -100,7 +100,7 @@ describe('trueAnomalyFromEccentric', () => {
     expect(trueAnomalyFromEccentric(73, 0)).toBeCloseTo(73, 6);
   });
 
-  it('ai capi (0° e 180°) l\'anomalia vera coincide con quella eccentrica', () => {
+  it("ai capi (0° e 180°) l'anomalia vera coincide con quella eccentrica", () => {
     expect(trueAnomalyFromEccentric(0, 0.5)).toBeCloseTo(0, 6);
     expect(trueAnomalyFromEccentric(180, 0.5)).toBeCloseTo(180, 6);
   });
@@ -115,7 +115,7 @@ describe('trueAnomalyFromEccentric', () => {
 });
 
 describe('meanLongitudeAt', () => {
-  it('al J2000 restituisce la longitudine d\'epoca', () => {
+  it("al J2000 restituisce la longitudine d'epoca", () => {
     expect(meanLongitudeAt(100, 365, new Date(J2000_MS))).toBeCloseTo(100, 4);
   });
 
