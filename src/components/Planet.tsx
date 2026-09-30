@@ -2,7 +2,7 @@
  * Pianeta renderizzato con texture procedurale, rotazione assiale,
  * terminatore (ombra notturna), atmosfera e satelliti naturali.
  */
-import type { CSSProperties } from 'react';
+import { memo, useRef, type CSSProperties } from 'react';
 import type { PlanetData } from '../data/planets';
 import { usePlanetTexture } from '../utils/textures';
 
@@ -21,7 +21,7 @@ interface Props {
   onSelect: (p: PlanetData) => void;
 }
 
-export default function Planet({
+function Planet({
   planet,
   angle,
   radius,
@@ -31,6 +31,12 @@ export default function Planet({
   realistic,
   onSelect,
 }: Props) {
+  // Riferimento stabile alla callback: consente a memo() di ignorare il
+  // prop `onSelect` (che in App è setSelectedPlanet, già stabile, ma la
+  // protezione resta per qualunque futuro uso con closure inline).
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
+  const handleSelect = () => onSelectRef.current(planet);
   const texture = usePlanetTexture(planet.name, planet.color);
   const rad = (angle * Math.PI) / 180;
   const px = radius + radius * Math.sin(rad);
@@ -57,11 +63,11 @@ export default function Planet({
       role="button"
       tabIndex={0}
       aria-label={`Seleziona ${planet.nameIt}`}
-      onClick={() => onSelect(planet)}
+      onClick={handleSelect}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          onSelect(planet);
+          handleSelect();
         }
       }}
       style={{
@@ -128,3 +134,30 @@ export default function Planet({
     </div>
   );
 }
+
+/*
+ * memo(): con il motore orbitale che aggiorna `angles` a ogni frame, senza
+ * questa protezione tutti gli 8 pianeti si riconderebbero sempre. Con il
+ * confronto custom saltiamo il re-render quando la posizione (angle+radius)
+ * e lo stato visivo sono invariati — tipicamente i pianeti non selezionati
+ * mentre l'utente interagisce con pannello/sidebar.
+ *
+ * Nota sul campo `simTime`: è monotono durante la riproduzione, quindi in
+ * play i pianeti si riconderano comunque (servono per rotazione assiale e
+ * orbite delle lune). Il beneficio reale è a simulazione in pausa: toggle
+ * di zoom/labels/selezione non più ricondanno l'intera scena.
+ *
+ * `onSelect` è escluso dal confronto perché richiamato tramite ref stabile
+ * (handleSelect), quindi una callback inline del parent non invalida la memo.
+ */
+export default memo(Planet, (prev, next) => {
+  return (
+    prev.planet === next.planet &&
+    prev.angle === next.angle &&
+    prev.radius === next.radius &&
+    prev.isSelected === next.isSelected &&
+    prev.showLabel === next.showLabel &&
+    prev.simTime === next.simTime &&
+    prev.realistic === next.realistic
+  );
+});

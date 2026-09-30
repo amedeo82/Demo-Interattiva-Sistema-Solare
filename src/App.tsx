@@ -10,9 +10,9 @@ import QuizModal from './components/QuizModal';
 import { keplerPosition, useOrbitEngine } from './hooks/useOrbitEngine';
 import { computeSystemScale } from './utils/format';
 import { meanLongitudeAt } from './utils/kepler';
+import { CONFIG } from './config';
 
-const SPEED_OPTIONS = [0.25, 0.5, 1, 2, 5, 10];
-const STAGE = 800; // lato del "palco" quadrato del sistema solare (px)
+const { stage: STAGE, speedOptions: SPEED_OPTIONS, j2000Ms: J2000_MS } = CONFIG;
 
 /** Offset angolari iniziali derivati dalle longitudini medie all'epoca J2000:
  *  la simulazione parte dalla configurazione reale dei pianeti alla data scelta. */
@@ -27,7 +27,7 @@ function anglesForDate(date: Date): Record<string, number> {
  *  simulazione: 1 anno terrestre = animationDuration della Terra (10s). */
 function simTimeForDate(date: Date): number {
   const earth = planets.find((p) => p.name === 'Earth') ?? planets[2];
-  const d = ((date.getTime() - Date.UTC(2000, 0, 1, 12)) / 86_400_000) % earth.orbitalPeriod;
+  const d = ((date.getTime() - J2000_MS) / 86_400_000) % earth.orbitalPeriod;
   const daysPerSecond = earth.orbitalPeriod / earth.animationDuration;
   return d / daysPerSecond;
 }
@@ -361,6 +361,14 @@ export default function App({ quizRnd }: AppProps = {}) {
           {selectedPlanet && (
             <PlanetInfoPanel planet={selectedPlanet} onClose={() => setSelectedPlanet(null)} />
           )}
+
+          {/* Annuncio per screen reader: selezione pianeta / deselezione.
+              aria-live="polite" perché non deve interrompere la lettura in corso. */}
+          <div role="status" aria-live="polite" className="sr-only">
+            {selectedPlanet
+              ? `${selectedPlanet.nameIt} selezionato. Pannello informazioni aperto.`
+              : ''}
+          </div>
         </main>
 
         {/* Sidebar controlli */}

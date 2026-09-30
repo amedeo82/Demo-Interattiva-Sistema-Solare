@@ -103,6 +103,20 @@ body,
   box-shadow: 0 0 18px rgba(168, 85, 247, 0.18);
 }
 
+/* ---------- Utility: testo solo screen reader ---------- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ---------- Pianeti ---------- */
 .planet {
   cursor: pointer;
