@@ -135,7 +135,11 @@ export function useOrbitEngine(
   speedRef.current = speed;
 
   const starts = initialAngles ?? START_ANGLES;
-  const anomalies = initialAnomalies ?? {};
+  // Normalizza a un oggetto stabile: se `initialAnomalies` è undefined ad ogni
+  // render creerebbe un nuovo `{}`, invalidando il useMemo sottostante a ogni
+  // frame (warning react-hooks/exhaustive-deps).
+  const NO_ANOMALIES: Record<string, number> = {};
+  const anomalies = initialAnomalies ?? NO_ANOMALIES;
 
   const computeInto = useMemo(() => {
     return (t: number, out: Record<string, SimPlanetState>): Record<string, SimPlanetState> => {

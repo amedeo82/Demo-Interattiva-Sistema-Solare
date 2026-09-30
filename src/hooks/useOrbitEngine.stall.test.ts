@@ -36,9 +36,7 @@ describe('useOrbitEngine — coerenza clock/buffer (anti-stallo)', () => {
     const raf = mockRaf();
     const T0 = 2100; // PPCM dei periodi animativi (valore di simTimeForDate)
     const starts = Object.fromEntries(planets.map((p) => [p.name, 0]));
-    const { result } = renderHook(() =>
-      useOrbitEngine(planets, true, 1, starts, T0, undefined)
-    );
+    const { result } = renderHook(() => useOrbitEngine(planets, true, 1, starts, T0, undefined));
     // dopo il mount il buffer deve essere già coerente con l'epoca
     expect(result.current.positionsRef.current[earth.name].angle).toBeCloseTo(
       keplerPosition(earth, T0, 0).angle,

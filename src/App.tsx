@@ -11,7 +11,12 @@ const CompareModal = lazy(() => import('./components/CompareModal'));
 const QuizModal = lazy(() => import('./components/QuizModal'));
 import { useOrbitEngine, keplerPosition } from './hooks/useOrbitEngine';
 import { computeSystemScale } from './utils/format';
-import { anglesForDate, anomaliesForDate, simTimeForDate, currentDateForSimTime } from './utils/simDate';
+import {
+  anglesForDate,
+  anomaliesForDate,
+  simTimeForDate,
+  currentDateForSimTime,
+} from './utils/simDate';
 import { usePersistentState, PREFS_KEYS } from './utils/prefs';
 import { CONFIG } from './config';
 
@@ -23,7 +28,6 @@ const {
   zoomMax: ZOOM_MAX,
   zoomStep: ZOOM_STEP,
   wheelZoomFactor: WHEEL_ZOOM_FACTOR,
-  earthYearSimSeconds: EARTH_YEAR_SIM_SECONDS,
 } = CONFIG;
 
 /** Applica un passo di zoom (positivo o negativo) restando nei limiti CONFIG. */
@@ -112,8 +116,18 @@ export default function App({ quizRnd }: AppProps = {}) {
     () => (simDate ? anomaliesForDate(planets, simDate) : undefined),
     [simDate]
   );
-  const startSimTime = useMemo(() => (simDate ? simTimeForDate(earth, simDate, planets) : 0), [simDate]);
-  const engine = useOrbitEngine(planets, isPlaying, speed, initialAngles, startSimTime, initialAnomalies);
+  const startSimTime = useMemo(
+    () => (simDate ? simTimeForDate(earth, simDate, planets) : 0),
+    [simDate]
+  );
+  const engine = useOrbitEngine(
+    planets,
+    isPlaying,
+    speed,
+    initialAngles,
+    startSimTime,
+    initialAnomalies
+  );
   const { subscribeFrames, positionsRef } = engine;
   // `simTime` throttled (~4Hz): basta alla data in sidebar; NON riconduce la
   // scena a 60fps come faceva il vecchio stato del motore.
