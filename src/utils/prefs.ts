@@ -2,7 +2,7 @@
  * Persistenza delle preferenze utente (zoom, velocità, etichette, realismo…)
  * in localStorage, con letture difensive: valori corrotti/assenti → default.
  */
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 /** Restituisce un reader/writer "sicuro": se localStorage non è disponibile
  *  (SSR, privacy mode, quota) le operazioni diventano no-op silenziosi. */
@@ -53,7 +53,10 @@ export function usePersistentState<T>(
   const setPersisted = useCallback(
     (update: React.SetStateAction<T>) => {
       setValue((prev) => {
-        const next = typeof update === 'function' ? update(prev) : update;
+        const next =
+          typeof update === 'function'
+            ? (update as (prevState: T) => T)(prev)
+            : update;
         saveJSON(key, next); // scrittura immediata: niente effect dedicato
         return next;
       });

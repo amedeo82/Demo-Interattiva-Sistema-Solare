@@ -84,7 +84,7 @@ describe('anglesForDate / simTimeForDate — coerenza con il motore kepleriano',
     }
   });
 
-  it("simTimeForDate è un multiplo intero del periodo animativo di ogni pianeta", () => {
+  it('simTimeForDate è un multiplo intero del periodo animativo di ogni pianeta', () => {
     // È la condizione necessaria e sufficiente perché, partito da t₀,
     // ogni pianeta compia giri completi esatti e resti sincronizzato
     // con la data: 360·t₀/P_anim(p) ≡ 0 (mod 360)  ∀ p.
@@ -92,7 +92,7 @@ describe('anglesForDate / simTimeForDate — coerenza con il motore kepleriano',
       const t = simTimeForDate(earth, date, planets);
       expect(t).toBeGreaterThanOrEqual(0);
       for (const p of planets) {
-        expect((360 / p.animationDuration) * t % 360).toBeCloseTo(0, 6);
+        expect(((360 / p.animationDuration) * t) % 360).toBeCloseTo(0, 6);
       }
     }
   });

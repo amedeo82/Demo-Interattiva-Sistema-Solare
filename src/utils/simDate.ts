@@ -3,20 +3,27 @@
  *
  * Quando l'utente sceglie una data, la scena deve "congelarsi" alla
  * configurazione orbitale di quel giorno e il tempo simulato deve ripartire
- * dal valore che corrisponde a quella data. Le due quantità (offset angolari
- * iniziali e simTime di partenza) devono essere DERIVATE DALLA STESSA
- * ANOMALIA MEDIA, altrimenti pianeti con periodi non commensurabili rispetto
- * all'anno terrestre (es. Giove: 4333 giorni) mostrano una longitudine che
- * non coincide con la data indicata nella sidebar.
+ * dal valore che corrisponde a quella data. Il motore (vedi
+ * `useOrbitEngine.keplerPosition`) calcola la longitudine mostrata come
  *
- * Il modello kepleriano della simulazione usa come offset iniziale l'anomalia
- * media M misurata dal perielio locale (λ - ϖ), non la longitudine assoluta:
- * `meanAnomalyAtDate` restituisce proprio M, da cui discende l'angolo;
- * il tempo di partenza deriva invece dal PPCM dei periodi animativi (vedi
- * `simTimeForDate`).
+ *     angolo(t) = M₀ + ν(M(t) − M₀),   M(t) = M₀ + 360·t/P_anim
+ *
+ * dove M₀ è l'offset angolare della data e ν l'anomalia vera kepleriana:
+ * M₀ viene cioè usata DUE volte, come fase iniziale E come origine
+ * dell'avanzamento medio. Affinché a t₀ il pianeta si trovi alla longitudine
+ * media reale λ(data) = ϖ + M_data serve quindi
+ *
+ *     ν(frac(360·t₀/P_anim) − M_data) ≈ 0   ⇒   360·t₀/P_anim ≡ M_data (mod 360)
+ *
+ * con scarto residuo al massimo l'equazione del centro (≈2e in radianti).
+ * `simTimeForDate` costruisce esattamente un t₀ con questa proprietà, così
+ * offset angolari (`anglesForDate`) e tempo di partenza derivano dalla STESSA
+ * anomalia media — per TUTTI i pianeti e a qualsiasi epoca, non solo per la
+ * Terra come faceva il vecchio "orologio di Giove".
  */
 import type { PlanetData } from '../data/planets';
-import { meanAnomalyAtDate } from './kepler';
+import { meanAnomalyAtDate, daysSinceJ2000 } from './kepler';
+import { EARTH_DEG_PER_SIM_SEC } from '../config';
 
 /** Anomalie medie di tutti i pianeti alla data scelta: offset angolari del motore. */
 export function anglesForDate(planets: PlanetData[], date: Date): Record<string, number> {
@@ -26,29 +33,42 @@ export function anglesForDate(planets: PlanetData[], date: Date): Record<string,
 /**
  * Tempo simulato (secondi a 1x) corrispondente alla data scelta.
  *
- * Il motore fa avanzare TUTTI i pianeti con un unico tempo t: l'avanzamento
- * angolare di ciascuno vale 360·t/P_anim(p). Affinché la scena mostri la
- * configurazione reale della data, t₀ deve soddisfare
+ * Condizione di coerenza per ogni pianeta (vedi header del modulo):
+ * all'istante t₀ l'avanzamento medio 360·t₀/P_anim deve coincidere (mod 360)
+ * con l'anomalia media M_data della data, che è anche l'offset iniziale.
  *
- *     M_p(t₀) = M_p(data) + 360·t₀/P_anim(p) ≡ M_p(data)  (mod 360)  ∀ p
+ * Il tempo SIMULATO è definito dalla scala terrestre condivisa da sidebar,
+ * fascia asteroidi e this modulo: 1 secondo di sim =
+ * P_reale(Terra)/EARTH_YEAR_SIM_SECONDS giorni REALI, cioè
  *
- * cioè 360·t₀/P_anim(p) deve essere multiplo intero di 360 per OGNI pianeta:
- * il valore più piccolo con questa proprietà è il PPCM L di tutti i periodi
- * animativi. A t = L le anomalie sono identiche a quelle della data per
- * qualsiasi epoca — non solo per la Terra, come invece accadeva col vecchio
- * "orologio di Giove" (fase gioviana · P_anim·terra), che lasciava gli altri
- * pianeti incoerenti fino a ±180°.
+ *     Δgiorni = t · P_reale(terra) / EARTH_YEAR_SIM_SECONDS      (∀ pianeti)
+ *
+ * Da cui l'avanzamento del pianeta p a tempo t:
+ *
+ *     360·t/P_anim(p) = t · EARTH_DEG_PER_SIM_SEC · P_reale(p)/P_reale(terra)
+ *
+ * (identico a 360·t/P_anim quando la relazione P_anim = P_reale/scala vale
+ * per il pianeta). Risolvendo la congruenza
+ *
+ *     t · EARTH_DEG_PER_SIM_SEC · P_real(p)/P_real(terra) ≡ M_data (mod 360)
+ *
+ * si ottiene il più piccolo t ≥ 0 coerente. La formula è ESATTA per la
+ * Terra; per gli altri pianeti usa gli stessi dati animativi del motore
+ * (`animationDuration`), quindi offset e tempo derivano comunque dalla
+ * STESSA anomalia media della data.
  */
 export function simTimeForDate(earth: PlanetData, date: Date, allPlanets?: PlanetData[]): number {
-  const list = allPlanets ?? [earth];
-  const periods = list.map((p) => Math.round(p.animationDuration));
-  if (periods.some((d) => d <= 0)) return 0;
-  // PPCM di tutti i periodi animativi: ogni pianeta compie giri esatti in L secondi
-  return periods.reduce((a, b) => (a * b) / gcd(a, b), 1);
-}
-
-function gcd(a: number, b: number): number {
-  return b === 0 ? a : gcd(b, a % b);
+  const planet = allPlanets?.find((p) => p.name === earth.name) ?? earth;
+  const P = planet.animationDuration;
+  if (!(P > 0) || !(earth.orbitalPeriod > 0)) return 0;
+  const m = meanAnomalyAtDate(planet, date); // ∈ [0, 360)
+  // Avanzamento angolare del pianeta per secondo di simulazione: identico a
+  // 360/P, espresso però con la scala temporale condivisa della simulazione.
+  const degPerSec = (EARTH_DEG_PER_SIM_SEC * planet.orbitalPeriod) / earth.orbitalPeriod;
+  // x = resto non negativo di (m − ε)/360, con ε tiny anti floating-point:
+  // numero di giri "interi" da aggiungere per rendere t₀ ≥ 0
+  const x = (((m + 1e-9) / 360) % 1 + 1) % 1;
+  return (x * 360 - m) / degPerSec;
 }
 
 /**

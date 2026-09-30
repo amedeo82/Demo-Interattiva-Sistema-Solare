@@ -12,7 +12,7 @@ const QuizModal = lazy(() => import('./components/QuizModal'));
 import { useOrbitEngine, keplerPosition } from './hooks/useOrbitEngine';
 import { computeSystemScale } from './utils/format';
 import { anglesForDate, simTimeForDate } from './utils/simDate';
-import { saveJSON, usePersistentState, PREFS_KEYS } from './utils/prefs';
+import { usePersistentState, PREFS_KEYS } from './utils/prefs';
 import { CONFIG } from './config';
 
 const {
@@ -88,9 +88,6 @@ export default function App({ quizRnd }: AppProps = {}) {
     true,
     (v) => typeof v === 'boolean'
   );
-  useEffect(() => saveJSON(PREFS_KEYS.speed, speed), [speed]);
-  useEffect(() => saveJSON(PREFS_KEYS.showLabels, showLabels), [showLabels]);
-  useEffect(() => saveJSON(PREFS_KEYS.realistic, realistic), [realistic]);
   const [selectedPlanet, setSelectedPlanet] = useState<PlanetData | null>(null);
   const [followMode, setFollowMode] = useState(false);
   const [zoom, setZoom] = useState(1);
