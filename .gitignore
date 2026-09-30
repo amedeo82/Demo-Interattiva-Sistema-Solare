@@ -1,12 +1,1 @@
-# Dependencies
-node_modules/
-
-# Build Artifacts
-dist/
-
-# Test & coverage
-coverage/
-
-# Logs
-*.log
-npm-debug.log*
+(empty)

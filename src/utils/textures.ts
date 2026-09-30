@@ -12,23 +12,12 @@
  * simulare la rotazione assiale (con inclinazione dell'asse reale).
  */
 import { useMemo } from 'react';
+import { mulberry32 } from './random';
 
 export type TextureKind = 'cratered' | 'cloudy' | 'earthlike' | 'dusty' | 'banded' | 'icy';
 
 const TEX_W = 128; // doppio della dimensione massima dei pianeti in scena
 const TEX_H = 64;
-
-/** PRNG deterministico (mulberry32). */
-function mulberry32(seed: number) {
-  let a = seed >>> 0;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 function fillBase(ctx: CanvasRenderingContext2D, color: string) {
   ctx.fillStyle = color;
@@ -181,13 +170,28 @@ const KIND_BY_PLANET: Record<string, TextureKind> = {
   Luna: 'cratered',
 };
 
-/** Hook: URL data-uri della texture procedurale del pianeta (memoizzata). */
+/** Hook: URL data-uri della texture procedurale del pianeta. */
 export function usePlanetTexture(name: string, color: string): string | null {
+  // Cache a livello di modulo: la pittura su canvas + toDataURL avviene una
+  // sola volta per coppia (nome, colore), anche quando più componenti o un
+  // rimount (es. toggle "Realismo") richiedono la stessa texture.
   return useMemo(() => {
     const kind = KIND_BY_PLANET[name];
     if (!kind) return null;
-    return paintPlanetTexture(kind, color);
+    const key = `${name}|${color}`;
+    const cached = TEXTURE_CACHE.get(key);
+    if (cached !== undefined) return cached;
+    const url = paintPlanetTexture(kind, color);
+    TEXTURE_CACHE.set(key, url);
+    return url;
   }, [name, color]);
+}
+
+const TEXTURE_CACHE = new Map<string, string | null>();
+
+/** Svuota la cache delle texture (esposto per i test). */
+export function clearTextureCache(): void {
+  TEXTURE_CACHE.clear();
 }
 
 export const TEXTURE_KINDS = KIND_BY_PLANET;

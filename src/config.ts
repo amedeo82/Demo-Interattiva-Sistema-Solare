@@ -14,4 +14,17 @@ export const CONFIG = {
   defaultSpeed: 1,
   /** Epoca di riferimento J2000.0 (ms Unix), riusata da kepler.ts senza duplicarla. */
   j2000Ms: J2000_MS,
+  /** Limiti e passo dei controlli di zoom (usati da rotellina, tasti +/- e pulsanti). */
+  zoomMin: 0.4,
+  zoomMax: 3,
+  zoomStep: 0.25,
+  /** Sensibilità dello zoom con rotellina (variazione per pixel di deltaY). */
+  wheelZoomFactor: 0.0015,
+  /** Secondi di simulazione a 1x corrispondenti a un anno terrestre:
+   *  è animationDuration della Terra (10s) ed è il "taro" condiviso da
+   *  data→tempo di simulazione, pannello laterale e fascia asteroidi. */
+  earthYearSimSeconds: 10,
 };
+
+/** Velocità angolare media della Terra in gradi/secondo di simulazione a 1x. */
+export const EARTH_DEG_PER_SIM_SEC = 360 / CONFIG.earthYearSimSeconds;

@@ -1,11 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  formatNumber,
-  formatOrbitalPeriod,
-  clamp,
-  computeSystemScale,
-  orbitDuration,
-} from './format';
+import { formatNumber, formatOrbitalPeriod, clamp, computeSystemScale } from './format';
 
 describe('formatNumber', () => {
   it('usa i separatori it-IT', () => {
@@ -56,17 +50,5 @@ describe('computeSystemScale', () => {
     const desktop = computeSystemScale(1024, 3000, STAGE);
     const mobile = computeSystemScale(1023, 3000, STAGE);
     expect(desktop).toBeLessThan(mobile);
-  });
-});
-
-describe('orbitDuration', () => {
-  it('divide la durata base per la velocità', () => {
-    expect(orbitDuration(10, 2)).toBe(5);
-    expect(orbitDuration(10, 0.5)).toBe(20);
-  });
-
-  it('è robusto a velocità non valide (>0)', () => {
-    expect(orbitDuration(10, 0)).toBe(10);
-    expect(orbitDuration(10, -1)).toBe(10);
   });
 });
