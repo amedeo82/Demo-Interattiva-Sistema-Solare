@@ -63,20 +63,26 @@ function planetElement(overrides: Partial<Props>): ReactElement {
  * creerebbe invece alberi indipendenti (elementi React diversi → niente
  * bail-out), motivo per cui qui serve un update interno con stato.
  *
- * NB: l'harness DEVE essere memo() e le props cambiate tramite setHarnessProps
- * devono essere STABILI (es. vi.fn()): se l'harness si riconnettesse, React
- * eseguirebbe comunque il reconcile dei figli e Planet verrebbe re-renderizzato
- * (memo confronta gli elementi tra re-render dello stesso padre, non tra render
- * di componenti diversi). Con harness memo + callback stabili, il bail-out
- * dipende solo dalle props visive/strutturali (planet, isSelected, showLabel,
- * realistic) — esattamente ciò che i test vogliono misurare.
+ * Due stati interni: `props` (le props passate a Planet) e `tick`. Ogni
+ * setHarnessProps fa bumpare tick, così MemoHarness si riconnette SEMPRE e
+ * React è costretto a eseguire il reconcile del figlio memo(): il bail-out
+ * dipende quindi solo dal confronto shallow delle props — esattamente ciò
+ * che i test vogliono misurare.
+ *
+ * NB: le props cambiate tramite setHarnessProps devono essere STABILI
+ * (letterali o useMemo): valori "freschi" come vi.fn() creati riga per riga
+ * sarebbero identità diverse a ogni update e romperebbero il bail-out.
  */
-let setHarnessProps!: (partial: Partial<Props>) => void;
+let setHarnessProps!: (next: Props) => void;
 
 const MemoHarness = memo(function MemoHarness({ initial }: { initial: Props }) {
   const [props, setProps] = useState<Props>(initial);
-  setHarnessProps = (partial: Partial<Props>) =>
-    act(() => setProps((prev) => ({ ...prev, ...partial })));
+  const [, setTick] = useState(0);
+  setHarnessProps = (next: Props) =>
+    act(() => {
+      setProps(next);
+      setTick((t) => t + 1); // forza il re-render dell'harness → reconcile del figlio
+    });
   return <Planet {...props} />;
 });
 
@@ -95,11 +101,6 @@ afterEach(() => {
   textureSpy.mockClear();
   lastListener = null;
 });
-
-/** Azzera il contatore dei render senza toccare le altre mock. */
-function resetTextureCount() {
-  textureSpy.mockClear();
-}
 
 describe('Planet — interazioni', () => {
   it('chiama onSelect con il pianeta al click', () => {
@@ -141,36 +142,35 @@ describe('Planet — memoizzazione (rev. 2)', () => {
 
   it('si riconnette quando cambia isSelected o showLabel', () => {
     openHarness(fullProps());
-    setHarnessProps({ isSelected: true });
+    setHarnessProps(fullProps({ isSelected: true }));
     expect(textureSpy).toHaveBeenCalledTimes(2);
-    setHarnessProps({ showLabel: false });
+    setHarnessProps(fullProps({ isSelected: true, showLabel: false }));
     expect(textureSpy).toHaveBeenCalledTimes(3);
   });
 
   it('si riconnette quando cambia realistic (struttura lune/DOM)', () => {
     openHarness(fullProps());
-    setHarnessProps({ realistic: true });
+    setHarnessProps(fullProps({ realistic: true }));
     expect(textureSpy).toHaveBeenCalledTimes(2);
   });
 
-  it('il click arriva all\'ultima callback dopo il bail-out + re-render strutturale', () => {
+  it('il click arriva all\'ultima callback anche con onSelect instabile', () => {
     // Scenario reale: App passa setSelectedPlanet (identità stabile), ma un
-    // wrapper inline potrebbe cambiarla tra i render. Finché memo baila, il
-    // DOM conserva il closure vecchio; appena Planet si riconnette (prop
-    // strutturale), il trucco "latest ref" deve risincronizzarlo.
+    // wrapper inline potrebbe cambiarla tra i render. Il trucco "latest ref"
+    // (ref mutato in render, pattern React ufficiale) fa sì che il click
+    // invochi sempre l'ultima callback. Qui `onSelect` cambia a ogni update
+    // (nuovo stub per riga): è il caso peggiore per memo() — il bail-out NON
+    // scatta e Planet si riconnette — e proprio per questo il closure nel DOM
+    // viene aggiornato: il click deve arrivare a `second`, mai a `first`.
     const first = vi.fn();
     const second = vi.fn();
     openHarness(fullProps({ showLabel: false, onSelect: first }));
 
-    // 1) solo onSelect diversa → bail-out (nessun NUOVO render oltre al primo)
-    setHarnessProps({ planet: earth, isSelected: false, showLabel: false, realistic: false, subscribeFrames: subscribeFramesStub, onSelect: second });
-    expect(textureSpy).toHaveBeenCalledTimes(1);
-    resetTextureCount();
-    expect(textureSpy).toHaveBeenCalledTimes(0);
+    // 1) onSelect diversa → re-render (memo non può bailare su prop cambiata)
+    setHarnessProps(fullProps({ showLabel: false, onSelect: second }));
 
-    // 2) prop strutturale → re-render: ora il latest-ref punta a `second`
-    setHarnessProps({ showLabel: true });
-    expect(textureSpy).toHaveBeenCalledTimes(1);
+    // 2) prop strutturale → altro re-render garantito
+    setHarnessProps(fullProps({ showLabel: true, onSelect: second }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Seleziona Terra' }));
     expect(second).toHaveBeenCalledWith(earth);

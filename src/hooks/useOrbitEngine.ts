@@ -174,8 +174,7 @@ export function useOrbitEngine(
     computeInto(startSimTime, positionsRef.current);
     emit();
     publishSimTime(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- emit/publish sono ref-stable wrappers; computeInto coperto da deps
-  }, [startSimTime, computeInto]);
+  }, [startSimTime, computeInto, emit, publishSimTime]);
 
   useEffect(() => {
     if (!isPlaying) {
@@ -196,8 +195,7 @@ export function useOrbitEngine(
     };
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- loop stabile di proposito: legge tutto da ref; ri-registrarlo a ogni cambio di speed/planets ricreerebbe il loop inutilmente
-  }, [isPlaying, computeInto]);
+  }, [isPlaying, computeInto, emit, publishSimTime]);
 
   const useSimTime = () => simTime;
 
