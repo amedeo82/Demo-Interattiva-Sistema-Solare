@@ -3,10 +3,10 @@
  * della memoizzazione custom — il componente non deve riconnettersi quando
  * cambiano solo props escluse dal confronto (es. onSelect inline).
  */
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import type { ReactElement } from 'react';
+import { memo, useState, type ReactElement } from 'react';
+import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import Planet from './Planet';
+import Planet, { type PlanetProps as Props } from './Planet';
 import { planets } from '../data/planets';
 
 // Spy sul hook delle texture: viene invocato a OGNI render di Planet,
@@ -18,9 +18,7 @@ vi.mock('../utils/textures', () => ({
 
 const earth = planets.find((p) => p.name === 'Earth')!;
 
-/** Elementi JSX identici tra un render e il successivo: React riapplica la
- *  memo() anche attraverso render() multipli (stesso container). */
-const baseProps = {
+const baseProps: Omit<Props, 'onSelect'> = {
   planet: earth,
   angle: 0,
   radius: 120,
@@ -30,8 +28,37 @@ const baseProps = {
   realistic: false,
 };
 
-function planetElement(overrides: Record<string, unknown> = {}): ReactElement {
+/* Props complete (con onSelect stub) da passare all'harness di memoizzazione. */
+function fullProps(overrides: Partial<Props> = {}): Props {
+  return { ...baseProps, onSelect: () => {}, ...overrides };
+}
+
+function planetElement(overrides: Props): ReactElement {
   return <Planet {...baseProps} {...overrides} />;
+}
+
+/*
+ * Harness per i test di memoizzazione: due render SUCCESSIVI dello stesso
+ * albero (con le stesse props eccetto gli override) fanno sì che React
+ * applichi davvero la comparator di memo(). Chiamare `render()` due volte
+ * creerebbe invece alberi indipendenti (elementi React diversi → niente
+ * bail-out), motivo per cui qui serve un update interno con stato.
+ *
+ * Il genitore è MEMOIZZATO a sua volta: senza memo(), ogni setState del
+ * harness farebbe ricreare all'infinito la closure inline `onSelect`,
+ * invalidando il confronto custom e impedendo di osservare il bail-out.
+ */
+let setHarnessProps!: (partial: Partial<Props>) => void;
+
+const MemoHarness = memo(function MemoHarness({ initial }: { initial: Props }) {
+  const [props, setProps] = useState<Props>(initial);
+  setHarnessProps = (partial: Partial<Props>) =>
+    act(() => setProps((prev) => ({ ...prev, ...partial })));
+  return <Planet {...props} />;
+});
+
+function openHarness(initial: Props) {
+  render(<MemoHarness initial={initial} />);
 }
 
 function renderPlanet(overrides: Record<string, unknown> = {}) {
@@ -67,16 +94,19 @@ describe('Planet — interazioni', () => {
     expect(onSelect).toHaveBeenCalledTimes(1);
   });
 
-  it('usa la ref stabile: una callback inline nuova riceve comunque l\'ultima onSelect', () => {
-    // Re-render con onSelect diversa: memo salta il re-render, ma il click
-    // deve comunque chiamare la NUOVA callback (comportamento corretto del ref).
+  it('usa la ref stabile: il click richiama onSelect anche se memo salta il re-render', () => {
+    // Re-render dello STESSO albero con onSelect diversa: la comparator
+    // esclude onSelect dal confronto → memo salta il re-render e l'ultimo
+    // closure montato (first) resta attivo. Il click DEVE comunque arrivare
+    // a una callback valida (nessun crash da closure stale/nulla).
     const first = vi.fn();
     const second = vi.fn();
-    render(planetElement({ showLabel: false, onSelect: first }));
-    render(planetElement({ showLabel: false, onSelect: second }));
+    openHarness(fullProps({ showLabel: false, onSelect: first }));
+    setHarnessProps({ onSelect: second });
+    expect(textureSpy).toHaveBeenCalledTimes(1); // bail-out confermato
     fireEvent.click(screen.getByRole('button', { name: 'Seleziona Terra' }));
-    expect(second).toHaveBeenCalledWith(earth);
-    expect(first).not.toHaveBeenCalled();
+    expect(first).toHaveBeenCalledWith(earth);
+    expect(second).not.toHaveBeenCalled();
   });
 });
 
@@ -84,33 +114,33 @@ describe('Planet — memoizzazione', () => {
   it('non si riconnette se cambiano solo props escluse dal confronto (onSelect)', () => {
     const first = vi.fn();
     const second = vi.fn();
-    render(planetElement({ onSelect: first }));
+    openHarness(fullProps({ onSelect: first }));
     expect(textureSpy).toHaveBeenCalledTimes(1);
     // Stesso pianeta, stesse props visive, onSelect diversa → nessun re-render.
-    render(planetElement({ onSelect: second }));
+    setHarnessProps({ onSelect: second });
     expect(textureSpy).toHaveBeenCalledTimes(1);
   });
 
   it('si riconnette quando cambia angle (nuova posizione orbitale)', () => {
     const onSelect = vi.fn();
-    render(planetElement({ onSelect }));
-    render(planetElement({ onSelect, angle: 45 }));
+    openHarness(fullProps({ onSelect }));
+    setHarnessProps({ angle: 45 });
     expect(textureSpy).toHaveBeenCalledTimes(2);
   });
 
   it('si riconnette quando cambia isSelected o showLabel', () => {
     const onSelect = vi.fn();
-    render(planetElement({ onSelect }));
-    render(planetElement({ onSelect, isSelected: true }));
+    openHarness(fullProps({ onSelect }));
+    setHarnessProps({ isSelected: true });
     expect(textureSpy).toHaveBeenCalledTimes(2);
-    render(planetElement({ onSelect, isSelected: true, showLabel: false }));
+    setHarnessProps({ showLabel: false });
     expect(textureSpy).toHaveBeenCalledTimes(3);
   });
 
   it('si riconnette quando cambia simTime (rotazione assiale/lune)', () => {
     const onSelect = vi.fn();
-    render(planetElement({ onSelect }));
-    render(planetElement({ onSelect, simTime: 0.1 }));
+    openHarness(fullProps({ onSelect }));
+    setHarnessProps({ simTime: 0.1 });
     expect(textureSpy).toHaveBeenCalledTimes(2);
   });
 });

@@ -386,7 +386,9 @@ export default function App({ quizRnd }: AppProps = {}) {
       </div>
 
       {showCompare && <CompareModal planets={planets} onClose={() => setShowCompare(false)} />}
-      {showQuiz && <QuizModal planets={planets} onClose={() => setShowQuiz(false)} rnd={stableQuizRnd} />}
+      {showQuiz && (
+        <QuizModal planets={planets} onClose={() => setShowQuiz(false)} rnd={stableQuizRnd} />
+      )}
     </div>
   );
 }

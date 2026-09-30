@@ -6,7 +6,7 @@ import { memo, useRef, type CSSProperties } from 'react';
 import type { PlanetData } from '../data/planets';
 import { usePlanetTexture } from '../utils/textures';
 
-interface Props {
+export interface PlanetProps {
   planet: PlanetData;
   /** Longitudine corrente in gradi (dal motore orbitale). */
   angle: number;
@@ -30,7 +30,7 @@ function Planet({
   simTime,
   realistic,
   onSelect,
-}: Props) {
+}: PlanetProps) {
   // Riferimento stabile alla callback: consente a memo() di ignorare il
   // prop `onSelect` (che in App è setSelectedPlanet, già stabile, ma la
   // protezione resta per qualunque futuro uso con closure inline).

@@ -10,8 +10,8 @@ import { keplerPosition } from './useOrbitEngine';
 const earth = planets.find((p) => p.name === 'Earth')!;
 const mercury = planets.find((p) => p.name === 'Mercury')!;
 
-describe('keplerPosition — cinematica dell\'orbita simulata', () => {
-  it('all\'istante iniziale vale l\'angolo di partenza configurato', () => {
+describe("keplerPosition — cinematica dell'orbita simulata", () => {
+  it("all'istante iniziale vale l'angolo di partenza configurato", () => {
     const pos = keplerPosition(earth, 0);
     // anomalia vera a M=startAngle coincide con startAngle (ν=0 al perielio locale)
     expect(pos.angle).toBeCloseTo(300, 1);
@@ -24,7 +24,7 @@ describe('keplerPosition — cinematica dell\'orbita simulata', () => {
     expect(a1).toBeCloseTo(a0, 4);
   });
 
-  it('l\'angolo resta sempre in [0, 360) su un intero periodo', () => {
+  it("l'angolo resta sempre in [0, 360) su un intero periodo", () => {
     for (let t = 0; t <= earth.animationDuration; t += 0.37) {
       const { angle } = keplerPosition(earth, t);
       expect(angle).toBeGreaterThanOrEqual(0);
@@ -32,7 +32,7 @@ describe('keplerPosition — cinematica dell\'orbita simulata', () => {
     }
   });
 
-  it('il raggio oscilla tra a(1-e) e a(1+e) secondo l\'eccentricità reale', () => {
+  it("il raggio oscilla tra a(1-e) e a(1+e) secondo l'eccentricità reale", () => {
     const a = mercury.orbitRadius;
     const e = mercury.eccentricity;
     let min = Infinity;
@@ -46,7 +46,7 @@ describe('keplerPosition — cinematica dell\'orbita simulata', () => {
     expect(max).toBeCloseTo(a * (1 + e), 0);
   });
 
-  it('con eccentricità nulla l\'orbita è un cerchio perfetto', () => {
+  it("con eccentricità nulla l'orbita è un cerchio perfetto", () => {
     const circular = { ...earth, eccentricity: 0 };
     for (let t = 0; t <= circular.animationDuration; t += 1) {
       expect(keplerPosition(circular, t).radius).toBeCloseTo(earth.orbitRadius, 6);

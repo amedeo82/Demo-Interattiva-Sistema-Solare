@@ -6,14 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import { paintPlanetTexture, TEXTURE_KINDS, type TextureKind } from './textures';
 
-const ALL_KINDS: TextureKind[] = [
-  'cratered',
-  'cloudy',
-  'earthlike',
-  'dusty',
-  'banded',
-  'icy',
-];
+const ALL_KINDS: TextureKind[] = ['cratered', 'cloudy', 'earthlike', 'dusty', 'banded', 'icy'];
 
 describe('TEXTURE_KINDS — mappa pianeti → tipo di texture', () => {
   it('copre tutti gli 8 pianeti più la Luna', () => {
@@ -75,7 +68,16 @@ describe('paintPlanetTexture — generazione su canvas', () => {
   });
 
   it('non lancia eccezioni per nessuno dei colori reali dei pianeti', () => {
-    const colors = ['#9c9c9c', '#e8cda2', '#4f8fdd', '#d1683f', '#c8a060', '#e3cf9a', '#9fd7de', '#4a6fd4'];
+    const colors = [
+      '#9c9c9c',
+      '#e8cda2',
+      '#4f8fdd',
+      '#d1683f',
+      '#c8a060',
+      '#e3cf9a',
+      '#9fd7de',
+      '#4a6fd4',
+    ];
     for (const color of colors) {
       for (const kind of ALL_KINDS) {
         expect(() => paintPlanetTexture(kind, color)).not.toThrow();
