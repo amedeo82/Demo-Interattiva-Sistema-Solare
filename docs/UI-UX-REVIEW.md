@@ -512,8 +512,24 @@ README.md                            (S1+S2 menzionati in Accessibilità & UX)
 ### 🧪 Verifiche
 - `npm run typecheck` → ✅
 - `npm run lint` → ✅
-- `npm test` → 139/139 ✅
+- `npm test` → 141/141 ✅ (include nuovo `orbit.motion.test.tsx`)
 - `npm run build` → ✅ (181 kB JS, 32 kB CSS)
+
+### 🐞 Bug fix scoperti durante l'integrazione (post-S1/S2)
+1. **`useOrbitEngine` — `NO_ANOMALIES` ricreata come nuovo `{}` ad ogni render** (bug pre-esistente, **critico**)
+   - Sintomo: i pianeti "tornano indietro" alla posizione iniziale ogni ~250 ms, visibilmente identico a un'animazione che "ticka avanti e indietro".
+   - Causa: `computeInto` (`useMemo` con deps `[planets, starts, anomalies]`) veniva ricreato ad ogni render perché `NO_ANOMALIES = {}` era dichiarato dentro l'hook → identità sempre nuova. L'effect `[startSimTime, computeInto]` re-innescava, resettando `simTimeRef.current = 0` ad ogni re-render di App (~4Hz, ogni pubblicazione di `useSimTime`).
+   - Fix: `NO_ANOMALIES` spostato a livello modulo, con commento esplicito sul perché DEVE essere lì.
+   - Test anti-regressione: `src/orbit.motion.test.tsx` asserisce che la Terra (e Giove) si allontanano monotonicamente dal punto di partenza su 8 frame consecutivi.
+
+2. **CSS — `transform-style: preserve-3d` + `will-change: transform` + `mix-blend-mode: multiply`** (sospetti bug compositor GPU)
+   - Sintomo: in alcuni browser (Chrome/Firefox) `transform-style: preserve-3d` combinato con `will-change: transform` su un child animato imperativamente può causare il "flattening" del 3D context, facendo sì che il compositor scarti gli aggiornamenti successivi del transform.
+   - Inoltre, `mix-blend-mode: multiply` sulla vignette forza un percorso di rendering non-GPU per gli elementi sotto, rompendo l'ottimizzazione 60fps delle animazioni imperative.
+   - Fix:
+     - Rimosso `transform-style: preserve-3d` da `.stage-3d` (la "3D" è data da `perspective` sul main + `rotateX/rotateY` sul palco, sufficienti).
+     - Rimosso `backface-visibility: hidden` da `.planet` (non necessario senza preserve-3d e potenzialmente dannoso).
+     - Vignette senza `mix-blend-mode`, spostata **dopo** lo stage nel DOM con `z-index: 0` (alpha compositing normale).
+   - Risultato: il 3D tilt della camera è preservato, l'animazione imperativa 60fps è stabile.
 
 ### 🎮 Come provare
 1. `npm run dev`

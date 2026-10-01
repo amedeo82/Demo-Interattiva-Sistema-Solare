@@ -48,6 +48,15 @@ const START_ANGLES: Record<string, number> = {
   Neptune: 260,
 };
 
+/** Oggetto stabile a livello di modulo, usato come fallback per `anomalies`
+ *  quando non è stata scelta una data. DEVE essere a livello modulo: se
+ *  fosse dichiarato dentro l'hook sarebbe un oggetto nuovo ad ogni render,
+ *  invalidando il `useMemo` di `computeInto` e — più gravemente —
+ *  ri-innescando l'effect che resetta `simTimeRef.current = startSimTime`
+ *  ad ogni re-render. Il risultato sarebbe l'animazione che "torna
+ *  indietro" verso la posizione iniziale ad ogni re-render di App (~4Hz). */
+const NO_ANOMALIES: Record<string, number> = {};
+
 /** Velocità angolare media in gradi/secondo di simulazione a speed=1. */
 function angularSpeed(planet: PlanetData): number {
   return 360 / planet.animationDuration;
@@ -135,10 +144,6 @@ export function useOrbitEngine(
   speedRef.current = speed;
 
   const starts = initialAngles ?? START_ANGLES;
-  // Normalizza a un oggetto stabile: se `initialAnomalies` è undefined ad ogni
-  // render creerebbe un nuovo `{}`, invalidando il useMemo sottostante a ogni
-  // frame (warning react-hooks/exhaustive-deps).
-  const NO_ANOMALIES: Record<string, number> = {};
   const anomalies = initialAnomalies ?? NO_ANOMALIES;
 
   const computeInto = useMemo(() => {

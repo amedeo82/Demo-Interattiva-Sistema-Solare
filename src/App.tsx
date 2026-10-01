@@ -505,8 +505,6 @@ export default function App({ quizRnd }: AppProps = {}) {
             ['--parallax-y' as string]: `${tilt.pitch * 2.2}px`,
           }}
         >
-          {/* S1.4 — Vignette + color grading, sotto lo stage ma sopra le stelle */}
-          <div className="vignette" aria-hidden="true" />
           <div
             ref={stageRef}
             data-stage="root"
@@ -595,11 +593,14 @@ export default function App({ quizRnd }: AppProps = {}) {
                     realistic={realistic}
                     onSelect={setSelectedPlanet}
                     subscribeFrames={subscribeFrames}
-                  />
-                </div>
-              );
-            })}
-          </div>
+/>
+                 </div>
+               );
+             })}
+           </div>
+
+          {/* S1.4 — Vignette sopra lo stage (z-index alto, no mix-blend) */}
+          <div className="vignette" aria-hidden="true" />
 
           {/* Controlli vista: zoom / pan / insegue orbita */}
           <div className="absolute bottom-4 left-4 z-20 flex flex-col gap-1.5">

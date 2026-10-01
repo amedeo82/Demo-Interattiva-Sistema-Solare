@@ -26,39 +26,46 @@ body,
 }
 
 /* ---------- Scena 3D (S1) ----------
- * Prospettiva applicata al main (vedi App.tsx) e transform-style sul palco
- * per permettere alle rotazioni rotateX/rotateY di "staccare" i pianeti dal
- * piano. La scena conserva un pitch iniziale di -8° per dare profondità
- * immediata senza dover ruotare la camera. */
+ * La "3D" del progetto è realizzata con `perspective` su <main> +
+ * `rotateX/Y` sul palco (vedi App.tsx). NON applichiamo `transform-style:
+ * preserve-3d` ai figli del palco: questa proprietà, combinata con
+ * `will-change: transform` sui pianeti e animazioni imperative per-frame,
+ * fa sì che alcuni browser (Chrome/Firefox in particolare) forzino il
+ * flattening del 3D context e/o scartino gli aggiornamenti successivi del
+ * compositor, con il risultato che i pianeti si "bloccano" sul primo frame
+ * o avanzano a scatti. Senza preserve-3d i pianeti vivono sul piano
+ * inclinato del palco e la prospettiva viene la render calcolata dalla
+ * projection del palco stesso, sufficiente per dare profondità.
+ */
 .scene-3d {
   perspective: 1400px;
   perspective-origin: 50% 42%;
 }
-.stage-3d {
-  transform-style: preserve-3d;
-  /* backface-visibility nascosta sui pianeti (vedi .planet) */
-}
 
-/* Vignette + leggero color grading cinematografico (S1.4): assorbono i bordi
- * e guidano l'occhio verso il centro dove vive il Sole. */
+/* Vignette + leggero color grading cinematografico (S1.4).
+ * NB: la versione precedente usava `mix-blend-mode: multiply` ma questo
+ * blend forza il browser a usare un percorso di rendering non-GPU per
+ * gli elementi sotto, rompendo l'ottimizzazione 60fps delle animazioni
+ * imperative. La versione attuale usa un gradiente rgba semi-trasparente
+ * posizionato dietro la scena (z-index sotto il palco): scurisce i bordi
+ * dello schermo senza interferire la render dei pianeti. */
 .vignette {
   pointer-events: none;
   position: absolute;
   inset: 0;
-  z-index: 5;
+  z-index: 0;
   background:
     radial-gradient(
       ellipse at 50% 45%,
       transparent 35%,
-      rgba(0, 0, 0, 0.35) 80%,
-      rgba(0, 0, 0, 0.7) 100%
+      rgba(6, 6, 20, 0.45) 80%,
+      rgba(6, 6, 20, 0.85) 100%
     ),
     radial-gradient(
       ellipse at 50% 100%,
-      rgba(255, 120, 40, 0.06) 0%,
+      rgba(255, 120, 40, 0.05) 0%,
       transparent 55%
     );
-  mix-blend-mode: multiply;
 }
 
 /* Parallasse dello starfield: il canvas riceve due CSS var che lo
@@ -250,7 +257,6 @@ body,
 .planet {
   cursor: pointer;
   transition: filter 0.2s ease;
-  backface-visibility: hidden; /* S1: non disegnare il retro durante rotateY */
 }
 .planet:hover {
   filter: brightness(1.35);
