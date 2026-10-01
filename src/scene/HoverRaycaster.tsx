@@ -7,7 +7,7 @@
  *
  * Usa Three.js Raycaster + un piano invisibile a Y=0 (piano dell'eclittica).
  */
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Plane, Vector2, Raycaster, Vector3 } from 'three';
 import type { MutableRefObject } from 'react';
@@ -32,20 +32,23 @@ export function HoverRaycaster({
   const intersectRef = useRef(new Vector3());
   const pointerRef = useRef(new Vector2());
 
-  // Listener sul canvas DOM per aggiornare la posizione NDC del mouse.
-  // Lo facciamo qui dentro useThree (non in un effect) per evitare
-  // re-render: scriviamo direttamente mouseNdcRef.current.
-  const lastClientX = useRef(-1);
-  const lastClientY = useRef(-1);
-  gl.domElement.addEventListener('mousemove', (e) => {
-    const rect = gl.domElement.getBoundingClientRect();
-    lastClientX.current = e.clientX - rect.left;
-    lastClientY.current = e.clientY - rect.top;
-    const cx = lastClientX.current;
-    const cy = lastClientY.current;
-    mouseNdcRef.current.x = (cx / rect.width) * 2 - 1;
-    mouseNdcRef.current.y = -((cy / rect.height) * 2 - 1);
-  });
+  // BUG FIX: l'addEventListener ERA nel render body e si accumulava ad ogni
+  // re-render (memory leak + comportamento indefinito). Va in useEffect
+  // con cleanup per garantire UN solo listener per la vita del componente.
+  useEffect(() => {
+    const el = gl.domElement;
+    const onMove = (e: MouseEvent) => {
+      const rect = el.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+      mouseNdcRef.current.x = (cx / rect.width) * 2 - 1;
+      mouseNdcRef.current.y = -((cy / rect.height) * 2 - 1);
+    };
+    el.addEventListener('mousemove', onMove);
+    return () => {
+      el.removeEventListener('mousemove', onMove);
+    };
+  }, [gl, mouseNdcRef]);
 
   useFrame(() => {
     const ndc = mouseNdcRef.current;

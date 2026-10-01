@@ -24,7 +24,7 @@ import type { SimPlanetState } from '../hooks/useOrbitEngine';
 
 export interface CameraAnimatorProps {
   /** Ref al OrbitControls (per disabilitare/aggiornare target). */
-  controlsRef: MutableRefObject<OrbitControlsImpl | null>;
+  controlsRef: MutableRefObject<{ controls: OrbitControlsImpl | null }>;
   /** Posizioni correnti dei pianeti (dal motore orbitale). */
   positionsRef: MutableRefObject<Record<string, SimPlanetState>>;
   /** Pianeta selezionato (cambio = trigger fly-to). */
@@ -56,10 +56,13 @@ export function CameraAnimator({
   const tweenRef = useRef<Tween | null>(null);
   const introDoneRef = useRef(false);
 
-  // ── Intro flythrough (al mount) ──
-  // La camera parte da lontano (alto, lontano dal sistema, pitch forte)
-  // e scivola verso la posizione di default. Effetto "reveal".
-  useEffect(() => {
+// ── Intro flythrough (al mount) ──
+// La camera parte da lontano (alto, lontano dal sistema, pitch forte)
+// e scivola verso la posizione di default. Effetto "reveal".
+//
+// `camera` e `controlsRef` sono STABILI (camera viene da useThree; controlsRef
+// è un useRef nel parent). Aggiungerli ai deps NON causa re-trigger dell'intro.
+useEffect(() => {
     // Posizione iniziale drammatica: alto, lontano, leggermentea a destra
     const introStart = new Vector3(0, 100, 220);
     const introEnd = new Vector3(0, 70, 100); // matches Canvas camera prop
@@ -75,7 +78,7 @@ export function CameraAnimator({
       startMs: performance.now(),
       durationMs: 3000,
     };
-    if (controlsRef.current) controlsRef.current.enabled = false;
+    if (controlsRef.current?.controls) controlsRef.current.controls.enabled = false;
   }, [camera, controlsRef]);
 
   // ── Fly-to on planet select ──
@@ -106,18 +109,18 @@ export function CameraAnimator({
     const camTarget = planetWorld.clone().add(dir.multiplyScalar(view));
     const tgtTarget = planetWorld.clone();
 
-    if (!controlsRef.current) return;
+    if (!controlsRef.current?.controls) return;
     tweenRef.current = {
       kind: 'flyto',
       camFrom: camera.position.clone(),
       camTo: camTarget,
-      tgtFrom: controlsRef.current.target.clone(),
+      tgtFrom: controlsRef.current.controls.target.clone(),
       tgtTo: tgtTarget,
       startMs: performance.now(),
       durationMs: 1200,
     };
-    controlsRef.current.enabled = false;
-  }, [selectedBodyName, camera, controlsRef, positionsRef]);
+    controlsRef.current.controls.enabled = false;
+  }, [selectedBodyName, positionsRef, camera, controlsRef]);
 
   // ── Esegui la tween imperativamente in useFrame ──
   useFrame(() => {
@@ -128,7 +131,7 @@ export function CameraAnimator({
     const eased = easeInOutCubic(t);
 
     camera.position.lerpVectors(tw.camFrom, tw.camTo, eased);
-    const controls = controlsRef.current;
+    const controls = controlsRef.current?.controls;
     if (controls) {
       controls.target.lerpVectors(tw.tgtFrom, tw.tgtTo, eased);
       controls.update();

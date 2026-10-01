@@ -63,20 +63,28 @@ export default function PlanetInfoPanel({ planet, onClose, positionsRef }: Props
 
   return (
     <aside
-      className="panel-in panel-scanline absolute top-4 right-4 z-[100] w-[300px] max-w-[calc(100vw-2rem)] rounded-2xl p-5"
+      // BUG FIX: il pannello era solo w-[300px] senza cap sull'altezza, e le
+      // sezioni interne avevano max-h-[42vh] che tagliava i contenuti più
+      // lunghi (esmissioni, trivia). Ora l'intero <aside> è scrollabile e
+      // limitato a viewport-4rem, così il contenuto completo è sempre
+      // raggiungibile via scroll. Inoltre z-[200] per stare sopra eventuali
+      // overlay hover.
+      className="panel-in panel-scanline absolute top-4 right-4 z-[200] flex max-h-[calc(100vh-2rem)] w-[320px] max-w-[calc(100vw-2rem)] flex-col rounded-2xl p-5"
       role="dialog"
       aria-label={`Informazioni su ${planet.nameIt}`}
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex shrink-0 items-start justify-between gap-2">
         <div>
           <h2 className="text-xl font-bold leading-tight">{planet.nameIt}</h2>
           <p className="text-white/40 text-xs mt-0.5 uppercase tracking-widest">{planet.name}</p>
         </div>
+        {/* BUG FIX: hit area del close button era solo ~36px (mobile-unfriendly).
+            Portata a 44×44 con bordo visibile, contrasto alto, focus-visible. */}
         <button
           ref={closeRef}
           onClick={onClose}
           aria-label="Chiudi pannello"
-          className="rounded-lg p-1.5 text-white/50 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400"
+          className="-m-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-white/5 text-lg text-white/70 transition-colors hover:border-white/40 hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400"
         >
           ✕
         </button>
@@ -102,56 +110,60 @@ export default function PlanetInfoPanel({ planet, onClose, positionsRef }: Props
 
       <p className="mb-4 text-sm italic leading-relaxed text-white/70">{planet.description}</p>
 
-      <div className="flex flex-col">
-        <StatRow label="Diametro" value={`${formatNumber(planet.diameter)} km`} />
-        <StatRow
-          label="Distanza dal Sole"
-          value={`${formatNumber(planet.distanceFromSun)} mln km`}
-        />
-        <StatRow label="Periodo orbitale" value={periodLabel} />
-        <StatRow label="Rotazione (giorno)" value={planet.facts.dayLength} />
-        <StatRow label="Inclinazione assiale" value={`${planet.axialTilt}°`} />
-        <StatRow label="Eccentricità orbita" value={planet.eccentricity.toFixed(4)} />
-        {/* S4.4 — Mission log: orbite completate da inizio sessione */}
-        <StatRow
-          label="Orbite in questa sessione"
-          value={`${orbitCountersRef.current[planet.name] ?? 0}`}
-        />
-        <StatRow
-          label="Orbite totali (tutti i corpi)"
-          value={`${Object.values(orbitCountersRef.current).reduce((a, b) => a + b, 0)}`}
-        />
-        {planet.moons.length > 0 && (
+      {/* BUG FIX: tutto il pannello è un'unica area scrollabile (overflow-y-auto
+          sul <aside>) invece di due sezioni annidate con max-h separati. */}
+      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+        <div className="flex flex-col">
+          <StatRow label="Diametro" value={`${formatNumber(planet.diameter)} km`} />
           <StatRow
-            label={`Satelliti mostrati (${planet.facts.moonsCount} totali)`}
-            value={planet.moons.map((m) => m.name).join(', ')}
+            label="Distanza dal Sole"
+            value={`${formatNumber(planet.distanceFromSun)} mln km`}
           />
-        )}
-      </div>
+          <StatRow label="Periodo orbitale" value={periodLabel} />
+          <StatRow label="Rotazione (giorno)" value={planet.facts.dayLength} />
+          <StatRow label="Inclinazione assiale" value={`${planet.axialTilt}°`} />
+          <StatRow label="Eccentricità orbita" value={planet.eccentricity.toFixed(4)} />
+          {/* S4.4 — Mission log: orbite completate da inizio sessione */}
+          <StatRow
+            label="Orbite in questa sessione"
+            value={`${orbitCountersRef.current[planet.name] ?? 0}`}
+          />
+          <StatRow
+            label="Orbite totali (tutti i corpi)"
+            value={`${Object.values(orbitCountersRef.current).reduce((a, b) => a + b, 0)}`}
+          />
+          {planet.moons.length > 0 && (
+            <StatRow
+              label={`Satelliti mostrati (${planet.facts.moonsCount} totali)`}
+              value={planet.moons.map((m) => m.name).join(', ')}
+            />
+          )}
+        </div>
 
-      {/* Sezioni espandibili: atmosfera, missioni, curiosità */}
-      <div className="mt-3 max-h-[42vh] overflow-y-auto pr-1">
-        <Section title="Atmosfera e clima">
-          <p>{planet.facts.atmosphere}</p>
-          <p className="mt-1 text-white/60">🌡️ {planet.facts.temperature}</p>
-        </Section>
-        <Section title="Missioni spaziali">
-          <ul className="list-inside list-disc space-y-0.5">
-            {planet.facts.missions.map((m) => (
-              <li key={m}>{m}</li>
-            ))}
-          </ul>
-        </Section>
-        <Section title="Lo sapevi?">
-          <ul className="list-inside list-disc space-y-1">
-            {planet.facts.trivia.map((t) => (
-              <li key={t}>{t}</li>
-            ))}
-          </ul>
-          <p className="mt-2 rounded-lg bg-white/5 px-2 py-1.5 text-xs text-emerald-200/90">
-            📏 {planet.facts.comparison}
-          </p>
-        </Section>
+        {/* Sezioni espandibili: atmosfera, missioni, curiosità */}
+        <div className="mt-3">
+          <Section title="Atmosfera e clima">
+            <p>{planet.facts.atmosphere}</p>
+            <p className="mt-1 text-white/60">🌡️ {planet.facts.temperature}</p>
+          </Section>
+          <Section title="Missioni spaziali">
+            <ul className="list-inside list-disc space-y-0.5">
+              {planet.facts.missions.map((m) => (
+                <li key={m}>{m}</li>
+              ))}
+            </ul>
+          </Section>
+          <Section title="Lo sapevi?">
+            <ul className="list-inside list-disc space-y-1">
+              {planet.facts.trivia.map((t) => (
+                <li key={t}>{t}</li>
+              ))}
+            </ul>
+            <p className="mt-2 rounded-lg bg-white/5 px-2 py-1.5 text-xs text-emerald-200/90">
+              📏 {planet.facts.comparison}
+            </p>
+          </Section>
+        </div>
       </div>
     </aside>
   );

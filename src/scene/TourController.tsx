@@ -23,7 +23,7 @@ export interface TourControllerProps {
   /** Se true, il tour gira. */
   active: boolean;
   /** Ref al OrbitControls (per disabilitare durante i fly-to). */
-  controlsRef: MutableRefObject<OrbitControlsImpl | null>;
+  controlsRef: MutableRefObject<{ controls: OrbitControlsImpl | null }>;
   /** Ref alle posizioni correnti dei pianeti. */
   positionsRef: MutableRefObject<Record<string, SimPlanetState>>;
   /** Callback per cambiare pianeta selezionato. */
@@ -57,16 +57,16 @@ export function TourController({
 
   // Funzione che programma il fly-to verso il prossimo step del tour
   const scheduleFlyTo = (step: TourStep, camPos?: Vector3, lookAt?: Vector3) => {
-    if (!controlsRef.current) return;
+    if (!controlsRef.current?.controls) return;
     if (camPos && lookAt) {
       tweenRef.current = {
         camFrom: camera.position.clone(),
         camTo: camPos,
-        tgtFrom: controlsRef.current.target.clone(),
+        tgtFrom: controlsRef.current.controls!.target.clone(),
         tgtTo: lookAt,
         startMs: performance.now(),
       };
-      controlsRef.current.enabled = false;
+      controlsRef.current.controls!.enabled = false;
     } else if (step === 'earth') {
       const pos = positionsRef.current['Earth'];
       if (pos) {
@@ -76,11 +76,11 @@ export function TourController({
         tweenRef.current = {
           camFrom: camera.position.clone(),
           camTo: cam,
-          tgtFrom: controlsRef.current.target.clone(),
+          tgtFrom: controlsRef.current.controls!.target.clone(),
           tgtTo: planet,
           startMs: performance.now(),
         };
-        controlsRef.current.enabled = false;
+        controlsRef.current.controls!.enabled = false;
         onSelectBody('Earth');
       }
     } else if (step === 'saturn') {
@@ -93,11 +93,11 @@ export function TourController({
         tweenRef.current = {
           camFrom: camera.position.clone(),
           camTo: cam,
-          tgtFrom: controlsRef.current.target.clone(),
+          tgtFrom: controlsRef.current.controls!.target.clone(),
           tgtTo: planet,
           startMs: performance.now(),
         };
-        controlsRef.current.enabled = false;
+        controlsRef.current.controls!.enabled = false;
         onSelectBody('Saturn');
       }
     } else if (step === 'overview') {
@@ -105,11 +105,11 @@ export function TourController({
       tweenRef.current = {
         camFrom: camera.position.clone(),
         camTo: cam,
-        tgtFrom: controlsRef.current.target.clone(),
+        tgtFrom: controlsRef.current.controls!.target.clone(),
         tgtTo: new Vector3(0, 0, 0),
         startMs: performance.now(),
       };
-      controlsRef.current.enabled = false;
+      controlsRef.current.controls!.enabled = false;
     }
     nextStepAtRef.current = performance.now() + TWEEN_MS + STEP_PAUSE_MS;
     onStep?.(step);
@@ -135,7 +135,7 @@ export function TourController({
       const t = Math.min(elapsed / TWEEN_MS, 1);
       const eased = easeInOutCubic(t);
       camera.position.lerpVectors(tw.camFrom, tw.camTo, eased);
-      const controls = controlsRef.current;
+      const controls = controlsRef.current?.controls;
       if (controls) {
         controls.target.lerpVectors(tw.tgtFrom, tw.tgtTo, eased);
         controls.update();

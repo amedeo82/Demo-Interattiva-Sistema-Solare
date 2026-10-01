@@ -4,7 +4,7 @@
  */
 import { Canvas } from '@react-three/fiber';
 import { ACESFilmicToneMapping, SRGBColorSpace } from 'three';
-import { Suspense, useRef } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import type { MutableRefObject } from 'react';
 import { Bodies } from './Bodies';
 import { Orbits } from './Orbits';
@@ -12,6 +12,7 @@ import { Lighting } from './Lighting';
 import { Sun3D } from './Sun3D';
 import { StarsBackground } from './StarsBackground';
 import { CameraRig, type CameraRigHandle } from './CameraRig';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { CameraAnimator } from './CameraAnimator';
 import { PostProcessing } from './PostProcessing';
 import { OrbitEngineBridge } from './OrbitEngineBridge';
@@ -67,7 +68,20 @@ export function SolarScene({
   hoveredBodyRef,
 }: SolarSceneProps) {
   // Ref al OrbitControls per consentire a CameraAnimator di pilotare la camera.
+  // IMPORTANTE: deve essere un oggetto STABILE (no getter inline), altrimenti
+  // ogni render di App crea un nuovo oggetto → useEffect [controlsRef]
+  // ri-esegue → la camera scatta alla posizione di intro (vedi bug FIX).
+  const controlsHolderRef = useRef<{ controls: OrbitControlsImpl | null }>({
+    controls: null,
+  });
+  // Aggiorna il "contents" del ref dentro un useEffect che gira quando
+  // rigRef.current cambia. Il ref esterno (controlsHolderRef)) è STABILE.
   const rigRef = useRef<CameraRigHandle>(null);
+  useEffect(() => {
+    if (rigRef.current) {
+      controlsHolderRef.current.controls = rigRef.current.controls;
+    }
+  });
 
   return (
     <Canvas
@@ -107,20 +121,16 @@ export function SolarScene({
         {/* S3.6 — Tour guidato (cicla flyTo fra panoramica, Terra, Saturno) */}
         <TourController
           active={tourActive}
-          controlsRef={
-            { get current() { return rigRef.current?.controls ?? null; } } as MutableRefObject<import('three-stdlib').OrbitControls>
-          }
+          controlsRef={controlsHolderRef}
           positionsRef={positionsRef}
           onSelectBody={onSelectBody}
           onStep={onTourStep}
         />
         {/* Animatore camera: intro flythrough + fly-to on select.
-            DEVE stare DOPO CameraRig nell'albero React così che rigRef.current
+            DEVE stare DOPO CameraRig nell'albero React così che controlsHolderRef
             sia già popolato al primo render. */}
         <CameraAnimator
-          controlsRef={
-            { get current() { return rigRef.current?.controls ?? null; } } as MutableRefObject<import('three-stdlib').OrbitControls>
-          }
+          controlsRef={controlsHolderRef}
           positionsRef={positionsRef}
           selectedBodyName={selectedBodyName}
           onIntroComplete={onIntroComplete}
