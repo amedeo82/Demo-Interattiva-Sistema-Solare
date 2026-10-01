@@ -1,4 +1,19 @@
 import '@testing-library/jest-dom/vitest';
+import { afterEach } from 'vitest';
+
+// Isolamento fra test: `usePersistentState` legge da localStorage all'inizializzazione,
+// quindi un test che modifica una preferenza (es. cliccando il chip "5x" della velocità)
+// inquinerebbe il successivo test che si aspetta il default. jsdom condivide un unico
+// localStorage fra tutti i test del file, azzerandolo qui preserviamo l'equivalente
+// di un "primo avvio" per ogni test.
+afterEach(() => {
+  try {
+    window.localStorage.clear();
+  } catch {
+    // localStorage potrebbe non essere disponibile (probe fallito in safeStorage);
+    // in tal caso le preferenze sono già solo in memoria e non c'è nulla da pulire.
+  }
+});
 
 // Mock di matchMedia (usato per prefers-reduced-motion) non presente in jsdom
 Object.defineProperty(window, 'matchMedia', {
