@@ -29,9 +29,10 @@ export default defineConfig({
         },
       },
     },
-    // Sopprimiamo il warning "chunk > 500 kB" di Vite: i vendor chunks
-    // sono già lazy e parallelizzati (vedi manualChunks sopra). Il limite
-    // resta per i chunk non-lazy.
-    chunkSizeWarningLimit: 600,
+    // Il chunk three-vender è necessariamente grande (176 KB gzip) e non è
+    // caricato fino a quando l'utente apre la scena 3D (lazy import in
+    // App.tsx). Il warning di Vite resta informativo: 1000 KB è oltre la
+    // soglia solo per la sicurezza che stiamo consci di questa dimensione.
+    chunkSizeWarningLimit: 1000,
   },
 });

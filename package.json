@@ -15,7 +15,7 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\""
   },
-"dependencies": {
+  "dependencies": {
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
     "@react-three/postprocessing": "^2.19.1",
@@ -23,11 +23,15 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "three": "^0.169.0",
-    "zustand": "^4.5.5"
+    "zustand": "^4.5.7"
   },
   "//pnpm": "Consentiamo i postinstall script solo per i tool che Vercel/build devono eseguire (esbuild serve il binario nativo).",
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "@tailwindcss/oxide", "sharp"]
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@tailwindcss/oxide",
+      "sharp"
+    ]
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
