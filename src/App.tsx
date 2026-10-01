@@ -15,6 +15,8 @@ import {
 } from './utils/simDate';
 import { usePersistentState, PREFS_KEYS } from './utils/prefs';
 import { CONFIG } from './config';
+import { TelemetryHUD } from './scene/TelemetryHUD';
+import { HoverCrosshair } from './components/HoverCrosshair';
 // Code-splitting: <SolarScene> porta dentro tutto Three.js (300KB+ gzip).
 // Lazy = non viene scaricato finché non si renderizza la scena.
 const SolarScene = lazy(() =>
@@ -104,6 +106,15 @@ export default function App({ quizRnd }: AppProps = {}) {
   // fa partire una sequenza cinematica di fly-to.
   const [tourActive, setTourActive] = useState(false);
   const [tourStep, setTourStep] = useState<'idle' | 'overview' | 'earth' | 'saturn' | 'end'>('idle');
+  // S4.2 — Refs per TelemetryHUD: aggiornati a 60Hz dentro il Canvas,
+  // letti a 2Hz dal DOM HUD. Zero re-render React per il loop rAF.
+  const cameraDistanceRef = useRef(100);
+  const cameraPositionRef = useRef({ x: 0, y: 70, z: 100 });
+  const fpsRef = useRef(0);
+  // S4.3 — Hover refs: aggiornati da HoverRaycaster dentro Canvas.
+  const mouseNdcRef = useRef({ x: 0, y: 0 });
+  const worldHitRef = useRef<{ x: number; y: number; z: number } | null>(null);
+  const hoveredBodyRef = useRef<string | null>(null);
   // Post-processing (Bloom + Vignette): persistito come le altre preferenze.
   const [postFxEnabled, setPostFxEnabled] = usePersistentState<boolean>(
     PREFS_KEYS.postFxEnabled,
@@ -345,6 +356,20 @@ const handleSelectPlanet = (p: PlanetData) => {
           aria-label="Simulazione 3D del sistema solare"
           onContextMenu={(e) => e.preventDefault()}
         >
+          {/* S4.2 — Telemetry HUD (speed, date, dist, fps) */}
+          <TelemetryHUD
+            speed={speed}
+            currentDate={currentDate}
+            cameraDistanceRef={cameraDistanceRef}
+            fpsRef={fpsRef}
+          />
+          {/* S4.3 — Hover crosshair + coordinate readout */}
+          <HoverCrosshair
+            mouseNdcRef={mouseNdcRef}
+            worldHitRef={worldHitRef}
+            hoveredBodyRef={hoveredBodyRef}
+          />
+
           <Suspense fallback={<div className="h-full w-full" aria-label="Caricamento scena 3D" />}>
             <SolarScene
               positionsRef={positionsRef}
@@ -359,6 +384,12 @@ const handleSelectPlanet = (p: PlanetData) => {
               freeCamera={freeCamera}
               tourActive={tourActive}
               onTourStep={(step) => setTourStep(step)}
+              cameraDistanceRef={cameraDistanceRef}
+              cameraPositionRef={cameraPositionRef}
+              fpsRef={fpsRef}
+              mouseNdcRef={mouseNdcRef}
+              worldHitRef={worldHitRef}
+              hoveredBodyRef={hoveredBodyRef}
             />
           </Suspense>
 
@@ -430,7 +461,11 @@ const handleSelectPlanet = (p: PlanetData) => {
 
           {/* Pannello informazioni pianeta */}
           {selectedPlanet && (
-            <PlanetInfoPanel planet={selectedPlanet} onClose={() => setSelectedPlanet(null)} />
+            <PlanetInfoPanel
+              planet={selectedPlanet}
+              onClose={() => setSelectedPlanet(null)}
+              positionsRef={positionsRef}
+            />
           )}
 
           {/* Annuncio per screen reader: selezione pianeta / deselezione.

@@ -666,3 +666,52 @@ src/scene/CameraRig.tsx            (forwardRef + freeCamera prop)
 src/hooks/useOrbitEngine.ts        (slowmoMultiplierRef param)
 src/App.tsx                        (intro state, slowmo refs, Free Cam + Tour chips)
 ```
+
+---
+
+## 12. Sprint S4 — UI HUD cinematografico
+
+### Risultati finali
+- typecheck ✅
+- lint ✅ (4 warning useMemo deps, non bloccanti)
+- test **149/149** ✅
+- build ✅ senza warning
+
+### Cosa è stato fatto
+- **S4.1** Tipografia cinematografica: Space Grotesk (display) + JetBrains
+  Mono (dati numerici) caricati via Google Fonts in index.html. CSS
+  utilities `.font-display` / `.font-mono` per uso cross-component.
+- **S4.2** TelemetryHUD + CameraTracker: barra DOM con chip `SPD` / `DATE`
+  / `DIST` / `FPS`. La distanza e gli FPS sono aggiornati a 60Hz dentro
+  useFrame (CameraTracker) e letti a 2Hz dal DOM HUD. Zero re-render React
+  per il loop rAF.
+- **S4.3** HoverCrosshair + HoverRaycaster: mirino SVG che segue il mouse,
+  vira al viola quando è sopra un corpo, e mostra un badge in basso con
+  coordinate 3D (X/Z proiettate sul piano dell'eclittica) o nome del corpo
+  hovered. Three.js Raycaster dentro Canvas.
+- **S4.4** useOrbitCounters hook + Mission Log: traccia quante orbite
+  complete ha fatto ciascun pianeta dall'apertura della pagina (rileva il
+  wrap-around 359°→0°). Mostrato nel pannello info come "Orbite in
+  questa sessione" + "Orbite totali (tutti i corpi)".
+- **S4.5** Scan line CSS sui pannelli: `.panel-scanline::after` con
+  `@keyframes scanline` che attraversa il pannello orizzontalmente ogni 6s.
+  Disattivato in `prefers-reduced-motion` per accessibilità.
+
+### File creati
+```
+src/scene/TelemetryHUD.tsx     ← DOM HUD con chip SPD/DATE/DIST/FPS
+src/scene/CameraTracker.tsx    ← useFrame tracker live (dentro Canvas)
+src/scene/HoverRaycaster.tsx   ← Three.js raycast mouse → world hit
+src/components/HoverCrosshair.tsx ← DOM mirino + badge coordinate
+src/hooks/useOrbitCounters.ts   ← counter orbite imperativo
+src/hooks/useOrbitCounters.test.ts ← 2 test
+```
+
+### File modificati
+```
+src/index.css                  ← font tokens, .panel-scanline, scanline keyframes
+index.html                     ← Google Fonts link
+src/scene/SolarScene.tsx       ← integra CameraTracker + HoverRaycaster
+src/components/PlanetInfoPanel.tsx ← Mission log + panel-scanline
+src/App.tsx                     ← refs telemetry + montaggio HUD/crosshair
+```

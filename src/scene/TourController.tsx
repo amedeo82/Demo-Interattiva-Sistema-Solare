@@ -9,7 +9,6 @@
  *  3. Close-up Saturno (angolazione per mostrare gli anelli)
  */
 import { useEffect, useRef } from 'react';
-import { useOrbitEngineContext } from './OrbitEngineBridge';
 import { BODIES_3D, angleToOrbitPosition } from './bodies3d';
 import { Vector3 } from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';

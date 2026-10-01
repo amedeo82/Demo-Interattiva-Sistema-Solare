@@ -1,4 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* S4.1 — Font cinematici: Space Grotesk per i titoli, JetBrains Mono per i
+   dati numerici (date, distanze, coordinate). Trasmettono immediatamente
+   il feel "strumentazione di bordo" della HUD. */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import 'tailwindcss';
 
 /* ---------- Design tokens ---------- */
@@ -15,6 +19,7 @@ body,
   overflow: hidden;
   background: radial-gradient(ellipse at 50% 35%, #10102b 0%, var(--bg-deep) 70%);
   font-family:
+    'Space Grotesk',
     'Inter',
     -apple-system,
     BlinkMacSystemFont,
@@ -23,6 +28,17 @@ body,
     sans-serif;
   color: white;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Utility classes per il sistema tipografico (S4.1) */
+.font-display {
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  letter-spacing: 0.04em;
+}
+.font-mono {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
 
 /* ---------- Scena 3D (S1) ----------
@@ -333,6 +349,36 @@ body,
   animation: panel-in 0.25s ease-out;
 }
 
+/* S4.5 — Scan line orizzontale che attraversa il pannello ogni 6s.
+ * Effetto "schermo CRT / strumentazione di bordo". Disattivato in
+ * prefers-reduced-motion per accessibilità. */
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+.panel-scanline {
+  position: relative;
+  overflow: hidden;
+}
+.panel-scanline::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(180, 200, 255, 0.55) 50%,
+    transparent
+  );
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.4);
+  animation: scanline 6s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
 /* ---------- Controlli ---------- */
 .btn-play {
   display: flex;
@@ -434,6 +480,9 @@ body,
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  .panel-scanline::after {
+    animation: none !important;
   }
 }
 

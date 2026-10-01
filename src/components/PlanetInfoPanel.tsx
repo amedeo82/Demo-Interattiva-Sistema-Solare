@@ -1,10 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useReducer } from 'react';
 import type { PlanetData } from '../data/planets';
 import { formatNumber, formatOrbitalPeriod } from '../utils/format';
+import { useOrbitCounters, type OrbitCountersRef } from '../hooks/useOrbitCounters';
+import type { SimPlanetState } from '../hooks/useOrbitEngine';
 
 interface Props {
   planet: PlanetData;
   onClose: () => void;
+  positionsRef: { current: Record<string, SimPlanetState> };
 }
 
 function StatRow({ label, value }: { label: string; value: string }) {
@@ -29,8 +32,27 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export default function PlanetInfoPanel({ planet, onClose }: Props) {
+export default function PlanetInfoPanel({ planet, onClose, positionsRef }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  // S4.4 — Contatore orbite: hook che traccia quante orbite ha completato
+  // ciascun pianeta nella sessione corrente.
+  const orbitCountersRef: OrbitCountersRef = useOrbitCounters(positionsRef, [
+    'Mercury',
+    'Venus',
+    'Earth',
+    'Mars',
+    'Jupiter',
+    'Saturn',
+    'Uranus',
+    'Neptune',
+  ]);
+  // Force re-render ogni 2s per aggiornare il display del counter
+  // (leggendo sempre ref imperativo, mai state).
+  const [, force] = useReducer((x: number) => x + 1, 0);
+  useEffect(() => {
+    const id = setInterval(() => force(), 2000);
+    return () => clearInterval(id);
+  }, []);
 
   // Accessibilità: focus iniziale sul pulsante di chiusura del dialog
   useEffect(() => {
@@ -41,7 +63,7 @@ export default function PlanetInfoPanel({ planet, onClose }: Props) {
 
   return (
     <aside
-      className="panel-in absolute top-4 right-4 z-[100] w-[300px] max-w-[calc(100vw-2rem)] rounded-2xl p-5"
+      className="panel-in panel-scanline absolute top-4 right-4 z-[100] w-[300px] max-w-[calc(100vw-2rem)] rounded-2xl p-5"
       role="dialog"
       aria-label={`Informazioni su ${planet.nameIt}`}
     >
@@ -90,6 +112,15 @@ export default function PlanetInfoPanel({ planet, onClose }: Props) {
         <StatRow label="Rotazione (giorno)" value={planet.facts.dayLength} />
         <StatRow label="Inclinazione assiale" value={`${planet.axialTilt}°`} />
         <StatRow label="Eccentricità orbita" value={planet.eccentricity.toFixed(4)} />
+        {/* S4.4 — Mission log: orbite completate da inizio sessione */}
+        <StatRow
+          label="Orbite in questa sessione"
+          value={`${orbitCountersRef.current[planet.name] ?? 0}`}
+        />
+        <StatRow
+          label="Orbite totali (tutti i corpi)"
+          value={`${Object.values(orbitCountersRef.current).reduce((a, b) => a + b, 0)}`}
+        />
         {planet.moons.length > 0 && (
           <StatRow
             label={`Satelliti mostrati (${planet.facts.moonsCount} totali)`}
