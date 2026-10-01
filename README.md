@@ -48,13 +48,16 @@ Una simulazione interattiva del sistema solare costruita con **React 18**, **Typ
 ### Accessibilità & UX
 - Navigazione da tastiera: `Spazio` pausa · `←`/`→` velocità · `↑`/`↓` tilt camera · `+`/`−` tilt (alias) · `R` reset visuale · `T` reset tilt · `Esc` chiudi
 - **Scena 3D WebGL** con Three.js (via react-three-fiber). Rotellina = zoom, drag = orbit, Shift+drag = pan (drei OrbitControls).
+- **Cinematic transitions** (S3): fly-to con `easeInOutCubic` su planet select (1.2s), intro flythrough al mount (3s), slow-mo automatico 0.25× per 2.5s dopo select, tour guidato panoramica→Terra→Saturno.
+- **Title sequence** al primo mount con fade-in/out.
+- **Free Cam mode**: chip dedicato per orbita illimitata.
 - Pianeti come **sfere illuminate** dal Sole (MeshStandardMaterial + pointLight), con texture NASA 2K equirectangolari.
 - Saturno con **anelli procedurali** (RingGeometry + texture generata da script), tilt realistico 26.73°.
 - **Bloom + Vignette** post-processing cinematografico (toggle "FX" in header).
 - Scala distanze logaritmica, diametri proporzionali ai km reali (vedi `src/scene/bodies3d.ts`).
-- Vignette + atmosfera con scattering ring, terminatore radiale pilotato dalla posizionee reale del Sole, riflessoee speculare sul lato giorno
+- Vignette + atmosfera con scattering ring, terminatore radale pilotato dalla posizionee reale del Sole, riflessoee speculare sul lato giorno
 - Sole con **limb darkening**, plasma rotante, macule solari e doppia corona animata
-- Ruoli ARIA (`dialog`, `button`,`, `aria-pressed`) e focus management nei pannelli
+- Ruoli ARIA (`dialog`, `button`,`, `aria-pressed`)`) e focus management nei pannelli
 - Design responsive desktop/mobile, micro-animazioni e stati hover
 
 ## 🛠️ Stack tecnologico

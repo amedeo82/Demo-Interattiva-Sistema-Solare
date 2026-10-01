@@ -12,7 +12,7 @@
  * "lenti" (es. la data nella sidebar) usano `useSimTime`, che pubblica il
  * tempo simulato con throttling (~4 Hz) per limitare i re-render.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import type { PlanetData } from '../data/planets';
 import {
   normalizeDeg,
@@ -129,13 +129,19 @@ const SIM_TIME_PUBLISH_INTERVAL_MS = 250;
  *   è sempre quello corrente al momento della pubblicazione).
  * - `simTimeRef` / `positionsRef`: accesso sincrono (per handler, es. scie).
  */
+// S3.4 — ref opzionale per il "cinematic slow-mo". Quando il valore è > 0,
+// viene moltiplicato per la velocità corrente. App.tsx lo aggiorna
+// imperativamente su planet select (es. 0.25 per 2.5s per dare peso al gesto).
+type SlowmoMultiplier = MutableRefObject<number>;
+
 export function useOrbitEngine(
   planets: PlanetData[],
   isPlaying: boolean,
   speed: number,
   initialAngles?: Record<string, number>,
   startSimTime = 0,
-  initialAnomalies?: Record<string, number>
+  initialAnomalies?: Record<string, number>,
+  slowmoMultiplierRef?: SlowmoMultiplier
 ) {
   // Tempo simulato accumulato (secondi a speed=1), sopravvive ai cambi di speed
   const simTimeRef = useRef(startSimTime);
@@ -217,7 +223,7 @@ export function useOrbitEngine(
       if (lastFrameRef.current == null) lastFrameRef.current = now;
       const dt = Math.min((now - lastFrameRef.current) / 1000, 0.1); // clamp tab-inattivo
       lastFrameRef.current = now;
-      simTimeRef.current += dt * speedRef.current;
+      simTimeRef.current += dt * speedRef.current * (slowmoMultiplierRef?.current ?? 1);
       computeInto(simTimeRef.current, positionsRef.current);
       emitRef.current(); // ← nessun setState: il reconciler React non lavora a 60fps
       publishSimTimeRef.current();

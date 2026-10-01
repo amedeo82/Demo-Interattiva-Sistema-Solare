@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { planets, type PlanetData } from './data/planets';
 import PlanetInfoPanel from './components/PlanetInfoPanel';
 import ControlsSidebar from './components/ControlsSidebar';
+import { IntroOverlay } from './components/IntroOverlay';
 // Code-splitting: i modali (confronto/quiz) non servono al primo paint.
 const CompareModal = lazy(() => import('./components/CompareModal'));
 const QuizModal = lazy(() => import('./components/QuizModal'));
@@ -89,6 +90,20 @@ export default function App({ quizRnd }: AppProps = {}) {
   const [simDate, setSimDate] = useState<Date | null>(null);
   const [showCompare, setShowCompare] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
+  // S3.3 — titolo cinematografico: mostrato al mount, auto-dismiss dopo 3s.
+  const [introVisible, setIntroVisible] = useState(true);
+  // S3.4 — cinematic slow-mo: quando l'utente seleziona un pianeta, la
+  // simulazione rallenta a 0.25× per 2.5s per dare "peso" alla transizione
+  // della camera. Ref (non state) per non causare re-render.
+  const slowmoMultiplierRef = useRef(1);
+  const slowmoEndRef = useRef(0);
+  // S3.5 — Free camera toggle: quando ON, OrbitControls vola libero
+  // (no tilt limits, no auto-setPolarAngle).
+  const [freeCamera, setFreeCamera] = useState(false);
+  // S3.6 — Tour guidato: quando ON, un TourController dentro la scena
+  // fa partire una sequenza cinematica di fly-to.
+  const [tourActive, setTourActive] = useState(false);
+  const [tourStep, setTourStep] = useState<'idle' | 'overview' | 'earth' | 'saturn' | 'end'>('idle');
   // Post-processing (Bloom + Vignette): persistito come le altre preferenze.
   const [postFxEnabled, setPostFxEnabled] = usePersistentState<boolean>(
     PREFS_KEYS.postFxEnabled,
@@ -121,7 +136,8 @@ export default function App({ quizRnd }: AppProps = {}) {
     speed,
     initialAngles,
     startSimTime,
-    initialAnomalies
+    initialAnomalies,
+    slowmoMultiplierRef
   );
   const { positionsRef } = engine;
   // `simTime` throttled (~4Hz): basta alla data in sidebar; NON riconduce la
@@ -150,6 +166,21 @@ export default function App({ quizRnd }: AppProps = {}) {
 
   const setSpeedRef = useRef(setSpeed);
   setSpeedRef.current = setSpeed;
+
+  // S3.4 — Auto reset del cinematic slow-mo dopo 2.5s. Il motore legge
+  // `slowmoMultiplierRef.current` ad ogni frame: 0.25 durante la finestra
+  // cinematica, 1 altrimenti. Loop rAF separato (setInterval a 100ms)
+  // per non re-renderizzare App quando il valore cambia.
+  useEffect(() => {
+    const id = setInterval(() => {
+      const now = performance.now();
+      const target = now < slowmoEndRef.current ? 0.25 : 1;
+      if (slowmoMultiplierRef.current !== target) {
+        slowmoMultiplierRef.current = target;
+      }
+    }, 100);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -213,9 +244,18 @@ export default function App({ quizRnd }: AppProps = {}) {
 
   // Reset visuale: nella 3D OrbitControls gestisce camera + zoom + pan,
   // quindi ci limitiamo a resettare il tilt custom dell'utente.
-  const resetView = () => {
-    setTilt(TILT_RESET);
-  };
+  // Reset visuale: nella 3D OrbitControls gestisce camera + zoom + pan,
+// quindi ci limitiamo a resettare il tilt custom dell'utente.
+const resetView = () => {
+  setTilt(TILT_RESET);
+};
+
+const handleSelectPlanet = (p: PlanetData) => {
+  setSelectedPlanet(p);
+  // S3.4 — attiva slow-mo cinematografico per 2.5s
+  slowmoMultiplierRef.current = 0.25;
+  slowmoEndRef.current = performance.now() + 2500;
+};
 
   return (
     <div className="relative flex h-screen w-screen flex-col overflow-hidden text-white">
@@ -272,6 +312,22 @@ export default function App({ quizRnd }: AppProps = {}) {
             ⚖️ Confronto
           </button>
           <button
+            onClick={() => setTourActive((v) => !v)}
+            aria-pressed={tourActive}
+            className={`chip ${tourActive ? 'active' : ''}`}
+            title="Tour guidato: panoramica → Terra → Saturno"
+          >
+            🎬 Tour
+          </button>
+          <button
+            onClick={() => setFreeCamera((v) => !v)}
+            aria-pressed={freeCamera}
+            className={`chip ${freeCamera ? 'active' : ''}`}
+            title="Modalità camera libera: orbita illimitata, tilt sbloccato"
+          >
+            🛰 Free Cam
+          </button>
+          <button
             onClick={() => setShowQuiz(true)}
             className="chip"
             title="Metti alla prova le tue conoscenze"
@@ -299,8 +355,21 @@ export default function App({ quizRnd }: AppProps = {}) {
               }}
               postFxEnabled={postFxEnabled}
               tiltRef={tiltRef}
+              onIntroComplete={() => setIntroVisible(false)}
+              freeCamera={freeCamera}
+              tourActive={tourActive}
+              onTourStep={(step) => setTourStep(step)}
             />
           </Suspense>
+
+          {/* S3.3 — Title overlay cinematografico sopra tutto */}
+          {introVisible && (
+            <IntroOverlay
+              visibleMs={1500}
+              fadeMs={1200}
+              onComplete={() => setIntroVisible(false)}
+            />
+          )}
 
           {/* Overlay controlli vista in basso a sinistra: tilt + reset.
               Nella scena 3D zoom e pan sono gestiti da OrbitControls (rotellina + drag). */}
@@ -331,6 +400,34 @@ export default function App({ quizRnd }: AppProps = {}) {
             </button>
           </div>
 
+          {/* S3.6 — Tour in corso: overlay con step corrente */}
+          {tourActive && tourStep !== 'idle' && tourStep !== 'end' && (
+            <div className="pointer-events-none absolute top-4 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/20 bg-black/60 px-4 py-1.5 text-xs uppercase tracking-[0.3em] text-white/80 backdrop-blur-sm">
+              🎬 Tour ·{' '}
+              {tourStep === 'overview'
+                ? 'Panoramica sistema'
+                : tourStep === 'earth'
+                  ? 'Terra'
+                  : tourStep === 'saturn'
+                    ? 'Saturno'
+                    : ''}
+            </div>
+          )}
+          {tourActive && tourStep === 'end' && (
+            <div className="pointer-events-auto absolute top-4 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/20 bg-black/60 px-4 py-1.5 text-xs text-white/80 backdrop-blur-sm">
+              Tour completato ·{' '}
+              <button
+                onClick={() => {
+                  setTourActive(false);
+                  setTourStep('idle');
+                }}
+                className="underline hover:text-white"
+              >
+                Esci
+              </button>
+            </div>
+          )}
+
           {/* Pannello informazioni pianeta */}
           {selectedPlanet && (
             <PlanetInfoPanel planet={selectedPlanet} onClose={() => setSelectedPlanet(null)} />
@@ -354,7 +451,7 @@ export default function App({ quizRnd }: AppProps = {}) {
           speedOptions={SPEED_OPTIONS}
           planets={planets}
           selectedName={selectedPlanet?.name ?? null}
-          onSelectPlanet={setSelectedPlanet}
+          onSelectPlanet={handleSelectPlanet}
           currentDate={currentDate}
         />
       </div>

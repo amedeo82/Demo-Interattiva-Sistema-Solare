@@ -618,3 +618,51 @@ src/components/Planet.test.tsx (era specifico al DOM Planet)
 Vedi `public/textures/README.md`. Le 9 immagini planetarie derivano
 dalla collezione Solar System Scope (CC-BY 4.0). Gli anelli di Saturno
 sono generati proceduralmente.
+
+---
+
+## 11. Sprint S3 — Transizioni e regia cinematografica
+
+### Risultati finali
+- typecheck ✅
+- lint ✅ (3 warning non bloccanti)
+- test **147/147** ✅
+- build ✅ senza warning
+
+### Cosa è stato fatto
+- **S3.1** `CameraAnimator.tsx`: tween imperativa `useFrame` + `easeInOutCubic`
+  per fly-to al pianeta selezionato (1.2s). Disabilita OrbitControls durante
+  la tween per non interferire.
+- **S3.2** Intro flythrough: la camera parte da (0, 100, 220) al mount e
+  scivola a (0, 70, 100) in 3s con lo stesso easing.
+- **S3.3** `IntroOverlay.tsx`: title sequence cinematografico DOM puro
+  ("Sistema Solare" + "Interattivo · 3D") che sfuma in, sta 1.5s, sfuma
+  via in 1.2s. z-index alto, non blocca interazioni.
+- **S3.4** Cinematic slow-mo: `slowmoMultiplierRef` aggiunto a
+  `useOrbitEngine`. Su planet select: `multiplier = 0.25` per 2.5s, poi
+  torna a 1. Effetto: la scena "rallenta" intorno al momento del fly-to.
+- **S3.5** Free camera toggle: chip `🛰 Free Cam` in header, propaga a
+  `CameraRig`. Quando ON, i `minDistance/maxDistance` si allargano e il
+  tilt lock viene disabilitato (orbita libera completa).
+- **S3.6** Tour guidato: chip `🎬 Tour` + `TourController.tsx`. Cicla
+  automaticamente: panoramica → Terra → Saturno (3 flyTo con tween da
+  1.8s + pausa 0.8s). Overlay DOM mostra lo step attivo.
+- **Test** `easing.test.ts`: 6 test per le funzioni di easing
+  (easeInOutCubic, easeOutCubic, easeInQuad, clamp01).
+
+### File creati
+```
+src/scene/easing.ts
+src/scene/easing.test.ts
+src/scene/CameraAnimator.tsx
+src/scene/TourController.tsx
+src/components/IntroOverlay.tsx
+```
+
+### File modificati
+```
+src/scene/SolarScene.tsx           (integra CameraAnimator + TourController)
+src/scene/CameraRig.tsx            (forwardRef + freeCamera prop)
+src/hooks/useOrbitEngine.ts        (slowmoMultiplierRef param)
+src/App.tsx                        (intro state, slowmo refs, Free Cam + Tour chips)
+```
