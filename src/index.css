@@ -25,6 +25,53 @@ body,
   -webkit-font-smoothing: antialiased;
 }
 
+/* ---------- Scena 3D (S1) ----------
+ * Prospettiva applicata al main (vedi App.tsx) e transform-style sul palco
+ * per permettere alle rotazioni rotateX/rotateY di "staccare" i pianeti dal
+ * piano. La scena conserva un pitch iniziale di -8° per dare profondità
+ * immediata senza dover ruotare la camera. */
+.scene-3d {
+  perspective: 1400px;
+  perspective-origin: 50% 42%;
+}
+.stage-3d {
+  transform-style: preserve-3d;
+  /* backface-visibility nascosta sui pianeti (vedi .planet) */
+}
+
+/* Vignette + leggero color grading cinematografico (S1.4): assorbono i bordi
+ * e guidano l'occhio verso il centro dove vive il Sole. */
+.vignette {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background:
+    radial-gradient(
+      ellipse at 50% 45%,
+      transparent 35%,
+      rgba(0, 0, 0, 0.35) 80%,
+      rgba(0, 0, 0, 0.7) 100%
+    ),
+    radial-gradient(
+      ellipse at 50% 100%,
+      rgba(255, 120, 40, 0.06) 0%,
+      transparent 55%
+    );
+  mix-blend-mode: multiply;
+}
+
+/* Parallasse dello starfield: il canvas riceve due CSS var che lo
+ * trasleranno in base al tilt della camera. Più il pitch sale, più le
+ * stelle "scendono" → effetto parallasse ambientale. */
+.starfield-parallax {
+  --parallax-x: 0px;
+  --parallax-y: 0px;
+  transform: translate(var(--parallax-x), var(--parallax-y));
+  transition: transform 80ms linear;
+  will-change: transform;
+}
+
 ::selection {
   background: rgba(168, 85, 247, 0.4);
 }
@@ -66,29 +113,111 @@ body,
   }
 }
 
-/* ---------- Sole ---------- */
+/* ---------- Sole (S2.4) ---------- */
+/* Quattro layer sovrapposti, tutti centrati via translate(-50%,-50%) perché
+ *  ogni layer è posizionato assolutamente rispetto al wrapper .sun che fa
+ *  da ancora. Il disco interno ha limb darkening (bordi più scuri del
+ *  centro, come nelle foto solari reali) ottenuto con due gradienti
+ *  sovrapposti: uno pieno brillante e uno scuro-radiale "mangiato" ai bordi.
+ */
 .sun {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 54px;
-  height: 54px;
-  border-radius: 50%;
+  width: 64px;
+  height: 64px;
   transform: translate(-50%, -50%);
-  background: radial-gradient(circle at 32% 30%, #fff9c4, #ffe066 30%, #ffab2e 65%, #ff7300);
-  box-shadow:
-    0 0 30px rgba(255, 200, 60, 0.9),
-    0 0 90px rgba(255, 160, 40, 0.45),
-    0 0 180px rgba(255, 140, 30, 0.25);
   z-index: 10;
+  pointer-events: auto;
+  cursor: pointer;
 }
+/* Disco fotosferico con limb darkening: il secondo gradient "mangia" i bordi
+ * e lascia il centro brillante — simulazione cheap della legge di Lambert
+ * che descrive l'oscuramento al lembo solare. */
+.sun-core {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle at 50% 50%,
+      rgba(255, 80, 0, 0.7) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      circle at 32% 30%,
+      #fff8d0 0%,
+      #ffe066 35%,
+      #ffab2e 70%,
+      #d54a00 100%
+    );
+  box-shadow:
+    0 0 24px rgba(255, 200, 60, 0.85),
+    0 0 70px rgba(255, 160, 40, 0.5),
+    0 0 160px rgba(255, 120, 30, 0.35),
+    0 0 280px rgba(255, 90, 20, 0.18);
+}
+/* Granulazione plasma: sottile rumore animato via due gradienti conici
+ * opposti che ruotano in direzioni diverse — dà l'idea di celle di
+ * convezione senza shader GPU. */
+.sun-plasma {
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background:
+    conic-gradient(
+      from 0deg,
+      rgba(255, 240, 180, 0) 0%,
+      rgba(255, 200, 80, 0.18) 20%,
+      rgba(255, 240, 180, 0) 40%,
+      rgba(255, 200, 80, 0.15) 60%,
+      rgba(255, 240, 180, 0) 80%
+    ),
+    conic-gradient(
+      from 180deg,
+      rgba(255, 100, 30, 0) 0%,
+      rgba(255, 160, 50, 0.22) 30%,
+      rgba(255, 100, 30, 0) 60%
+    );
+  mix-blend-mode: screen;
+  animation: sun-spin 30s linear infinite;
+  pointer-events: none;
+}
+/* Macula solari (3 piccole chiazze scure che si spostano lentamente sul disco) */
+.sun-spot {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(80, 30, 0, 0.85) 30%, rgba(120, 50, 0, 0.4) 70%, transparent 100%);
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+@keyframes sun-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Corona interna (pulse) e corona esterna (rotazione lenta): due passaggi
+  * per dare profondità al "alone" solare. */
 .sun-corona {
   position: absolute;
-  inset: -14px;
+  inset: -16px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 200, 70, 0.35), transparent 70%);
+  background: radial-gradient(circle, rgba(255, 200, 70, 0.4), transparent 70%);
   animation: sun-pulse 5s ease-in-out infinite;
   pointer-events: none;
+  mix-blend-mode: screen;
+}
+.sun-corona-outer {
+  position: absolute;
+  inset: -38px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(255, 150, 40, 0.18) 0%, transparent 60%),
+    radial-gradient(circle, rgba(255, 90, 30, 0.1) 40%, transparent 70%);
+  animation: sun-pulse 8s ease-in-out infinite reverse;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  filter: blur(2px);
 }
 
 /* ---------- Orbite ---------- */
@@ -121,6 +250,7 @@ body,
 .planet {
   cursor: pointer;
   transition: filter 0.2s ease;
+  backface-visibility: hidden; /* S1: non disegnare il retro durante rotateY */
 }
 .planet:hover {
   filter: brightness(1.35);
@@ -139,6 +269,39 @@ body,
   border: 2px solid rgba(232, 208, 136, 0.55);
   border-radius: 50%;
   pointer-events: none;
+}
+
+/* Atmosfera (S2.3): non più alone piatto, ma scattering a doppio anello
+ * con mix-blend-mode screen per non sporcare il nero dello sfondo. La
+ * larghezza dell'anello è tarata in modo che sia visibile anche sui pianeti
+ * piccoli. */
+.planet-atmo {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 0 6px 1px rgba(255, 255, 255, 0.05);
+  mix-blend-mode: screen;
+}
+
+/* Highlight speculare (S2.2): una piccola macchia luminosa sul "lato giorno"
+ * del pianeta, posizionata via radial-gradient al centro luce. Opacità e
+ *  posizione sono scritte imperativamente da Planet.tsx a ogni frame. */
+.planet-specular {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  will-change: background;
+}
+
+/* Terminatore (S2.1): strato scuro radiale il cui "centro luce" è scritto
+ * imperativamente da Planet.tsx in base alla posizione del Sole. */
+.planet-terminator {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  will-change: background;
 }
 .planet-label {
   position: absolute;

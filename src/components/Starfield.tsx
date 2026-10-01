@@ -136,7 +136,10 @@ export default function Starfield({ count = 400 }: { count?: number }) {
     <canvas
       ref={canvasRef}
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 h-full w-full"
+      // S1.3 — la classe attiva la parallasse pilotata dalle CSS var sul
+      //  <main>: lo starfield "scorre" in senso opposto al tilt della
+      //  camera, dando l'illusione di essere molto più lontano del sistema.
+      className="starfield-parallax pointer-events-none absolute inset-0 h-full w-full"
     />
   );
 }

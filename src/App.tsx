@@ -64,6 +64,18 @@ interface AppProps {
 // fissa del periodo orbitale, indipendente dalla velocità di simulazione.
 const TRAIL_FRACS = CONFIG.trailFractions;
 
+/** S1.2 — limiti di rotazione della camera 3D (gradi). Mantengono la scena
+ *  sempre leggibile: pitch mai oltre l'orizzonte, yaw entro mezzo angolo
+ *  giro per evitare di vedere il retro del palco. */
+const TILT_PITCH_MIN = -45;
+const TILT_PITCH_MAX = 25;
+const TILT_YAW_MIN = -60;
+const TILT_YAW_MAX = 60;
+const TILT_RESET = { pitch: -10, yaw: 0 };
+
+const clampPitch = (p: number) => Math.min(TILT_PITCH_MAX, Math.max(TILT_PITCH_MIN, p));
+const clampYaw = (y: number) => Math.min(TILT_YAW_MAX, Math.max(TILT_YAW_MIN, y));
+
 /** Terra: riferimento per la scala temporale della simulazione
  *  (1 anno terrestre = CONFIG.earthYearSimSeconds secondi di sim a 1x). */
 const earth = planets.find((p) => p.name === 'Earth') ?? planets[2];
@@ -96,6 +108,10 @@ export default function App({ quizRnd }: AppProps = {}) {
   const [followMode, setFollowMode] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  // S1.2 — Tilt della camera 3D: pitch (asse X) e yaw (asse Y), entrambi
+  // clampati in fase di update. Partiamo con un pitch negativo per dare
+  // profondità immediata ("guardiamo il sistema da sopra-davanti").
+  const [tilt, setTilt] = useState({ pitch: -10, yaw: 0 });
   const [simDate, setSimDate] = useState<Date | null>(null);
   const [showCompare, setShowCompare] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
@@ -146,10 +162,16 @@ export default function App({ quizRnd }: AppProps = {}) {
   // imperativamente qui sotto (useEffect + abbonamento ai frame).
   const followedName = followMode && selectedPlanet ? selectedPlanet.name : null;
   const stageRef = useRef<HTMLDivElement>(null);
-  const viewRef = useRef({ panX: 0, panY: 0, scale: 1 });
+  const viewRef = useRef({ panX: 0, panY: 0, scale: 1, pitch: -10, yaw: 0 });
   viewRef.current.panX = pan.x;
   viewRef.current.panY = pan.y;
   viewRef.current.scale = scale;
+  // S1.2 — Ref "latest" del tilt: gli effetti che scrivono il transform
+  //  imperativamente lo leggono ad ogni frame per non re-renderizzare.
+  viewRef.current.pitch = tilt.pitch;
+  viewRef.current.yaw = tilt.yaw;
+  const tiltRef = useRef(tilt);
+  tiltRef.current = tilt;
 
   useEffect(() => {
     const writeStageTransform = () => {
@@ -165,7 +187,9 @@ export default function App({ quizRnd }: AppProps = {}) {
           y += followed.radius * Math.cos(rad);
         }
       }
-      el.style.transform = `translate(${x}px, ${y}px) scale(${viewRef.current.scale})`;
+      // S1.1 — rotateX(pitch) + rotateY(yaw) per la camera 3D. Il transform
+      // è scritto imperativamente qui per evitare re-render durante il follow.
+      el.style.transform = `translate(${x}px, ${y}px) rotateX(${viewRef.current.pitch}deg) rotateY(${viewRef.current.yaw}deg) scale(${viewRef.current.scale})`;
     };
     writeStageTransform();
     if (followedName) {
@@ -221,6 +245,21 @@ export default function App({ quizRnd }: AppProps = {}) {
         case '-':
           setZoom((z) => zoomBy(z, -ZOOM_STEP));
           break;
+        // S1.2 — scorciatoie camera 3D
+        case 'r':
+        case 'R':
+          resetView();
+          break;
+        case 't':
+        case 'T':
+          setTilt(TILT_RESET);
+          break;
+        case 'ArrowUp':
+          setTilt((t) => ({ ...t, pitch: clampPitch(t.pitch + 3) }));
+          break;
+        case 'ArrowDown':
+          setTilt((t) => ({ ...t, pitch: clampPitch(t.pitch - 3) }));
+          break;
       }
     };
     window.addEventListener('keydown', onKey);
@@ -249,9 +288,18 @@ export default function App({ quizRnd }: AppProps = {}) {
   // Pan col trascinamento e PINCH-to-zoom multitouch: i pointer attivi sono
   // tracciati in una Map (ref, mai stato React). Con due dita la distanza
   // fra i punti pilota lo zoom relativo; con una sola dito il pan.
+  // S1.2 — aggiunto rotateRef per la rotazione 3D della camera (right-click
+  // o Shift+drag). Convive con drag/pinch mutando lo stato "active" del pan.
   const pointersRef = useRef(new Map<number, { x: number; y: number }>());
   const pinchDistRef = useRef(0);
   const dragRef = useRef({ x: 0, y: 0, active: false });
+  const rotateRef = useRef({
+    active: false,
+    x: 0,
+    y: 0,
+    startPitch: -10,
+    startYaw: 0,
+  });
   const scaleRef = useRef(scale);
   scaleRef.current = scale;
 
@@ -265,7 +313,20 @@ export default function App({ quizRnd }: AppProps = {}) {
     if (pointersRef.current.size === 2) {
       // inizia un pinch: molla il drag del singolo dito
       dragRef.current.active = false;
+      rotateRef.current.active = false;
       pinchDistRef.current = twoPointDistance();
+      return;
+    }
+    // S1.2 — Right-click (b=2) o Shift+left-click → rotazione camera 3D.
+    // Sinistro nudo continua a fare pan. Il menu contestuale nativo va
+    // soppresso a livello di <main> (vedi onContextMenu più sotto).
+    if (e.button === 2 || (e.button === 0 && e.shiftKey)) {
+      rotateRef.current.active = true;
+      rotateRef.current.x = e.clientX;
+      rotateRef.current.y = e.clientY;
+      rotateRef.current.startPitch = tiltRef.current.pitch;
+      rotateRef.current.startYaw = tiltRef.current.yaw;
+      dragRef.current.active = false;
       return;
     }
     if (e.button !== 0 || pointersRef.current.size > 2) return;
@@ -281,6 +342,17 @@ export default function App({ quizRnd }: AppProps = {}) {
       const factor = d / pinchDistRef.current;
       pinchDistRef.current = d;
       setZoom((z) => clampZoom(z * factor));
+      return;
+    }
+    // S1.2 — drag-orbit camera: dx → yaw, dy → pitch (inverso: dragging
+    //  verso il basso guarda verso il basso, come in Blender/Maya).
+    if (rotateRef.current.active) {
+      const dx = e.clientX - rotateRef.current.x;
+      const dy = e.clientY - rotateRef.current.y;
+      setTilt({
+        pitch: clampPitch(rotateRef.current.startPitch - dy * 0.25),
+        yaw: clampYaw(rotateRef.current.startYaw + dx * 0.3),
+      });
       return;
     }
     if (!dragRef.current.active) return;
@@ -299,12 +371,14 @@ export default function App({ quizRnd }: AppProps = {}) {
       dragRef.current = { x: remaining.x, y: remaining.y, active: true };
     } else if (pointersRef.current.size === 0) {
       dragRef.current.active = false;
+      rotateRef.current.active = false;
     }
   };
 
   const resetView = () => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
+    setTilt(TILT_RESET);
   };
 
   // Le scie si ricreano solo quando cambia l'insieme dei pianeti da tracciare.
@@ -414,17 +488,29 @@ export default function App({ quizRnd }: AppProps = {}) {
         {/* Visualizzazione */}
         <main
           ref={mainRef}
-          className="relative flex min-h-0 flex-1 cursor-grab touch-none items-center justify-center overflow-hidden active:cursor-grabbing"
+          className="scene-3d relative flex min-h-0 flex-1 cursor-grab touch-none items-center justify-center overflow-hidden active:cursor-grabbing"
           aria-label="Simulazione del sistema solare"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={endPointer}
           onPointerCancel={endPointer}
           onPointerLeave={endPointer}
+          // S1.2 — sopprimi il context menu nativo: il right-click è binding
+          // per la rotazione 3D della camera.
+          onContextMenu={(e) => e.preventDefault()}
+          // S1.3 — CSS vars per la parallasse dello starfield (vedi .starfield-parallax).
+          // Il fattore 2.2 è tarato per restare morbido entro i limiti tilt.
+          style={{
+            ['--parallax-x' as string]: `${-tilt.yaw * 2.2}px`,
+            ['--parallax-y' as string]: `${tilt.pitch * 2.2}px`,
+          }}
         >
+          {/* S1.4 — Vignette + color grading, sotto lo stage ma sopra le stelle */}
+          <div className="vignette" aria-hidden="true" />
           <div
             ref={stageRef}
-            className="relative shrink-0"
+            data-stage="root"
+            className="stage-3d relative shrink-0"
             style={{
               width: STAGE,
               height: STAGE,
@@ -432,14 +518,33 @@ export default function App({ quizRnd }: AppProps = {}) {
               // dedicato; qui solo la transizione "dolce" su zoom/pan (che sono
               // eventi rari dell'utente). Il follow-mode disattiva la
               // transizione via classe per non fightare col loop rAF.
-              transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
-              transition: followedName ? 'none' : 'transform 200ms ease-out',
+              // S1.1 — rotateX/rotateY aggiunti per la camera 3D.
+              transform: `translate(${pan.x}px, ${pan.y}px) rotateX(${tilt.pitch}deg) rotateY(${tilt.yaw}deg) scale(${scale})`,
+              transition: followedName ? 'none' : 'transform 220ms ease-out',
             }}
           >
-            {/* Sole */}
+            {/* Sole (S2.4) — multi-layer con limb darkening, plasma rotante,
+                corona interna/esterna animate e macule solari. */}
             <div className="sun" role="img" aria-label="Sole">
+              <div className="sun-core" />
+              <div className="sun-plasma" />
+              <span
+                className="sun-spot"
+                style={{ width: 6, height: 6, left: '38%', top: '32%' }}
+                aria-hidden
+              />
+              <span
+                className="sun-spot"
+                style={{ width: 4, height: 4, left: '60%', top: '58%' }}
+                aria-hidden
+              />
+              <span
+                className="sun-spot"
+                style={{ width: 5, height: 5, left: '25%', top: '64%' }}
+                aria-hidden
+              />
               <div className="sun-corona" />
-              <div className="sun-flare" />
+              <div className="sun-corona-outer" />
             </div>
 
             {/* Scie orbitali dei pianeti (selezione attiva): JSX statico,

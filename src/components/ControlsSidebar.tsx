@@ -48,7 +48,9 @@ export default function ControlsSidebar({
         </button>
         <p className="mt-1.5 text-center text-[11px] text-white/35">
           Scorciatoie: <kbd className="kbd">Spazio</kbd> pausa · <kbd className="kbd">←</kbd>{' '}
-          <kbd className="kbd">→</kbd> velocità · <kbd className="kbd">Esc</kbd> chiudi
+          <kbd className="kbd">→</kbd> velocità · <kbd className="kbd">↑</kbd>
+          <kbd className="kbd">↓</kbd> tilt · <kbd className="kbd">R</kbd> reset ·{' '}
+          <kbd className="kbd">Esc</kbd> chiudi
         </p>
       </div>
 

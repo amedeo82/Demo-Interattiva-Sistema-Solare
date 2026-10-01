@@ -46,7 +46,10 @@ Una simulazione interattiva del sistema solare costruita con **React 18**, **Typ
 - Etichette dei pianeti attivabili/disattivabili
 
 ### Accessibilità & UX
-- Navigazione da tastiera: `Spazio` pausa · `←`/`→` velocità · `+`/`−` zoom · `Esc` chiudi
+- Navigazione da tastiera: `Spazio` pausa · `←`/`→` velocità · `↑`/`↓` tilt camera · `+`/`−` zoom · `R` reset visuale · `T` reset tilt · `Esc` chiudi
+- Camera 3D interattiva: **perspective** prospettica, **right-click drag** o **Shift+drag** per ruotare la scena (pitch/yaw), parallasse dello sfondo stellato
+- Vignette cinematografica + atmosfera con scattering ring, terminatore radiale pilotato dalla posizione reale del Sole, riflesso speculare sul lato giorno
+- Sole con **limb darkening**, plasma rotante, macule solari e doppia corona animata
 - Ruoli ARIA (`dialog`, `button`, `aria-pressed`) e focus management nei pannelli
 - Design responsive desktop/mobile, micro-animazioni e stati hover
 

@@ -117,7 +117,7 @@ describe('Flusso: quiz mode a punteggio completo', () => {
 describe('Flusso: zoom, pan e reimpostazione visuale', () => {
   it('i pulsanti di zoom modificano la transform del palco e reset la ripristina', () => {
     render(<App />);
-    const stage = document.querySelector('[aria-label="Simulazione del sistema solare"] > div');
+    const stage = document.querySelector('[data-stage="root"]');
     expect(stage).not.toBeNull();
 
     const scaleOf = () => {

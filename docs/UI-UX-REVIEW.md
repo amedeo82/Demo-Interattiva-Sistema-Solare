@@ -481,3 +481,45 @@ Il salto verso il "cinematico" è soprattutto **registico**:
 Una volta implementati anche solo S1+S2+S3, la differenza percepita
 sarà enorme: da "schema animato del sistema solare" a **"planeta-rio
 personale"**. 🎬🪐
+
+---
+
+## 9. Changelog implementativo
+
+### ✅ Sprint S1 — Camera 3D cinematografica
+- **S1.1** `index.css` → classe `.scene-3d` con `perspective: 1400px` sul `<main>` e `.stage-3d` con `transform-style: preserve-3d`. Stage transform ora include `rotateX(pitch) rotateY(yaw)`.
+- **S1.2** `App.tsx` → stato `tilt { pitch, yaw }` (pitch iniziale -10°). Ref `rotateRef` per drag-orbit. **Right-click drag** *o* **Shift+left drag** = rotazione camera (pitch clampato a [-45°, 25°], yaw a [-60°, 60°]). Context menu nativo soppresso su `<main>`. Nuove scorciatoie: `↑/↓` tilt ±3°, `R` reset completo, `T` reset tilt. `resetView()` ora resetta anche il tilt.
+- **S1.3** `Starfield.tsx` + `index.css` → classe `.starfield-parallax` con `transition 80ms` che trasla il canvas in base alle CSS var `--parallax-x/y` impostate sul `<main>` (proporzionali al tilt, fattore 2.2×).
+- **S1.4** `index.css` → overlay `.vignette` con due gradient (oscuramento bordi + alone caldo sotto) in `mix-blend-mode: multiply`.
+
+### ✅ Sprint S2 — Illuminazione realistica
+- **S2.1** `Planet.tsx` → terminatore riscritto: ora calcola `lightX = 50 − sin(angleRad)·50`, `lightY = 50 + cos(angleRad)·50` dalla longitudine eliocentrica, e applica un `radial-gradient(circle at <lightX>% <lightY>%, transparent 38%, nightOp 88%)`. Risultato: il confine giorno/nighte segue la geometria reale pianeta-Sole, non un gradiente lineare "tagliato".
+- **S2.2** `Planet.tsx` → nuovo layer `<div ref={specularRef} className="planet-specular" />` con gradient bianco caldo posizionato all'antipodo del terminatore. `mix-blend-mode: screen` per non sporcare il nero dello sfondo.
+- **S2.3** `Planet.tsx` + `index.css` → atmosfera come doppio radial-gradient con due fasce (60-70% e 80-90%) e `mix-blend-mode: screen` (vedi `.planet-atmo`). Risultato: alone luminoso sottile e colorato che "sporge" dal bordo del pianeta come Rayleigh scattering.
+- **S2.4** `index.css` → Sole completamente ridisegnato: disco `.sun-core` 64px con doppio gradient (limb darkening + interno brillante), layer `.sun-plasma` con due `conic-gradient` opposti in rotazione continua (30s/loop), 3 macule `.sun-spot` scure che si spostano sul disco, doppia corona (interna pulse 5s, esterna reverse 8s con `filter: blur(2px)`).
+
+### 📂 File toccati
+```
+src/index.css                       (S1.1, S1.3, S1.4, S2.3, S2.4)
+src/App.tsx                          (S1.1, S1.2, S1.3)
+src/components/Starfield.tsx         (S1.3)
+src/components/Planet.tsx            (S2.1, S2.2, S2.3)
+src/components/ControlsSidebar.tsx   (S1.2 — shortcut hint)
+src/App.flows.test.tsx               (test selector aggiornato)
+README.md                            (S1+S2 menzionati in Accessibilità & UX)
+```
+
+### 🧪 Verifiche
+- `npm run typecheck` → ✅
+- `npm run lint` → ✅
+- `npm test` → 139/139 ✅
+- `npm run build` → ✅ (181 kB JS, 32 kB CSS)
+
+### 🎮 Come provare
+1. `npm run dev`
+2. Apri http://localhost:5173
+3. **Tieni premuto il tasto destro** del mouse sulla scena e trascina → la camera ruota in 3D
+4. **Shift+trascina** col tasto sinist per la stessa cosa (alternativa)
+6. Le stelle sullo sfondo si muovono in parallasse rispetto alla rotazione
+5. Premi `R` per resettare tutto, `T` per resettare solo il tilt
+6. Osserva: il terminatore dei pianeti ora segue la posizione reale del Sole (più sfumato del precedente) e il lato giorno ha un bagliore speculare
