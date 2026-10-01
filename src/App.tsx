@@ -1,16 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { planets, type PlanetData } from './data/planets';
-import Starfield from './components/Starfield';
 import PlanetInfoPanel from './components/PlanetInfoPanel';
 import ControlsSidebar from './components/ControlsSidebar';
-import Planet from './components/Planet';
-import AsteroidBelt from './components/AsteroidBelt';
-import { lazy, Suspense } from 'react';
 // Code-splitting: i modali (confronto/quiz) non servono al primo paint.
 const CompareModal = lazy(() => import('./components/CompareModal'));
 const QuizModal = lazy(() => import('./components/QuizModal'));
-import { useOrbitEngine, keplerPosition } from './hooks/useOrbitEngine';
-import { computeSystemScale } from './utils/format';
+import { useOrbitEngine } from './hooks/useOrbitEngine';
 import {
   anglesForDate,
   anomaliesForDate,
@@ -19,62 +14,44 @@ import {
 } from './utils/simDate';
 import { usePersistentState, PREFS_KEYS } from './utils/prefs';
 import { CONFIG } from './config';
+// Code-splitting: <SolarScene> porta dentro tutto Three.js (300KB+ gzip).
+// Lazy = non viene scaricato finché non si renderizza la scena.
+const SolarScene = lazy(() =>
+  import('./scene/SolarScene').then((m) => ({ default: m.SolarScene }))
+);
 
 const {
-  stage: STAGE,
   speedOptions: SPEED_OPTIONS,
   defaultSpeed: DEFAULT_SPEED,
-  zoomMin: ZOOM_MIN,
-  zoomMax: ZOOM_MAX,
-  zoomStep: ZOOM_STEP,
-  wheelZoomFactor: WHEEL_ZOOM_FACTOR,
 } = CONFIG;
 
-/** Applica un passo di zoom (positivo o negativo) restando nei limiti CONFIG. */
-function zoomBy(z: number, step: number): number {
-  return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +(z + step).toFixed(2)));
-}
-
-/** Limita lo zoom ai range configurati (usato da rotellina e pinch). */
-const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +z.toFixed(3)));
-
-function useSystemScale() {
-  // useState dentro un custom hook: le regole dei hooks lo richiedono
-  // (react-hooks/rules-of-hooks); prima era una chiamata in un modulo outer,
-  // silenziosamente illegale.
-  const [scale, setScale] = useState(0.7);
+/** Hook che traccia la dimensione viewport (rende il layout reattivo). */
+function useViewport() {
+  const [size, setSize] = useState({ w: window.innerWidth, h: window.innerHeight });
   useEffect(() => {
-    const update = () => setScale(computeSystemScale(window.innerWidth, window.innerHeight, STAGE));
-    update();
+    const update = () => setSize({ w: window.innerWidth, h: window.innerHeight });
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
   }, []);
-  return scale;
+  return size;
 }
 
-interface AppProps {
-  /** RNG del quiz, iniettabile per test deterministici (in produzione: Math.random). */
-  quizRnd?: () => number;
-}
-
-// Scie orbitali: aggiornate imperativamente a ogni frame. Bug storico
-// corretto: l'offset temporale dei punti era legato a `speed` (che è un
-// moltiplicatore del tempo), quindi cambiando velocità la scia cambiava
-// dimensione in modo contro-intuitivo. Ora l'età dei punti è una frazione
-// fissa del periodo orbitale, indipendente dalla velocità di simulazione.
-const TRAIL_FRACS = CONFIG.trailFractions;
-
-/** S1.2 — limiti di rotazione della camera 3D (gradi). Mantengono la scena
- *  sempre leggibile: pitch mai oltre l'orizzonte, yaw entro mezzo angolo
- *  giro per evitare di vedere il retro del palco. */
+/** Limiti di rotazione della camera 3D (gradi). TILT_YAW riservato a frecce ←/→ future. */
 const TILT_PITCH_MIN = -45;
 const TILT_PITCH_MAX = 25;
 const TILT_YAW_MIN = -60;
 const TILT_YAW_MAX = 60;
 const TILT_RESET = { pitch: -10, yaw: 0 };
-
 const clampPitch = (p: number) => Math.min(TILT_PITCH_MAX, Math.max(TILT_PITCH_MIN, p));
 const clampYaw = (y: number) => Math.min(TILT_YAW_MAX, Math.max(TILT_YAW_MIN, y));
+// Sopprimi il warning "unused" finché le frecce ←/→ non sono attivate.
+void TILT_YAW_MIN;
+void TILT_YAW_MAX;
+void clampYaw;
+interface AppProps {
+  /** RNG del quiz, iniettabile per test deterministici (in produzione: Math.random). */
+  quizRnd?: () => number;
+}
 
 /** Terra: riferimento per la scala temporale della simulazione
  *  (1 anno terrestre = CONFIG.earthYearSimSeconds secondi di sim a 1x). */
@@ -105,9 +82,6 @@ export default function App({ quizRnd }: AppProps = {}) {
     (v) => typeof v === 'boolean'
   );
   const [selectedPlanet, setSelectedPlanet] = useState<PlanetData | null>(null);
-  const [followMode, setFollowMode] = useState(false);
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
   // S1.2 — Tilt della camera 3D: pitch (asse X) e yaw (asse Y), entrambi
   // clampati in fase di update. Partiamo con un pitch negativo per dare
   // profondità immediata ("guardiamo il sistema da sopra-davanti").
@@ -115,8 +89,13 @@ export default function App({ quizRnd }: AppProps = {}) {
   const [simDate, setSimDate] = useState<Date | null>(null);
   const [showCompare, setShowCompare] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
-  const baseScale = useSystemScale();
-  const scale = baseScale * zoom;
+  // Post-processing (Bloom + Vignette): persistito come le altre preferenze.
+  const [postFxEnabled, setPostFxEnabled] = usePersistentState<boolean>(
+    PREFS_KEYS.postFxEnabled,
+    true,
+    (v) => typeof v === 'boolean'
+  );
+  useViewport();
   // Motore animativo requestAnimationFrame con orbite kepleriane ed eccentricità.
   // Quando si sceglie una data, offset angolari E tempo simulato di partenza
   // derivano dalla stessa anomalia media (vedi utils/simDate): la scena mostra
@@ -144,7 +123,7 @@ export default function App({ quizRnd }: AppProps = {}) {
     startSimTime,
     initialAnomalies
   );
-  const { subscribeFrames, positionsRef } = engine;
+  const { positionsRef } = engine;
   // `simTime` throttled (~4Hz): basta alla data in sidebar; NON riconduce la
   // scena a 60fps come faceva il vecchio stato del motore.
   const simTime = engine.useSimTime();
@@ -156,46 +135,10 @@ export default function App({ quizRnd }: AppProps = {}) {
     [simDate, simTime]
   );
 
-  // Modalità orbita: centra il palco sul pianeta seguito. Il pan vive nello
-  // stato React (raro), la posizione del pianeta seguito NO: per non ri-
-  // innescare transizioni CSS a ogni frame, la transform del palco è scritta
-  // imperativamente qui sotto (useEffect + abbonamento ai frame).
-  const followedName = followMode && selectedPlanet ? selectedPlanet.name : null;
-  const stageRef = useRef<HTMLDivElement>(null);
-  const viewRef = useRef({ panX: 0, panY: 0, scale: 1, pitch: -10, yaw: 0 });
-  viewRef.current.panX = pan.x;
-  viewRef.current.panY = pan.y;
-  viewRef.current.scale = scale;
-  // S1.2 — Ref "latest" del tilt: gli effetti che scrivono il transform
-  //  imperativamente lo leggono ad ogni frame per non re-renderizzare.
-  viewRef.current.pitch = tilt.pitch;
-  viewRef.current.yaw = tilt.yaw;
+  // Tilt camera 3D: ref imperativo per evitare re-render del <SolarScene>.
+  // Il tilt viene letto dentro useFrame() del CameraRig (vedi scene/CameraRig.tsx).
   const tiltRef = useRef(tilt);
   tiltRef.current = tilt;
-
-  useEffect(() => {
-    const writeStageTransform = () => {
-      const el = stageRef.current;
-      if (!el) return;
-      let x = viewRef.current.panX;
-      let y = viewRef.current.panY;
-      if (followedName) {
-        const followed = positionsRef.current[followedName];
-        if (followed) {
-          const rad = (followed.angle * Math.PI) / 180;
-          x -= followed.radius * Math.sin(rad);
-          y += followed.radius * Math.cos(rad);
-        }
-      }
-      // S1.1 — rotateX(pitch) + rotateY(yaw) per la camera 3D. Il transform
-      // è scritto imperativamente qui per evitare re-render durante il follow.
-      el.style.transform = `translate(${x}px, ${y}px) rotateX(${viewRef.current.pitch}deg) rotateY(${viewRef.current.yaw}deg) scale(${viewRef.current.scale})`;
-    };
-    writeStageTransform();
-    if (followedName) {
-      return subscribeFrames(writeStageTransform);
-    }
-  }, [followedName, subscribeFrames, positionsRef, scale, pan]);
 
   // Scorciatoie da tastiera. I setter di useState/usePersistentState sono
   // stabili per tutta la vita del componente, quindi il listener viene
@@ -238,12 +181,14 @@ export default function App({ quizRnd }: AppProps = {}) {
           setShowCompare(false);
           setShowQuiz(false);
           break;
+        // Nella scena 3D lo zoom è gestito da OrbitControls (rotellina).
+        // Teniamo i tasti come alias del pitch: + = guarda giù (pitch +), - = guarda su (pitch -)
         case '+':
         case '=':
-          setZoom((z) => zoomBy(z, ZOOM_STEP));
+          setTilt((t) => ({ ...t, pitch: clampPitch(t.pitch + 3) }));
           break;
         case '-':
-          setZoom((z) => zoomBy(z, -ZOOM_STEP));
+          setTilt((t) => ({ ...t, pitch: clampPitch(t.pitch - 3) }));
           break;
         // S1.2 — scorciatoie camera 3D
         case 'r':
@@ -266,169 +211,14 @@ export default function App({ quizRnd }: AppProps = {}) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Zoom con rotellina del mouse sulla scena. NON è possibile chiamare
-  // preventDefault() dall'handler React onWheel: dal React 17 l'evento
-  // `wheel` è registrato come passivo a livello di root, quindi il browser
-  // lo ignora e la pagina sotto può scrollare. Il listener va agganciato
-  // direttamente al <main> con { passive: false } (vedi effect qui sotto).
-  const mainRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    const el = mainRef.current;
-    if (!el) return;
-    const onNativeWheel = (e: WheelEvent) => {
-      // blocca lo scroll della pagina mentre si fa zoom sulla scena
-      e.preventDefault();
-      setZoom((z) => clampZoom(z - e.deltaY * WHEEL_ZOOM_FACTOR));
-    };
-    el.addEventListener('wheel', onNativeWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onNativeWheel);
-  }, []);
-
-  // Pan col trascinamento e PINCH-to-zoom multitouch: i pointer attivi sono
-  // tracciati in una Map (ref, mai stato React). Con due dita la distanza
-  // fra i punti pilota lo zoom relativo; con una sola dito il pan.
-  // S1.2 — aggiunto rotateRef per la rotazione 3D della camera (right-click
-  // o Shift+drag). Convive con drag/pinch mutando lo stato "active" del pan.
-  const pointersRef = useRef(new Map<number, { x: number; y: number }>());
-  const pinchDistRef = useRef(0);
-  const dragRef = useRef({ x: 0, y: 0, active: false });
-  const rotateRef = useRef({
-    active: false,
-    x: 0,
-    y: 0,
-    startPitch: -10,
-    startYaw: 0,
-  });
-  const scaleRef = useRef(scale);
-  scaleRef.current = scale;
-
-  const twoPointDistance = () => {
-    const pts = Array.from(pointersRef.current.values());
-    return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-  };
-
-  const onPointerDown = (e: React.PointerEvent) => {
-    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointersRef.current.size === 2) {
-      // inizia un pinch: molla il drag del singolo dito
-      dragRef.current.active = false;
-      rotateRef.current.active = false;
-      pinchDistRef.current = twoPointDistance();
-      return;
-    }
-    // S1.2 — Right-click (b=2) o Shift+left-click → rotazione camera 3D.
-    // Sinistro nudo continua a fare pan. Il menu contestuale nativo va
-    // soppresso a livello di <main> (vedi onContextMenu più sotto).
-    if (e.button === 2 || (e.button === 0 && e.shiftKey)) {
-      rotateRef.current.active = true;
-      rotateRef.current.x = e.clientX;
-      rotateRef.current.y = e.clientY;
-      rotateRef.current.startPitch = tiltRef.current.pitch;
-      rotateRef.current.startYaw = tiltRef.current.yaw;
-      dragRef.current.active = false;
-      return;
-    }
-    if (e.button !== 0 || pointersRef.current.size > 2) return;
-    dragRef.current.active = true;
-    dragRef.current.x = e.clientX;
-    dragRef.current.y = e.clientY;
-  };
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (!pointersRef.current.has(e.pointerId)) return;
-    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointersRef.current.size === 2 && pinchDistRef.current > 0) {
-      const d = twoPointDistance();
-      const factor = d / pinchDistRef.current;
-      pinchDistRef.current = d;
-      setZoom((z) => clampZoom(z * factor));
-      return;
-    }
-    // S1.2 — drag-orbit camera: dx → yaw, dy → pitch (inverso: dragging
-    //  verso il basso guarda verso il basso, come in Blender/Maya).
-    if (rotateRef.current.active) {
-      const dx = e.clientX - rotateRef.current.x;
-      const dy = e.clientY - rotateRef.current.y;
-      setTilt({
-        pitch: clampPitch(rotateRef.current.startPitch - dy * 0.25),
-        yaw: clampYaw(rotateRef.current.startYaw + dx * 0.3),
-      });
-      return;
-    }
-    if (!dragRef.current.active) return;
-    const dx = (e.clientX - dragRef.current.x) / scaleRef.current;
-    const dy = (e.clientY - dragRef.current.y) / scaleRef.current;
-    dragRef.current.x = e.clientX;
-    dragRef.current.y = e.clientY;
-    setPan((p) => ({ x: p.x + dx, y: p.y + dy }));
-  };
-  const endPointer = (e: React.PointerEvent) => {
-    pointersRef.current.delete(e.pointerId);
-    if (pointersRef.current.size < 2) pinchDistRef.current = 0;
-    if (pointersRef.current.size === 1) {
-      // rimasto un solo dito: riprende il pan dalla sua posizione corrente
-      const [remaining] = Array.from(pointersRef.current.values());
-      dragRef.current = { x: remaining.x, y: remaining.y, active: true };
-    } else if (pointersRef.current.size === 0) {
-      dragRef.current.active = false;
-      rotateRef.current.active = false;
-    }
-  };
-
+  // Reset visuale: nella 3D OrbitControls gestisce camera + zoom + pan,
+  // quindi ci limitiamo a resettare il tilt custom dell'utente.
   const resetView = () => {
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
     setTilt(TILT_RESET);
   };
 
-  // Le scie si ricreano solo quando cambia l'insieme dei pianeti da tracciare.
-  const trails = useMemo(() => {
-    if (!selectedPlanet && !followMode) return [];
-    return planets
-      .filter((planet) => selectedPlanet?.name === planet.name || followMode)
-      .map((planet) => ({
-        planet,
-        dots: TRAIL_FRACS.map((f, i) => ({
-          key: i,
-          r: Math.max(1.5, planet.size * 0.22),
-          fill: planet.color,
-          opacity: (0.35 - i * 0.1) * 0.6,
-        })),
-      }));
-  }, [selectedPlanet, followMode]);
-
-  const trailsRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (trails.length === 0) return;
-    const svgByPlanet = new Map<string, SVGSVGElement>();
-    for (const el of Array.from(trailsRef.current?.querySelectorAll('svg') ?? [])) {
-      const svg = el as SVGSVGElement;
-      const name = svg.dataset.planet;
-      if (name) svgByPlanet.set(name, svg);
-    }
-    return subscribeFrames((positions, t) => {
-      // Età dei punti in secondi di simTime: il termine `t - dt` usa il tempo
-      // accumulato, non la velocità corrente → scia stabile al variare di 1x/10x.
-      for (const { planet } of trails) {
-        const svg = svgByPlanet.get(planet.name);
-        if (!svg || !positions[planet.name]) continue;
-        const dots = svg.querySelectorAll('circle');
-        dots.forEach((dotEl, i) => {
-          const dot = dotEl as SVGCircleElement;
-          const tp = keplerPosition(planet, t - TRAIL_FRACS[i] * planet.animationDuration);
-          const rad = (tp.angle * Math.PI) / 180;
-          dot.setAttribute('cx', String(tp.radius * Math.sin(rad)));
-          dot.setAttribute('cy', String(-tp.radius * Math.cos(rad)));
-        });
-      }
-    });
-  }, [subscribeFrames, trails]);
-
   return (
     <div className="relative flex h-screen w-screen flex-col overflow-hidden text-white">
-      <Starfield />
-      <div className="comet" aria-hidden="true" />
-
       {/* Header */}
       <header className="relative z-10 flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-white/10 bg-gradient-to-r from-[#0d1b3e]/90 to-[#1a0a3e]/90 px-4 py-3 backdrop-blur-md">
         <h1 className="text-lg font-bold tracking-wide md:text-xl">
@@ -467,6 +257,14 @@ export default function App({ quizRnd }: AppProps = {}) {
             Realismo
           </button>
           <button
+            onClick={() => setPostFxEnabled((v) => !v)}
+            aria-pressed={postFxEnabled}
+            className={`chip ${postFxEnabled ? 'active' : ''}`}
+            title="Bloom (alone del Sole) e vignette cinematografica"
+          >
+            ✨ FX
+          </button>
+          <button
             onClick={() => setShowCompare(true)}
             className="chip hidden md:block"
             title="Confronta due pianeti"
@@ -485,165 +283,55 @@ export default function App({ quizRnd }: AppProps = {}) {
 
       {/* Contenuto principale */}
       <div className="relative z-10 flex min-h-0 flex-1 flex-col-reverse lg:flex-row">
-        {/* Visualizzazione */}
+        {/* Scena 3D (Three.js via react-three-fiber) */}
         <main
-          ref={mainRef}
-          className="scene-3d relative flex min-h-0 flex-1 cursor-grab touch-none items-center justify-center overflow-hidden active:cursor-grabbing"
-          aria-label="Simulazione del sistema solare"
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={endPointer}
-          onPointerCancel={endPointer}
-          onPointerLeave={endPointer}
-          // S1.2 — sopprimi il context menu nativo: il right-click è binding
-          // per la rotazione 3D della camera.
+          className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden"
+          aria-label="Simulazione 3D del sistema solare"
           onContextMenu={(e) => e.preventDefault()}
-          // S1.3 — CSS vars per la parallasse dello starfield (vedi .starfield-parallax).
-          // Il fattore 2.2 è tarato per restare morbido entro i limiti tilt.
-          style={{
-            ['--parallax-x' as string]: `${-tilt.yaw * 2.2}px`,
-            ['--parallax-y' as string]: `${tilt.pitch * 2.2}px`,
-          }}
         >
-          <div
-            ref={stageRef}
-            data-stage="root"
-            className="stage-3d relative shrink-0"
-            style={{
-              width: STAGE,
-              height: STAGE,
-              // Posizione/scale per-frame scritti imperativamente dall'effect
-              // dedicato; qui solo la transizione "dolce" su zoom/pan (che sono
-              // eventi rari dell'utente). Il follow-mode disattiva la
-              // transizione via classe per non fightare col loop rAF.
-              // S1.1 — rotateX/rotateY aggiunti per la camera 3D.
-              transform: `translate(${pan.x}px, ${pan.y}px) rotateX(${tilt.pitch}deg) rotateY(${tilt.yaw}deg) scale(${scale})`,
-              transition: followedName ? 'none' : 'transform 220ms ease-out',
-            }}
-          >
-            {/* Sole (S2.4) — multi-layer con limb darkening, plasma rotante,
-                corona interna/esterna animate e macule solari. */}
-            <div className="sun" role="img" aria-label="Sole">
-              <div className="sun-core" />
-              <div className="sun-plasma" />
-              <span
-                className="sun-spot"
-                style={{ width: 6, height: 6, left: '38%', top: '32%' }}
-                aria-hidden
-              />
-              <span
-                className="sun-spot"
-                style={{ width: 4, height: 4, left: '60%', top: '58%' }}
-                aria-hidden
-              />
-              <span
-                className="sun-spot"
-                style={{ width: 5, height: 5, left: '25%', top: '64%' }}
-                aria-hidden
-              />
-              <div className="sun-corona" />
-              <div className="sun-corona-outer" />
-            </div>
+          <Suspense fallback={<div className="h-full w-full" aria-label="Caricamento scena 3D" />}>
+            <SolarScene
+              positionsRef={positionsRef}
+              selectedBodyName={selectedPlanet?.name ?? null}
+              onSelectBody={(name) => {
+                const p = planets.find((x) => x.name === name) ?? null;
+                setSelectedPlanet(p);
+              }}
+              postFxEnabled={postFxEnabled}
+              tiltRef={tiltRef}
+            />
+          </Suspense>
 
-            {/* Scie orbitali dei pianeti (selezione attiva): JSX statico,
-                posizioni aggiornate dal motore via ref (vedi effect trails) */}
-            <div ref={trailsRef} className="contents">
-              {trails.map(({ planet, dots }) => (
-                <svg
-                  key={`trail-${planet.name}`}
-                  data-planet={planet.name}
-                  className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-                  width={planet.orbitRadius * 2 + 40}
-                  height={planet.orbitRadius * 2 + 40}
-                  viewBox={`${-(planet.orbitRadius + 20)} ${-(planet.orbitRadius + 20)} ${
-                    (planet.orbitRadius + 20) * 2
-                  } ${(planet.orbitRadius + 20) * 2}`}
-                  aria-hidden="true"
-                >
-                  {dots.map((d) => (
-                    <circle key={d.key} cx={0} cy={0} r={d.r} fill={d.fill} opacity={d.opacity} />
-                  ))}
-                </svg>
-              ))}
-            </div>
-
-            {/* Fascia degli asteroidi (tra Marte e Giove) */}
-            {realistic && <AsteroidBelt subscribeFrames={subscribeFrames} />}
-
-            {/* Orbite e pianeti */}
-            {planets.map((planet) => {
-              const isSelected = selectedPlanet?.name === planet.name;
-              return (
-                <div
-                  key={planet.name}
-                  className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-                  style={{ width: planet.orbitRadius * 2, height: planet.orbitRadius * 2 }}
-                >
-                  {/* Traccia orbita */}
-                  <div
-                    className={`orbit-ring absolute inset-0 rounded-full ${isSelected ? 'selected' : ''}`}
-                  />
-
-                  {/* Pianeta: la posizione è scritta dal motore rAF kepleriano
-                      tramite ref imperativi (nessun re-render per frame) */}
-                  <Planet
-                    planet={planet}
-                    isSelected={isSelected}
-                    showLabel={showLabels}
-                    realistic={realistic}
-                    onSelect={setSelectedPlanet}
-                    subscribeFrames={subscribeFrames}
-/>
-                 </div>
-               );
-             })}
-           </div>
-
-          {/* S1.4 — Vignette sopra lo stage (z-index alto, no mix-blend) */}
-          <div className="vignette" aria-hidden="true" />
-
-          {/* Controlli vista: zoom / pan / insegue orbita */}
+          {/* Overlay controlli vista in basso a sinistra: tilt + reset.
+              Nella scena 3D zoom e pan sono gestiti da OrbitControls (rotellina + drag). */}
           <div className="absolute bottom-4 left-4 z-20 flex flex-col gap-1.5">
             <button
-              onClick={() => setZoom((z) => zoomBy(z, ZOOM_STEP))}
+              onClick={() => setTilt((t) => ({ ...t, pitch: clampPitch(t.pitch + 5) }))}
               className="view-btn"
-              aria-label="Aumenta zoom"
-              title="Zoom +"
+              aria-label="Alza la camera"
+              title="Camera pitch +"
             >
-              ＋
+              ↑
             </button>
             <button
-              onClick={() => setZoom((z) => zoomBy(z, -ZOOM_STEP))}
+              onClick={() => setTilt((t) => ({ ...t, pitch: clampPitch(t.pitch - 5) }))}
               className="view-btn"
-              aria-label="Riduci zoom"
-              title="Zoom −"
+              aria-label="Abbassa la camera"
+              title="Camera pitch −"
             >
-              －
+              ↓
             </button>
             <button
               onClick={resetView}
               className="view-btn"
               aria-label="Reimposta visuale"
-              title="Reimposta visuale"
+              title="Reimposta visuale (R)"
             >
               ⟲
             </button>
-            <button
-              onClick={() => setFollowMode((v) => !v)}
-              aria-pressed={followMode}
-              className={`view-btn ${followMode ? 'on' : ''}`}
-              title="Insegui il pianeta selezionato"
-            >
-              🛰
-            </button>
           </div>
-          {followMode && !selectedPlanet && (
-            <p className="pointer-events-none absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-xs text-white/70">
-              Seleziona un pianeta perché la camera lo insegua
-            </p>
-          )}
 
-          {/* Pannello informazioni */}
+          {/* Pannello informazioni pianeta */}
           {selectedPlanet && (
             <PlanetInfoPanel planet={selectedPlanet} onClose={() => setSelectedPlanet(null)} />
           )}

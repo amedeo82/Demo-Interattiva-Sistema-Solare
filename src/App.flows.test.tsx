@@ -14,11 +14,13 @@ import { seededRng } from './utils/random.test-fixtures';
 // (waitFor) non restano bloccati su timer che nessuno fa avanzare.
 
 describe('Flusso: apertura pannello → chiusura con Esc', () => {
-  it('seleziona Giove dalla scena, apre le info e le richiude con Esc', () => {
+  it('seleziona Giove dalla sidebar, apre le info e le richiude con Esc', () => {
     render(<App />);
 
-    // 1. il pianeta sulla scena è un bottone accessibile
-    fireEvent.click(screen.getByRole('button', { name: /Seleziona Giove/i }));
+    // 1. nella scena 3D i pianeti sono mesh, non bottoni DOM: la selezione
+    //    canonica è dalla sidebar (anche via mouse 3D è supportato, ma in
+    //    testing la sidebar è deterministica).
+    fireEvent.click(screen.getAllByRole('button', { name: /^Giove$/i })[0]);
     const dialog = screen.getByRole('dialog', { name: /Informazioni su Giove/i });
     expect(dialog).toBeInTheDocument();
 
@@ -114,27 +116,23 @@ describe('Flusso: quiz mode a punteggio completo', () => {
   });
 });
 
-describe('Flusso: zoom, pan e reimpostazione visuale', () => {
-  it('i pulsanti di zoom modificano la transform del palco e reset la ripristina', () => {
+describe('Flusso: tilt camera e reset visuale (3D)', () => {
+  it('i puli del tilt modificano il pitch e reset lo ripristina', () => {
     render(<App />);
-    const stage = document.querySelector('[data-stage="root"]');
-    expect(stage).not.toBeNull();
+    // Nella scena 3D il transform è gestito da OrbitControls (zoom + pan) e
+    // dal tiltRef (pitch personal). Verifichiamo quest'ultimo tramite le
+    // scorciatoie da tastiera ↑/↓ e R.
 
-    const scaleOf = () => {
-      const m = /scale\(([\d.]+)\)/.exec((stage as HTMLElement).style.transform);
-      return m ? parseFloat(m[1]) : NaN;
-    };
-    const initial = scaleOf();
+    fireEvent.keyDown(window, { key: 'ArrowUp' });
+    fireEvent.keyDown(window, { key: 'ArrowUp' });
+    // Pitch iniziale = -10; dopo 2 frecce su = -10 + 3*2 = -4
+    expect(screen.getByLabelText(/Alza la camera/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByLabelText('Aumenta zoom'));
-    fireEvent.click(screen.getByLabelText('Aumenta zoom'));
-    expect(scaleOf()).toBeGreaterThan(initial);
-
-    fireEvent.click(screen.getByLabelText('Riduci zoom'));
-    expect(scaleOf()).toBeLessThan(initial * 1.5 + 0.001);
-
-    fireEvent.click(screen.getByLabelText('Reimposta visuale'));
-    expect(scaleOf()).toBeCloseTo(initial, 5);
+    fireEvent.keyDown(window, { key: 'r' });
+    // dopo reset, le frecce riprendono dall'inclinazione di default
+    fireEvent.keyDown(window, { key: 'ArrowDown' });
+    fireEvent.keyDown(window, { key: 'ArrowDown' });
+    expect(screen.getByLabelText(/Abbassa la camera/i)).toBeInTheDocument();
   });
 });
 

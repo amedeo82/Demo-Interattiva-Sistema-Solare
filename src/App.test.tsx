@@ -8,20 +8,24 @@ describe('App — rendering', () => {
   it('mostra header e simulazione', () => {
     render(<App />);
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/Sistema Solare/i);
-    expect(screen.getByLabelText(/Simulazione del sistema solare/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Simulazione 3D del sistema solare/i)).toBeInTheDocument();
   });
 
-  it('renderizza tutti e 8 i pianeti come elementi interattivi', () => {
+  it('renderizza la scena 3D e il pannello laterale', () => {
     render(<App />);
-    const planetButtons = screen.getAllByRole('button', { name: /Seleziona /i });
-    expect(planetButtons).toHaveLength(8);
+    // La sidebar lista i pianeti come bottoni (per accessibilità).
+    const planetRows = screen.getAllByRole('button', { name: /^(Mercurio|Venere|Terra|Marte|Giove|Saturno|Urano|Nettuno)$/i });
+    expect(planetRows.length).toBeGreaterThanOrEqual(8);
   });
 });
 
 describe('App — interazioni', () => {
   it('apre il pannello informazioni al click su un pianeta', () => {
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: /Seleziona Terra/i }));
+    // Nella scena 3D i pianeti non sono più bottoni DOM; la selezione passa
+    // dalla sidebar (lista pianeti) — è il modo canonico anche per chi non usa
+    // mouse 3D.
+    fireEvent.click(screen.getAllByRole('button', { name: /^Terra$/i })[0]);
     const dialog = screen.getByRole('dialog', { name: /Informazioni su Terra/i });
     expect(dialog).toBeInTheDocument();
     expect(dialog).toHaveTextContent('Terra');
@@ -29,7 +33,7 @@ describe('App — interazioni', () => {
 
   it('chiude il pannello con il tasto Esc', () => {
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: /Seleziona Marte/i }));
+    fireEvent.click(screen.getAllByRole('button', { name: /^Marte$/i })[0]);
     expect(screen.queryByRole('dialog')).toBeInTheDocument();
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -37,7 +41,7 @@ describe('App — interazioni', () => {
 
   it('chiude il pannello con il pulsante ✕', () => {
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: /Seleziona Giove/i }));
+    fireEvent.click(screen.getAllByRole('button', { name: /^Giove$/i })[0]);
     fireEvent.click(screen.getByRole('button', { name: /Chiudi pannello/i }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });

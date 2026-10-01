@@ -498,7 +498,7 @@ personale"**. 🎬🪐
 - **S2.3** `Planet.tsx` + `index.css` → atmosfera come doppio radial-gradient con due fasce (60-70% e 80-90%) e `mix-blend-mode: screen` (vedi `.planet-atmo`). Risultato: alone luminoso sottile e colorato che "sporge" dal bordo del pianeta come Rayleigh scattering.
 - **S2.4** `index.css` → Sole completamente ridisegnato: disco `.sun-core` 64px con doppio gradient (limb darkening + interno brillante), layer `.sun-plasma` con due `conic-gradient` opposti in rotazione continua (30s/loop), 3 macule `.sun-spot` scure che si spostano sul disco, doppia corona (interna pulse 5s, esterna reverse 8s con `filter: blur(2px)`).
 
-### 📂 File toccati
+### 📂 File toccati (S1+S2)
 ```
 src/index.css                       (S1.1, S1.3, S1.4, S2.3, S2.4)
 src/App.tsx                          (S1.1, S1.2, S1.3)
@@ -539,3 +539,82 @@ README.md                            (S1+S2 menzionati in Accessibilità & UX)
 6. Le stelle sullo sfondo si muovono in parallasse rispetto alla rotazione
 5. Premi `R` per resettare tutto, `T` per resettare solo il tilt
 6. Osserva: il terminatore dei pianeti ora segue la posizione reale del Sole (più sfumato del precedente) e il lato giorno ha un bagliore speculare
+---
+
+## 10. Sprint Three.js (F0–F15) — Migrazione a WebGL 3D
+
+### Contesto
+Ispirato dal feedback utente (lo screenshot della scena 2.5D mostrava
+cerchi piatti da 12–30px, non "modelli 3D"), il piano è stato approvato
+per migrare il rendering a Three.js puro tramite react-three-fiber.
+
+### Decisioni utente
+- **Scala distanze**: logaritmica (`log10(1 + d_au) * 50`). Mercurio
+  visibile a ~9 unità, Nettunno a ~75 unità.
+- **Scala diametri**: PROPORZIONALE ai km reali (Giove 11.2× Terra,
+  Mercurio 0.38× Terra), con fattore costante che mantiene tutti
+  visibili.
+- **Post-processing**: attivo di default con toggle `X` (chip in header).
+
+### Risultati finali (F15)
+
+| Metrica | Risultato |
+|---|---|
+| typecheck | ✅ |
+| lint | ✅ (2 warning useMemo deps, non bloccanti) |
+| test | **141/141** ✅ |
+| build | ✅ |
+| Bundle main | 167.88 KB (55.21 KB gzip) |
+| Bundle SolarScene (lazy) | 937.39 KB (251.83 KB gzip) |
+
+### Architettura finale
+- **App.tsx** gestisce state React + motore orbitale (invariato).
+- **`<SolarScene>`** è lazy-loaded: scaricato solo quando serve.
+- **Scena 3D**: `Sun3D` (sphere + emissive + corona shader), `Bodies`
+  (8 pianeti con MeshStandardMaterial + texture NASA), `SaturnRings`
+  (RingGeometry + texture procedurale), `Orbits` (Line ellittiche),
+  `StarsBackground` (drei `<Stars>`), `Lighting` (ambient + pointLight
+  + directional rim), `CameraRig` (drei OrbitControls + tilt custom),
+  `PostProcessing` (Bloom + Vignette).
+- **Bridge**: `OrbitEngineBridge` espone `positionsRef` del motore
+  orbitale ai figli dentro `<Canvas>` via Context. Letti dentro
+  `useFrame` per zero re-render React.
+
+### File nuati
+```
+src/scene/SolarScene.tsx       wrapper wrapper wrapper Canvas + Suspense
+src/scene/Bodies.tsx              sfera 3D dei pianeti
+src/scene/Sun3D.tsx              sfera emissiva + corona proced
+src/scene/SaturnRings.tsx        RingGeometry + texture proced
+src/scene/Orbits.tsx             ellissi 3D
+src/scene/Lighting.tsx           pointLight + ambient + rim
+src/scene/StarsBackground.tsx    drei <Stars>
+src/scene/CameraRig.tsx          OrbitControls + tilt pitch
+src/scene/PostProcessing.tsx     Bloom + Vignette
+src/scene/OrbitEngineBridge.tsx  Context per positionsRef
+src/scene/bodies3d.ts            manifest + scale functions
+src/store/ui.ts                  zustand store
+public/textures/planets/*.jpg    9 texture NASA (CC-BY 4.0)
+public/textures/planets/saturn_rings.png    procedurale
+scripts/make-saturn-rings.cjs    generatore saturn_rings.png
+```
+
+### File rimossi
+```
+src/components/Starfield.tsx    (sostituito da drei <Stars>)
+src/components/Planet.tsx     (sostituito da R3F <mesh>)
+src/components/Planet.test.tsx (era specifico al DOM Planet)
+```
+
+### Test aggiornati
+- `orbit.motion.test.tsx` riscritto per leggere `keplerPosition(t)` direttamente
+  invece di leggere lo style transform dei pianeti DOM (non più esistenti).
+- `App.test.tsx`, `App.flows.test.tsx`: usano i bottoni della sidebar
+  (`Mercurio`, `Terra`, …) invece di `Seleziona ...` (DOM rimossi).
+- `src/test/setup.ts` aggiornato con polyfill ResizeObserver,
+  IntersectionObserver e mock WebGL context (richiesti da R3F/drei).
+
+### Texture credits
+Vedi `public/textures/README.md`. Le 9 immagini planetarie derivano
+dalla collezione Solar System Scope (CC-BY 4.0). Gli anelli di Saturno
+sono generati proceduralmente.
