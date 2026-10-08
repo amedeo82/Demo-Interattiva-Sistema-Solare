@@ -2,10 +2,20 @@
  * <Bodies /> — pianeti 3D come sfere texturizzate illuminate dal Sole.
  * Posizioni aggiornate imperativamente dal `positionsRef` (useOrbitEngine).
  */
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Mesh, MeshStandardMaterial, Color, AdditiveBlending, BackSide, SphereGeometry } from 'three';
+import {
+  Mesh,
+  MeshStandardMaterial,
+  Color,
+  AdditiveBlending,
+  BackSide,
+  SphereGeometry,
+  SRGBColorSpace,
+  Vector3,
+} from 'three';
 import { useTexture } from '@react-three/drei';
+import { useThree } from '@react-three/fiber';
 import { BODIES_3D, BODIES_ORDER, angleToOrbitPosition } from './bodies3d';
 import type { SimPlanetState } from '../hooks/useOrbitEngine';
 import { useOrbitEngineContext } from './OrbitEngineBridge';
@@ -13,12 +23,41 @@ import { useOrbitEngineContext } from './OrbitEngineBridge';
 export function Bodies({ selectedBodyName,
   onSelectBody,
  }: {  selectedBodyName: string | null; onSelectBody: (n: string) => void }) {
-  const { positionsRef } = useOrbitEngineContext();
+  const { positionsRef, simRateRef } = useOrbitEngineContext();
+  const { gl } = useThree();
   const bodiesNoSun = BODIES_ORDER.filter((n) => n !== 'Sun');
   const textures = useTexture(bodiesNoSun.map((n) => BODIES_3D[n].map!));
+  // Upgrade asset: nubi terrestri (mappa in scala di grigi, usata come alphaMap).
+  const earthCloudsTex = useTexture('/textures/planets/earth_clouds.png');
+  // Le texture JPG sono sRGB: senza colorSpace esplicito three le tratta
+  // come dati lineari → colori slavati che non corrispondono al pianeta reale.
+  useEffect(() => {
+    for (const t of textures) {
+      t.colorSpace = SRGBColorSpace;
+      t.anisotropy = gl.capabilities.getMaxAnisotropy();
+      t.needsUpdate = true;
+    }
+    earthCloudsTex.colorSpace = SRGBColorSpace;
+    earthCloudsTex.anisotropy = gl.capabilities.getMaxAnisotropy();
+    earthCloudsTex.needsUpdate = true;
+  }, [textures, earthCloudsTex, gl]);
+
+  const cloudMat = useMemo(
+    () =>
+      new MeshStandardMaterial({
+        color: '#ffffff',
+        alphaMap: earthCloudsTex,
+        transparent: true,
+        depthWrite: false,
+        roughness: 1,
+      }),
+    [earthCloudsTex]
+  );
+  const cloudRefs = useRef<Record<string, Mesh | null>>({});
 
   const meshRefs = useRef<Record<string, Mesh | null>>({});
   const groupRefs = useRef<Record<string, import('three').Group | null>>({});
+  const tmpVec = useMemo(() => new Vector3(), []);
 
   const geometries = useMemo(
     () =>
@@ -36,8 +75,26 @@ export function Bodies({ selectedBodyName,
     [textures]
   );
 
+  const cloudGeom = useMemo(
+    () => new SphereGeometry(BODIES_3D.Earth.radius * 1.02, 48, 48),
+    []
+  );
+
+  // Cleanup GPU alla dismissione (le geometry/material sono fuori dal
+  // declarative tree di r3f, quindi vanno dispose a mano).
+  useEffect(
+    () => () => {
+      Object.values(geometries).forEach((g) => g.dispose());
+      Object.values(mats).forEach((m) => m.dispose());
+      cloudGeom.dispose();
+      cloudMat.dispose();
+    },
+    [geometries, mats, cloudGeom, cloudMat]
+  );
+
   useFrame((_, dt) => {
     const pos = positionsRef.current;
+    const simRate = simRateRef.current;
     for (const name of bodiesNoSun) {
       const m = meshRefs.current[name];
       const g = groupRefs.current[name];
@@ -45,9 +102,15 @@ export function Bodies({ selectedBodyName,
       if (!m || !g) continue;
       const p: SimPlanetState | undefined = pos[name];
       if (!p) continue;
-      const v = angleToOrbitPosition(p.angle, body.orbitDistance);
-      g.position.copy(v);
-      m.rotation.y += (dt * 360) / body.rotationHours;
+      angleToOrbitPosition(p.angle, body.orbitDistance, tmpVec);
+      g.position.copy(tmpVec);
+      // Rotazione assiale proporzionale alla velocità di simulazione
+      // (prima usava il tempo reale: a 0.25x girava troppo veloce,
+      // a 10x troppo lento rispetto all'orbita).
+      m.rotation.y += (dt * simRate * 360) / body.rotationHours;
+      // Le nubi terrestri derivano leggermente rispetto alla superficie.
+      const c = cloudRefs.current[name];
+      if (c) c.rotation.y += (dt * simRate * 360) / (body.rotationHours * 0.92);
     }
   });
 
@@ -83,6 +146,15 @@ export function Bodies({ selectedBodyName,
                 }}
                 scale={isSelected ? 1.15 : 1.0}
               />
+              {name === 'Earth' && (
+                <mesh
+                  ref={(el) => {
+                    cloudRefs.current[name] = el;
+                  }}
+                  geometry={cloudGeom}
+                  material={cloudMat}
+                />
+              )}
             </group>
             {isSelected && (
               <mesh scale={1.6}>

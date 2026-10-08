@@ -150,7 +150,7 @@ export default function App({ quizRnd }: AppProps = {}) {
     initialAnomalies,
     slowmoMultiplierRef
   );
-  const { positionsRef } = engine;
+  const { positionsRef, simRateRef } = engine;
   // `simTime` throttled (~4Hz): basta alla data in sidebar; NON riconduce la
   // scena a 60fps come faceva il vecchio stato del motore.
   const simTime = engine.useSimTime();
@@ -373,6 +373,7 @@ const handleSelectPlanet = (p: PlanetData) => {
           <Suspense fallback={<div className="h-full w-full" aria-label="Caricamento scena 3D" />}>
             <SolarScene
               positionsRef={positionsRef}
+              simRateRef={simRateRef}
               selectedBodyName={selectedPlanet?.name ?? null}
               onSelectBody={(name) => {
                 const p = planets.find((x) => x.name === name) ?? null;

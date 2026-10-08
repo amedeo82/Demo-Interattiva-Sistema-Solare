@@ -7,6 +7,7 @@ import { useFrame } from '@react-three/fiber';
 import { Mesh, ShaderMaterial, AdditiveBlending, BackSide } from 'three';
 import { useTexture } from '@react-three/drei';
 import { BODIES_3D } from './bodies3d';
+import { useOrbitEngineContext } from './OrbitEngineBridge';
 
 const SUN = BODIES_3D.Sun;
 
@@ -44,6 +45,7 @@ void main(){
 }`;
 
 export function Sun3D({ selected, onSelect }: { selected: boolean; onSelect: () => void }) {
+  const { simRateRef } = useOrbitEngineContext();
   const meshRef = useRef<Mesh>(null);
   const coronaRef = useRef<Mesh>(null);
   const sunTex = useTexture(SUN.map!);
@@ -73,7 +75,7 @@ export function Sun3D({ selected, onSelect }: { selected: boolean; onSelect: () 
 
   useFrame((_, dt) => {
     if (meshRef.current) {
-      meshRef.current.rotation.y += (dt * 360) / (SUN.rotationHours / 24);
+      meshRef.current.rotation.y += (dt * simRateRef.current * 360) / (SUN.rotationHours / 24);
       (sunMat.uniforms.time as { value: number }).value += dt;
     }
     if (coronaRef.current) {

@@ -4,11 +4,13 @@
  * Sorgenti: NASA Science (Solar System Sizes & Distances), J2000.
  *
  * Scala scelta (utente ha scelto "Logaritmica"):
- *  - Distanze: `log10(1 + d_au) * SCALE_DISTANCE`. Mercurio (0.39 AU) → ~0.18
- *    unità, Nettuno (30 AU) → ~1.49 unità. Tutti visibili senza zoom estremo.
+ *  - Distanze: `log10(1 + d_au) * SCALE_DISTANCE`. Mercurio (0.39 AU) → ~7.1
+ *    unità, Nettuno (30 AU) → ~75 unità. Tutti visibili senza zoom estremo.
  *  - Diametri: PROPORZIONALI ai km reali. Giove resta 11.2× Terra, Mercurio
- *    0.38× Terra. SCALE_DIAMETER costante moltiplica per avere Mercurio
- *    ancora visibile (~0.085 unità).
+ *    0.38× Terra. SCALE_DIAMETER dà Mercurio ~0.20 unità.
+ *  - Il Sole usa un raggio VISIVO ridotto (SUN_RADIUS_UNITS): con la scala
+ *    proporzionale reale (~24 unità) ingloberebbe le orbite di Mercurio,
+ *    Venere, Terra e Marte, nascondendole del tutto.
  */
 import * as THREE from 'three';
 
@@ -36,7 +38,15 @@ const DIAMETER_KM = {
 } as const;
 
 export const SCALE_DISTANCE = 50;
-export const SCALE_DIAMETER = 0.0000175;
+export const SCALE_DIAMETER = 0.00004;
+
+/**
+ * Raggio visivo del Sole: NON proporzionale. Con la scala proporzionale
+ * (1_391_400 km × SCALE_DIAMETER ≈ 55.7 unità) il Sole coprirebbe tutte le
+ * orbite fino a Marte (~20 unità). Si usa un raggio ridotto, compromesso
+ * standard delle visualizzazioni del sistema solare.
+ */
+export const SUN_RADIUS_UNITS = 4;
 
 export function distanceUnits(distanceAu: number): number {
   return Math.log10(1 + distanceAu) * SCALE_DISTANCE;
@@ -67,7 +77,7 @@ export const BODIES_3D: Record<string, Body3D> = {
     name: 'Sun',
     diameterKm: DIAMETER_KM.Sun,
     distanceAu: 0,
-    radius: radiusUnits(DIAMETER_KM.Sun),
+    radius: SUN_RADIUS_UNITS,
     orbitDistance: 0,
     axialTilt: 7.25,
     rotationHours: 609.6,
@@ -178,7 +188,12 @@ export const BODIES_ORDER: string[] = [
   'Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune',
 ];
 
-export function angleToOrbitPosition(angleDeg: number, orbitDistance: number): THREE.Vector3 {
+export function angleToOrbitPosition(
+  angleDeg: number,
+  orbitDistance: number,
+  target?: THREE.Vector3
+): THREE.Vector3 {
   const rad = (angleDeg * Math.PI) / 180;
-  return new THREE.Vector3(Math.sin(rad) * orbitDistance, 0, -Math.cos(rad) * orbitDistance);
+  const v = target ?? new THREE.Vector3();
+  return v.set(Math.sin(rad) * orbitDistance, 0, -Math.cos(rad) * orbitDistance);
 }

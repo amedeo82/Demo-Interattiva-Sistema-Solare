@@ -4,11 +4,11 @@ import { BlendFunction, KernelSize } from 'postprocessing';
 
 export function PostProcessing() {
   return (
-    <EffectComposer multisampling={0}>
+    <EffectComposer multisampling={4}>
       <Bloom
         intensity={0.9}
-        luminanceThreshold={0.15}
-        luminanceSmoothing={0.9}
+        luminanceThreshold={0.55}
+        luminanceSmoothing={0.3}
         mipmapBlur
         kernelSize={KernelSize.LARGE}
       />

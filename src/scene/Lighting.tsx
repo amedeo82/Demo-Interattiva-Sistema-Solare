@@ -12,8 +12,11 @@ export function Lighting() {
   }, [scene]);
   return (
     <>
-      <ambientLight intensity={0.06} color="#6688cc" />
-      <pointLight position={[0, 0, 0]} intensity={3.5} distance={0} decay={1.5} color="#fff5d0" />
+      <ambientLight intensity={0.25} color="#6688cc" />
+      {/* decay=0 → intensità costante su tutte le distanze: senza il
+          falloff fisico i pianeti esterni (Nettuno ~75 unità) restavano
+          quasi neri (irradianza ~0.005 schiacciata da ACES). */}
+      <pointLight position={[0, 0, 0]} intensity={2.2} distance={0} decay={0} color="#fff5d0" />
       <directionalLight position={[50, -20, -50]} intensity={0.1} color="#88aaff" />
     </>
   );

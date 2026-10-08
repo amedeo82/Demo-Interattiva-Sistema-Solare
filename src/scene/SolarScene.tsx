@@ -24,6 +24,8 @@ import type { SimPlanetState } from '../hooks/useOrbitEngine';
 
 export interface SolarSceneProps {
   positionsRef: MutableRefObject<Record<string, SimPlanetState>>;
+  /** Moltiplicatore effettivo (speed × slowmo) per la rotazione assiale. */
+  simRateRef: MutableRefObject<number>;
   selectedBodyName: string | null;
   onSelectBody: (name: string) => void;
   postFxEnabled: boolean;
@@ -52,6 +54,7 @@ export interface SolarSceneProps {
 
 export function SolarScene({
   positionsRef,
+  simRateRef,
   selectedBodyName,
   onSelectBody,
   postFxEnabled,
@@ -97,9 +100,9 @@ export function SolarScene({
       <Suspense fallback={null}>
         <Lighting />
         <StarsBackground />
-        <Sun3D selected={selectedBodyName === 'Sun'} onSelect={() => onSelectBody('Sun')} />
         <Orbits />
-        <OrbitEngineBridge positionsRef={positionsRef}>
+        <OrbitEngineBridge positionsRef={positionsRef} simRateRef={simRateRef}>
+          <Sun3D selected={selectedBodyName === 'Sun'} onSelect={() => onSelectBody('Sun')} />
           <Bodies selectedBodyName={selectedBodyName} onSelectBody={onSelectBody} />
           <SaturnRings />
         </OrbitEngineBridge>

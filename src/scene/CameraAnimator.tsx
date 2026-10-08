@@ -78,7 +78,10 @@ useEffect(() => {
       startMs: performance.now(),
       durationMs: 3000,
     };
-    if (controlsRef.current?.controls) controlsRef.current.controls.enabled = false;
+    // NB: controls non va toccato qui — all'intro il holder del parent è
+    // ancora null (il suo useEffect gira DOPO i figli) e `enabled=false`
+    // era un no-op, lasciando il damping a combattere con la tween.
+    // La disabilitazione avviene dentro useFrame (vedi sotto).
   }, [camera, controlsRef]);
 
   // ── Fly-to on planet select ──
@@ -93,9 +96,9 @@ useEffect(() => {
 
     const planetWorld = angleToOrbitPosition(pos.angle, body.orbitDistance);
 
-    // Distanza di inquadratura: 8× raglio per pianeti piccoli, almeno 6 unità
-    // per i pianeti grandi (per vedere Giove intero serve stare più lontano).
-    const view = Math.max(body.radius * 8, 6);
+    // Distanza di inquadratura proporzionata al raggio (minimo basso: con la
+    // nuova scala anche Mercurio va riempito bene, prima restava un puntino).
+    const view = Math.max(body.radius * 9, 1.5);
 
     // Direzione "angolo cinematografico": 25° sopra il piano dell'orbita,
     // leggermentea a destra del fronte.
@@ -119,19 +122,21 @@ useEffect(() => {
       startMs: performance.now(),
       durationMs: 1200,
     };
-    controlsRef.current.controls.enabled = false;
   }, [selectedBodyName, positionsRef, camera, controlsRef]);
 
   // ── Esegui la tween imperativamente in useFrame ──
   useFrame(() => {
     const tw = tweenRef.current;
     if (!tw) return;
+    const controls = controlsRef.current?.controls;
+    // Disabilita i controls SOLO mentre la tween è attiva (funziona anche
+    // per l'intro, quando controls esiste già ma l'effect non poteva vederlo).
+    if (controls) controls.enabled = false;
     const elapsed = performance.now() - tw.startMs;
     const t = Math.min(elapsed / tw.durationMs, 1);
     const eased = easeInOutCubic(t);
 
     camera.position.lerpVectors(tw.camFrom, tw.camTo, eased);
-    const controls = controlsRef.current?.controls;
     if (controls) {
       controls.target.lerpVectors(tw.tgtFrom, tw.tgtTo, eased);
       controls.update();

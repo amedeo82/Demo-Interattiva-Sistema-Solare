@@ -22,6 +22,9 @@ export const CameraRig = forwardRef<
   }
 >(function CameraRig({ tiltRef, freeCamera = false }, ref) {
   const controlsRef = useRef<OrbitControlsImpl>(null);
+  // Applica il polar angle SOLO quando il tilt cambia davvero: chiamarlo
+  // ogni frame combatteva con il drag verticale e il damping → scatti.
+  const lastPitchRef = useRef<number>(Infinity);
 
   useImperativeHandle(ref, () => ({ controls: controlsRef.current }), []);
 
@@ -29,7 +32,10 @@ export const CameraRig = forwardRef<
     if (!controlsRef.current || freeCamera) return;
     const t = tiltRef.current;
     const polar = Math.PI / 2 - (t.pitch * Math.PI) / 180;
-    controlsRef.current.setPolarAngle?.(polar);
+    if (polar !== lastPitchRef.current) {
+      lastPitchRef.current = polar;
+      controlsRef.current.setPolarAngle?.(polar);
+    }
   });
 
   return (
@@ -38,7 +44,7 @@ export const CameraRig = forwardRef<
       makeDefault
       enableDamping
       dampingFactor={0.08}
-      minDistance={freeCamera ? 0.5 : 2}
+      minDistance={freeCamera ? 0.5 : 0.5}
       maxDistance={freeCamera ? 2000 : 500}
       enablePan
       target={[0, 0, 0]}

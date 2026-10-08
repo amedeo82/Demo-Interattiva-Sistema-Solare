@@ -172,6 +172,11 @@ export function useOrbitEngine(
   const positionsRef = useRef<Record<string, SimPlanetState>>({});
   computeInto(simTimeRef.current, positionsRef.current);
 
+  // Moltiplicatore effettivo corrente (speed × slowmo), aggiornato a ogni
+  // frame del motore: consumato dalla scena 3D per sincronizzare la
+  // rotazione assiale dei pianeti con la velocità di simulazione.
+  const simRateRef = useRef(1);
+
   const listenersRef = useRef(new Set<FrameListener>());
   const subscribeFrames = useCallback((listener: FrameListener) => {
     listenersRef.current.add(listener);
@@ -223,7 +228,8 @@ export function useOrbitEngine(
       if (lastFrameRef.current == null) lastFrameRef.current = now;
       const dt = Math.min((now - lastFrameRef.current) / 1000, 0.1); // clamp tab-inattivo
       lastFrameRef.current = now;
-      simTimeRef.current += dt * speedRef.current * (slowmoMultiplierRef?.current ?? 1);
+      simRateRef.current = speedRef.current * (slowmoMultiplierRef?.current ?? 1);
+      simTimeRef.current += dt * simRateRef.current;
       computeInto(simTimeRef.current, positionsRef.current);
       emitRef.current(); // ← nessun setState: il reconciler React non lavora a 60fps
       publishSimTimeRef.current();
@@ -235,7 +241,7 @@ export function useOrbitEngine(
 
   const useSimTime = () => simTime;
 
-  return { subscribeFrames, useSimTime, simTimeRef, positionsRef };
+  return { subscribeFrames, useSimTime, simTimeRef, positionsRef, simRateRef };
 }
 
 /**
