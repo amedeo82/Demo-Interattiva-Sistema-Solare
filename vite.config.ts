@@ -12,4 +12,27 @@ export default defineConfig({
       port: 3000,
     },
   },
+  build: {
+    // La scena Three.js è già lazy-loaded (vedi App.tsx) ma il singolo
+    // chunk da ~940 KB è ancora lento da scaricare. Lo splittiamo in tre
+    // sotto-chunk parallelizzabili (browser HTTP/2 multiplexing):
+    //  - three-vendor:    il core di three.js (~150 KB gzip)
+    //  - drei-vendor:     drei + postprocessing (~80 KB gzip)
+    //  - solar-scene:     il codice della scena stessa (~25 KB gzip)
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/three/")) return "three-vendor";
+          if (id.includes("node_modules/@react-three/")) return "drei-vendor";
+          if (id.includes("node_modules/postprocessing")) return "drei-vendor";
+          return undefined;
+        },
+      },
+    },
+    // Il chunk three-vender è necessariamente grande (176 KB gzip) e non è
+    // caricato fino a quando l'utente apre la scena 3D (lazy import in
+    // App.tsx). Il warning di Vite resta informativo: 1000 KB è oltre la
+    // soglia solo per la sicurezza che stiamo consci di questa dimensione.
+    chunkSizeWarningLimit: 1000,
+  },
 });

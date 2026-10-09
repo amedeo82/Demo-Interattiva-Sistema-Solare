@@ -1,4 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* S4.1 — Font cinematici: Space Grotesk per i titoli, JetBrains Mono per i
+   dati numerici (date, distanze, coordinate). Trasmettono immediatamente
+   il feel "strumentazione di bordo" della HUD. */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import 'tailwindcss';
 
 /* ---------- Design tokens ---------- */
@@ -15,6 +19,7 @@ body,
   overflow: hidden;
   background: radial-gradient(ellipse at 50% 35%, #10102b 0%, var(--bg-deep) 70%);
   font-family:
+    'Space Grotesk',
     'Inter',
     -apple-system,
     BlinkMacSystemFont,
@@ -23,6 +28,67 @@ body,
     sans-serif;
   color: white;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Utility classes per il sistema tipografico (S4.1) */
+.font-display {
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  letter-spacing: 0.04em;
+}
+.font-mono {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* ---------- Scena 3D (S1) ----------
+ * La "3D" del progetto è realizzata con `perspective` su <main> +
+ * `rotateX/Y` sul palco (vedi App.tsx). NON applichiamo `transform-style:
+ * preserve-3d` ai figli del palco: questa proprietà, combinata con
+ * `will-change: transform` sui pianeti e animazioni imperative per-frame,
+ * fa sì che alcuni browser (Chrome/Firefox in particolare) forzino il
+ * flattening del 3D context e/o scartino gli aggiornamenti successivi del
+ * compositor, con il risultato che i pianeti si "bloccano" sul primo frame
+ * o avanzano a scatti. Senza preserve-3d i pianeti vivono sul piano
+ * inclinato del palco e la prospettiva viene la render calcolata dalla
+ * projection del palco stesso, sufficiente per dare profondità.
+ */
+.scene-3d {
+  perspective: 1400px;
+  perspective-origin: 50% 42%;
+}
+
+/* Vignette + leggero color grading cinematografico (S1.4).
+ * NB: la versione precedente usava `mix-blend-mode: multiply` ma questo
+ * blend forza il browser a usare un percorso di rendering non-GPU per
+ * gli elementi sotto, rompendo l'ottimizzazione 60fps delle animazioni
+ * imperative. La versione attuale usa un gradiente rgba semi-trasparente
+ * posizionato dietro la scena (z-index sotto il palco): scurisce i bordi
+ * dello schermo senza interferire la render dei pianeti. */
+.vignette {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(
+      ellipse at 50% 45%,
+      transparent 35%,
+      rgba(6, 6, 20, 0.45) 80%,
+      rgba(6, 6, 20, 0.85) 100%
+    ),
+    radial-gradient(ellipse at 50% 100%, rgba(255, 120, 40, 0.05) 0%, transparent 55%);
+}
+
+/* Parallasse dello starfield: il canvas riceve due CSS var che lo
+ * trasleranno in base al tilt della camera. Più il pitch sale, più le
+ * stelle "scendono" → effetto parallasse ambientale. */
+.starfield-parallax {
+  --parallax-x: 0px;
+  --parallax-y: 0px;
+  transform: translate(var(--parallax-x), var(--parallax-y));
+  transition: transform 80ms linear;
+  will-change: transform;
 }
 
 ::selection {
@@ -66,29 +132,106 @@ body,
   }
 }
 
-/* ---------- Sole ---------- */
+/* ---------- Sole (S2.4) ---------- */
+/* Quattro layer sovrapposti, tutti centrati via translate(-50%,-50%) perché
+ *  ogni layer è posizionato assolutamente rispetto al wrapper .sun che fa
+ *  da ancora. Il disco interno ha limb darkening (bordi più scuri del
+ *  centro, come nelle foto solari reali) ottenuto con due gradienti
+ *  sovrapposti: uno pieno brillante e uno scuro-radiale "mangiato" ai bordi.
+ */
 .sun {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 54px;
-  height: 54px;
-  border-radius: 50%;
+  width: 64px;
+  height: 64px;
   transform: translate(-50%, -50%);
-  background: radial-gradient(circle at 32% 30%, #fff9c4, #ffe066 30%, #ffab2e 65%, #ff7300);
-  box-shadow:
-    0 0 30px rgba(255, 200, 60, 0.9),
-    0 0 90px rgba(255, 160, 40, 0.45),
-    0 0 180px rgba(255, 140, 30, 0.25);
   z-index: 10;
+  pointer-events: auto;
+  cursor: pointer;
 }
+/* Disco fotosferico con limb darkening: il secondo gradient "mangia" i bordi
+ * e lascia il centro brillante — simulazione cheap della legge di Lambert
+ * che descrive l'oscuramento al lembo solare. */
+.sun-core {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 80, 0, 0.7) 0%, transparent 70%),
+    radial-gradient(circle at 32% 30%, #fff8d0 0%, #ffe066 35%, #ffab2e 70%, #d54a00 100%);
+  box-shadow:
+    0 0 24px rgba(255, 200, 60, 0.85),
+    0 0 70px rgba(255, 160, 40, 0.5),
+    0 0 160px rgba(255, 120, 30, 0.35),
+    0 0 280px rgba(255, 90, 20, 0.18);
+}
+/* Granulazione plasma: sottile rumore animato via due gradienti conici
+ * opposti che ruotano in direzioni diverse — dà l'idea di celle di
+ * convezione senza shader GPU. */
+.sun-plasma {
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background:
+    conic-gradient(
+      from 0deg,
+      rgba(255, 240, 180, 0) 0%,
+      rgba(255, 200, 80, 0.18) 20%,
+      rgba(255, 240, 180, 0) 40%,
+      rgba(255, 200, 80, 0.15) 60%,
+      rgba(255, 240, 180, 0) 80%
+    ),
+    conic-gradient(
+      from 180deg,
+      rgba(255, 100, 30, 0) 0%,
+      rgba(255, 160, 50, 0.22) 30%,
+      rgba(255, 100, 30, 0) 60%
+    );
+  mix-blend-mode: screen;
+  animation: sun-spin 30s linear infinite;
+  pointer-events: none;
+}
+/* Macula solari (3 piccole chiazze scure che si spostano lentamente sul disco) */
+.sun-spot {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(80, 30, 0, 0.85) 30%,
+    rgba(120, 50, 0, 0.4) 70%,
+    transparent 100%
+  );
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+@keyframes sun-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Corona interna (pulse) e corona esterna (rotazione lenta): due passaggi
+  * per dare profondità al "alone" solare. */
 .sun-corona {
   position: absolute;
-  inset: -14px;
+  inset: -16px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 200, 70, 0.35), transparent 70%);
+  background: radial-gradient(circle, rgba(255, 200, 70, 0.4), transparent 70%);
   animation: sun-pulse 5s ease-in-out infinite;
   pointer-events: none;
+  mix-blend-mode: screen;
+}
+.sun-corona-outer {
+  position: absolute;
+  inset: -38px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(255, 150, 40, 0.18) 0%, transparent 60%),
+    radial-gradient(circle, rgba(255, 90, 30, 0.1) 40%, transparent 70%);
+  animation: sun-pulse 8s ease-in-out infinite reverse;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  filter: blur(2px);
 }
 
 /* ---------- Orbite ---------- */
@@ -140,6 +283,39 @@ body,
   border-radius: 50%;
   pointer-events: none;
 }
+
+/* Atmosfera (S2.3): non più alone piatto, ma scattering a doppio anello
+ * con mix-blend-mode screen per non sporcare il nero dello sfondo. La
+ * larghezza dell'anello è tarata in modo che sia visibile anche sui pianeti
+ * piccoli. */
+.planet-atmo {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 0 6px 1px rgba(255, 255, 255, 0.05);
+  mix-blend-mode: screen;
+}
+
+/* Highlight speculare (S2.2): una piccola macchia luminosa sul "lato giorno"
+ * del pianeta, posizionata via radial-gradient al centro luce. Opacità e
+ *  posizione sono scritte imperativamente da Planet.tsx a ogni frame. */
+.planet-specular {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  will-change: background;
+}
+
+/* Terminatore (S2.1): strato scuro radiale il cui "centro luce" è scritto
+ * imperativamente da Planet.tsx in base alla posizione del Sole. */
+.planet-terminator {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  will-change: background;
+}
 .planet-label {
   position: absolute;
   top: 100%;
@@ -162,6 +338,35 @@ body,
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55);
   animation: panel-in 0.25s ease-out;
+}
+
+/* S4.5 — Scan line orizzontale che attraversa il pannello ogni 6s.
+ * Effetto "schermo CRT / strumentazione di bordo". Disattivato in
+ * prefers-reduced-motion per accessibilità. */
+@keyframes scanline {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+.panel-scanline {
+  position: relative;
+  overflow: hidden;
+}
+.panel-scanline::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(to right, transparent, rgba(180, 200, 255, 0.55) 50%, transparent);
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.4);
+  animation: scanline 6s linear infinite;
+  pointer-events: none;
+  z-index: 1;
 }
 
 /* ---------- Controlli ---------- */
@@ -265,6 +470,9 @@ body,
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  .panel-scanline::after {
+    animation: none !important;
   }
 }
 

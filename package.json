@@ -16,8 +16,22 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\""
   },
   "dependencies": {
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.18.0",
+    "@react-three/postprocessing": "^2.19.1",
+    "postprocessing": "^6.39.5",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "three": "^0.169.0",
+    "zustand": "^4.5.7"
+  },
+  "//pnpm": "Consentiamo i postinstall script solo per i tool che Vercel/build devono eseguire (esbuild serve il binario nativo).",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@tailwindcss/oxide",
+      "sharp"
+    ]
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -27,6 +41,7 @@
     "@testing-library/react": "^16.3.3",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^4.3.4",
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",

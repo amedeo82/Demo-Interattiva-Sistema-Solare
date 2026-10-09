@@ -47,6 +47,10 @@ function Planet({
   const rootRef = useRef<HTMLDivElement>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
   const terminatorRef = useRef<HTMLDivElement>(null);
+  // S2.2 — layer per il riflesso speculare: stessa logica imperativa del
+  //  terminatore, ma gradiente più stretto e opacità bassa → "bagliore" del
+  //  Sole sul lato giorno del pianeta.
+  const specularRef = useRef<HTMLDivElement>(null);
   const moonRefs = useRef<(HTMLSpanElement | null)[]>([]);
 
   /* Ref stabile per `onSelect`: il click usa sempre l'ultima callback anche
@@ -68,11 +72,31 @@ function Planet({
           planet.axialTilt > 90 ? 180 - planet.axialTilt : -planet.axialTilt
         }deg)`;
       }
-      // Terminatore: metà notturna orientata verso il Sole (centro palco)
+      // S2.1 — calcola la posizione del Sole rispetto al pianeta. pos.angle
+      // è la longitudine eliocentrica (0° = in alto, senso orario) e il
+      // pianeta è in posizione (sin*rad, -cos*rad) sul palco. Il Sole è
+      // nell'origine, quindi dal pianeta "guarda verso (0,0)".
+      // → lightX%, lightY% sono le coordinate CSS del centro del Sole
+      // proiettate sul disco del pianeta (sempre all'interno del 100%×100%).
+      const angleRad = (pos.angle * Math.PI) / 180;
+      const lightX = 50 - Math.sin(angleRad) * 50;
+      const lightY = 50 + Math.cos(angleRad) * 50;
+      const nightOp = isSelected ? 0.72 : 0.6;
+      // Terminatore radiale: la luce entra dal Sole, il lato opno è in ombra.
+      // Il gradiente crea una transizione morbida (più realistica della
+      // vecchia line-gradient che "tagliava" il pianeta in due).
       if (terminatorRef.current) {
-        terminatorRef.current.style.background = `linear-gradient(${
-          pos.angle + 270
-        }deg, rgba(0,0,0,0) 42%, rgba(0,0,10,0.55) 78%)`;
+        terminatorRef.current.style.background = `radial-gradient(circle at ${lightX.toFixed(
+          1
+        )}% ${lightY.toFixed(1)}%, rgba(0,0,0,0) 38%, rgba(0,0,8,${nightOp.toFixed(2)}) 88%)`;
+      }
+      // S2.2 — highlight speculare: stessa posizione del Sole ma con
+      //  gradiente molto stretto e colorato (bianco caldo). Crea l'effetto
+      //  del "riverbero" del Sole sul lato giorno.
+      if (specularRef.current) {
+        specularRef.current.style.background = `radial-gradient(circle at ${lightX.toFixed(
+          1
+        )}% ${lightY.toFixed(1)}%, rgba(255,250,235,0.32) 0%, rgba(255,240,200,0.08) 18%, transparent 35%)`;
       }
       // Rotazione assiale: scala artistica proporzionale a 1/rotationHours
       if (surfaceRef.current) {
@@ -96,7 +120,7 @@ function Planet({
         }
       }
     },
-    [planet, texture, realistic]
+    [planet, texture, realistic, isSelected]
   );
   useFrameSubscription(subscribeFrames, onFrame);
 
@@ -142,19 +166,25 @@ function Planet({
         style={layerStyle}
       />
 
-      {/* Atmosfera (alone luminoso per i pianeti dotati di atmosfera densa) */}
+      {/* S2.2 — riflesso speculare (sopra il disco, sotto l'atmosfera).
+           Posizione aggiornata via ref in `onFrame`. */}
+      <div ref={specularRef} className="planet-specular" />
+
+      {/* S2.3 — atmosfera: scattering a doppio anello con mix-blend-mode
+          "screen" (vedi .planet-atmo in index.css). L'opacità del bordo
+          esterno sale sui pianeti dotati di atmosfera rilevante. */}
       {['Venus', 'Earth', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'].includes(planet.name) && (
         <div
           className="planet-atmo pointer-events-none absolute rounded-full"
           style={{
-            inset: -Math.max(2, size * 0.12),
-            background: `radial-gradient(circle, transparent 58%, ${planet.color}55 70%, transparent 82%)`,
+            inset: -Math.max(2, size * 0.18),
+            background: `radial-gradient(circle, transparent 55%, ${planet.color}66 64%, transparent 72%, ${planet.color}33 80%, transparent 92%)`,
           }}
         />
       )}
 
-      {/* Terminatore (orientato dal motore a ogni frame) */}
-      <div ref={terminatorRef} className="pointer-events-none absolute inset-0 rounded-full" />
+      {/* S2.1 — terminatore radiale (sopra il disco, sotto l'atmosfera) */}
+      <div ref={terminatorRef} className="planet-terminator" />
 
       {planet.name === 'Saturn' && <div className="saturn-ring" />}
       {showLabel && <span className="planet-label">{planet.nameIt}</span>}

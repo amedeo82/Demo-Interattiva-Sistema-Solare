@@ -12,7 +12,7 @@
  * "lenti" (es. la data nella sidebar) usano `useSimTime`, che pubblica il
  * tempo simulato con throttling (~4 Hz) per limitare i re-render.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import type { PlanetData } from '../data/planets';
 import {
   normalizeDeg,
@@ -47,6 +47,15 @@ const START_ANGLES: Record<string, number> = {
   Uranus: 135,
   Neptune: 260,
 };
+
+/** Oggetto stabile a livello di modulo, usato come fallback per `anomalies`
+ *  quando non è stata scelta una data. DEVE essere a livello modulo: se
+ *  fosse dichiarato dentro l'hook sarebbe un oggetto nuovo ad ogni render,
+ *  invalidando il `useMemo` di `computeInto` e — più gravemente —
+ *  ri-innescando l'effect che resetta `simTimeRef.current = startSimTime`
+ *  ad ogni re-render. Il risultato sarebbe l'animazione che "torna
+ *  indietro" verso la posizione iniziale ad ogni re-render di App (~4Hz). */
+const NO_ANOMALIES: Record<string, number> = {};
 
 /** Velocità angolare media in gradi/secondo di simulazione a speed=1. */
 function angularSpeed(planet: PlanetData): number {
@@ -120,13 +129,19 @@ const SIM_TIME_PUBLISH_INTERVAL_MS = 250;
  *   è sempre quello corrente al momento della pubblicazione).
  * - `simTimeRef` / `positionsRef`: accesso sincrono (per handler, es. scie).
  */
+// S3.4 — ref opzionale per il "cinematic slow-mo". Quando il valore è > 0,
+// viene moltiplicato per la velocità corrente. App.tsx lo aggiorna
+// imperativamente su planet select (es. 0.25 per 2.5s per dare peso al gesto).
+type SlowmoMultiplier = MutableRefObject<number>;
+
 export function useOrbitEngine(
   planets: PlanetData[],
   isPlaying: boolean,
   speed: number,
   initialAngles?: Record<string, number>,
   startSimTime = 0,
-  initialAnomalies?: Record<string, number>
+  initialAnomalies?: Record<string, number>,
+  slowmoMultiplierRef?: SlowmoMultiplier
 ) {
   // Tempo simulato accumulato (secondi a speed=1), sopravvive ai cambi di speed
   const simTimeRef = useRef(startSimTime);
@@ -135,10 +150,6 @@ export function useOrbitEngine(
   speedRef.current = speed;
 
   const starts = initialAngles ?? START_ANGLES;
-  // Normalizza a un oggetto stabile: se `initialAnomalies` è undefined ad ogni
-  // render creerebbe un nuovo `{}`, invalidando il useMemo sottostante a ogni
-  // frame (warning react-hooks/exhaustive-deps).
-  const NO_ANOMALIES: Record<string, number> = {};
   const anomalies = initialAnomalies ?? NO_ANOMALIES;
 
   const computeInto = useMemo(() => {
@@ -160,6 +171,11 @@ export function useOrbitEngine(
   // Buffer stabile delle posizioni: mai sostituito, solo mutato.
   const positionsRef = useRef<Record<string, SimPlanetState>>({});
   computeInto(simTimeRef.current, positionsRef.current);
+
+  // Moltiplicatore effettivo corrente (speed × slowmo), aggiornato a ogni
+  // frame del motore: consumato dalla scena 3D per sincronizzare la
+  // rotazione assiale dei pianeti con la velocità di simulazione.
+  const simRateRef = useRef(1);
 
   const listenersRef = useRef(new Set<FrameListener>());
   const subscribeFrames = useCallback((listener: FrameListener) => {
@@ -212,7 +228,8 @@ export function useOrbitEngine(
       if (lastFrameRef.current == null) lastFrameRef.current = now;
       const dt = Math.min((now - lastFrameRef.current) / 1000, 0.1); // clamp tab-inattivo
       lastFrameRef.current = now;
-      simTimeRef.current += dt * speedRef.current;
+      simRateRef.current = speedRef.current * (slowmoMultiplierRef?.current ?? 1);
+      simTimeRef.current += dt * simRateRef.current;
       computeInto(simTimeRef.current, positionsRef.current);
       emitRef.current(); // ← nessun setState: il reconciler React non lavora a 60fps
       publishSimTimeRef.current();
@@ -224,7 +241,7 @@ export function useOrbitEngine(
 
   const useSimTime = () => simTime;
 
-  return { subscribeFrames, useSimTime, simTimeRef, positionsRef };
+  return { subscribeFrames, useSimTime, simTimeRef, positionsRef, simRateRef };
 }
 
 /**
