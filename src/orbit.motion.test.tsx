@@ -19,7 +19,10 @@ import { keplerPosition } from './hooks/useOrbitEngine';
 import { planets } from './data/planets';
 
 function angleAt(planetName: string, t: number): number {
-  return keplerPosition(planets.find((p) => p.name === planetName)!, t).angle;
+  return keplerPosition(
+    planets.find((p) => p.name === planetName)!,
+    t
+  ).angle;
 }
 
 describe('Anti-regressione: moto orbitale monotonicamente avanti', () => {

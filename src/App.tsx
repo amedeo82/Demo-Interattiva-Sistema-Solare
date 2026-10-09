@@ -23,10 +23,7 @@ const SolarScene = lazy(() =>
   import('./scene/SolarScene').then((m) => ({ default: m.SolarScene }))
 );
 
-const {
-  speedOptions: SPEED_OPTIONS,
-  defaultSpeed: DEFAULT_SPEED,
-} = CONFIG;
+const { speedOptions: SPEED_OPTIONS, defaultSpeed: DEFAULT_SPEED } = CONFIG;
 
 /** Hook che traccia la dimensione viewport (rende il layout reattivo). */
 function useViewport() {
@@ -105,7 +102,9 @@ export default function App({ quizRnd }: AppProps = {}) {
   // S3.6 — Tour guidato: quando ON, un TourController dentro la scena
   // fa partire una sequenza cinematica di fly-to.
   const [tourActive, setTourActive] = useState(false);
-  const [tourStep, setTourStep] = useState<'idle' | 'overview' | 'earth' | 'saturn' | 'end'>('idle');
+  const [tourStep, setTourStep] = useState<'idle' | 'overview' | 'earth' | 'saturn' | 'end'>(
+    'idle'
+  );
   // S4.2 — Refs per TelemetryHUD: aggiornati a 60Hz dentro il Canvas,
   // letti a 2Hz dal DOM HUD. Zero re-render React per il loop rAF.
   const cameraDistanceRef = useRef(100);
@@ -256,17 +255,17 @@ export default function App({ quizRnd }: AppProps = {}) {
   // Reset visuale: nella 3D OrbitControls gestisce camera + zoom + pan,
   // quindi ci limitiamo a resettare il tilt custom dell'utente.
   // Reset visuale: nella 3D OrbitControls gestisce camera + zoom + pan,
-// quindi ci limitiamo a resettare il tilt custom dell'utente.
-const resetView = () => {
-  setTilt(TILT_RESET);
-};
+  // quindi ci limitiamo a resettare il tilt custom dell'utente.
+  const resetView = () => {
+    setTilt(TILT_RESET);
+  };
 
-const handleSelectPlanet = (p: PlanetData) => {
-  setSelectedPlanet(p);
-  // S3.4 — attiva slow-mo cinematografico per 2.5s
-  slowmoMultiplierRef.current = 0.25;
-  slowmoEndRef.current = performance.now() + 2500;
-};
+  const handleSelectPlanet = (p: PlanetData) => {
+    setSelectedPlanet(p);
+    // S3.4 — attiva slow-mo cinematografico per 2.5s
+    slowmoMultiplierRef.current = 0.25;
+    slowmoEndRef.current = performance.now() + 2500;
+  };
 
   return (
     <div className="relative flex h-screen w-screen flex-col overflow-hidden text-white">

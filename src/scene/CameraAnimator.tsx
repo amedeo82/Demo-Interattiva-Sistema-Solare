@@ -56,13 +56,13 @@ export function CameraAnimator({
   const tweenRef = useRef<Tween | null>(null);
   const introDoneRef = useRef(false);
 
-// ── Intro flythrough (al mount) ──
-// La camera parte da lontano (alto, lontano dal sistema, pitch forte)
-// e scivola verso la posizione di default. Effetto "reveal".
-//
-// `camera` e `controlsRef` sono STABILI (camera viene da useThree; controlsRef
-// è un useRef nel parent). Aggiungerli ai deps NON causa re-trigger dell'intro.
-useEffect(() => {
+  // ── Intro flythrough (al mount) ──
+  // La camera parte da lontano (alto, lontano dal sistema, pitch forte)
+  // e scivola verso la posizione di default. Effetto "reveal".
+  //
+  // `camera` e `controlsRef` sono STABILI (camera viene da useThree; controlsRef
+  // è un useRef nel parent). Aggiungerli ai deps NON causa re-trigger dell'intro.
+  useEffect(() => {
     // Posizione iniziale drammatica: alto, lontano, leggermentea a destra
     const introStart = new Vector3(0, 100, 220);
     const introEnd = new Vector3(0, 70, 100); // matches Canvas camera prop
@@ -104,9 +104,9 @@ useEffect(() => {
     // leggermentea a destra del fronte.
     const angleDeg = 25; // pitch
     const dir = new Vector3(
-      Math.sin(pos.angle * Math.PI / 180) * 0.7,
-      Math.sin(angleDeg * Math.PI / 180),
-      Math.cos(pos.angle * Math.PI / 180) * 0.7 + 1
+      Math.sin((pos.angle * Math.PI) / 180) * 0.7,
+      Math.sin((angleDeg * Math.PI) / 180),
+      Math.cos((pos.angle * Math.PI) / 180) * 0.7 + 1
     ).normalize();
 
     const camTarget = planetWorld.clone().add(dir.multiplyScalar(view));

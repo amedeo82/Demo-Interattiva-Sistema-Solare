@@ -12,11 +12,7 @@ export interface CameraTrackerRefs {
   fpsRef: MutableRefObject<number>;
 }
 
-export function CameraTracker({
-  cameraDistanceRef,
-  cameraPositionRef,
-  fpsRef,
-}: CameraTrackerRefs) {
+export function CameraTracker({ cameraDistanceRef, cameraPositionRef, fpsRef }: CameraTrackerRefs) {
   const { camera } = useThree();
   const lastTimeRef = useRef(performance.now());
   const fpsAccumRef = useRef({ frames: 0, last: performance.now() });

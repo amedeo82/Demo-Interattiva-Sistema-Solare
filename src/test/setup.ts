@@ -126,7 +126,8 @@ if (typeof HTMLCanvasElement !== 'undefined') {
 
   HTMLCanvasElement.prototype.getContext = function (kind: string) {
     if (kind === '2d') return makeCtx2D() as unknown as CanvasRenderingContext2D;
-    if (kind === 'webgl' || kind === 'webgl2' || kind === 'experimental-webgl') return webglMock as unknown as WebGLRenderingContext;
+    if (kind === 'webgl' || kind === 'webgl2' || kind === 'experimental-webgl')
+      return webglMock as unknown as WebGLRenderingContext;
     return null;
   } as unknown as typeof HTMLCanvasElement.prototype.getContext;
 }

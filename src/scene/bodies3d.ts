@@ -185,7 +185,15 @@ export const BODIES_3D: Record<string, Body3D> = {
 };
 
 export const BODIES_ORDER: string[] = [
-  'Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune',
+  'Sun',
+  'Mercury',
+  'Venus',
+  'Earth',
+  'Mars',
+  'Jupiter',
+  'Saturn',
+  'Uranus',
+  'Neptune',
 ];
 
 export function angleToOrbitPosition(

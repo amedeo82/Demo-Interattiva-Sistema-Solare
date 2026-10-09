@@ -14,7 +14,9 @@ describe('App — rendering', () => {
   it('renderizza la scena 3D e il pannello laterale', () => {
     render(<App />);
     // La sidebar lista i pianeti come bottoni (per accessibilità).
-    const planetRows = screen.getAllByRole('button', { name: /^(Mercurio|Venere|Terra|Marte|Giove|Saturno|Urano|Nettuno)$/i });
+    const planetRows = screen.getAllByRole('button', {
+      name: /^(Mercurio|Venere|Terra|Marte|Giove|Saturno|Urano|Nettuno)$/i,
+    });
     expect(planetRows.length).toBeGreaterThanOrEqual(8);
   });
 });

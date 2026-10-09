@@ -17,14 +17,14 @@ describe('useOrbitCounters', () => {
   });
 
   function makePositions(): MutableRefObject<Record<string, SimPlanetState>> {
-    return { current: { Earth: { angle: 90, radius: 130 } } } as MutableRefObject<Record<string, SimPlanetState>>;
+    return { current: { Earth: { angle: 90, radius: 130 } } } as MutableRefObject<
+      Record<string, SimPlanetState>
+    >;
   }
 
   it('parte a 0 orbite e incrementa al wrap-around (avanti)', () => {
     const positionsRef = makePositions();
-    const { result } = renderHook(() =>
-      useOrbitCounters(positionsRef, ['Earth'])
-    );
+    const { result } = renderHook(() => useOrbitCounters(positionsRef, ['Earth']));
     expect(result.current.current['Earth'] ?? 0).toBe(0);
     // Simula un frame iniziale di assestamento
     act(() => {
@@ -46,12 +46,18 @@ describe('useOrbitCounters', () => {
   });
 
   it('rileva wrap-around retrogrado (Venere, Urano)', () => {
-    const positionsRef = { current: { Venus: { angle: 0, radius: 100 } } } as MutableRefObject<Record<string, SimPlanetState>>;
+    const positionsRef = { current: { Venus: { angle: 0, radius: 100 } } } as MutableRefObject<
+      Record<string, SimPlanetState>
+    >;
     const { result } = renderHook(() => useOrbitCounters(positionsRef, ['Venus']));
     expect(result.current.current['Venus'] ?? 0).toBe(0);
-    act(() => { vi.advanceTimersByTime(20); });
+    act(() => {
+      vi.advanceTimersByTime(20);
+    });
     positionsRef.current.Venus = { angle: 359, radius: 100 };
-    act(() => { vi.advanceTimersByTime(20); });
+    act(() => {
+      vi.advanceTimersByTime(20);
+    });
     expect(result.current.current['Venus'] ?? 0).toBe(1);
   });
 });

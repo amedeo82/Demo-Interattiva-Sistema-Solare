@@ -19,11 +19,7 @@ export interface HoverCrosshairProps {
   hoveredBodyRef: MutableRefObject<string | null>;
 }
 
-export function HoverCrosshair({
-  mouseNdcRef,
-  worldHitRef,
-  hoveredBodyRef,
-}: HoverCrosshairProps) {
+export function HoverCrosshair({ mouseNdcRef, worldHitRef, hoveredBodyRef }: HoverCrosshairProps) {
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   // Refresh forza re-render ogni 100ms per rileggere i ref live (worldHit, hoveredBody).
   const [, force] = useState(0);

@@ -20,9 +20,13 @@ import { BODIES_3D, BODIES_ORDER, angleToOrbitPosition } from './bodies3d';
 import type { SimPlanetState } from '../hooks/useOrbitEngine';
 import { useOrbitEngineContext } from './OrbitEngineBridge';
 
-export function Bodies({ selectedBodyName,
+export function Bodies({
+  selectedBodyName,
   onSelectBody,
- }: {  selectedBodyName: string | null; onSelectBody: (n: string) => void }) {
+}: {
+  selectedBodyName: string | null;
+  onSelectBody: (n: string) => void;
+}) {
   const { positionsRef, simRateRef } = useOrbitEngineContext();
   const { gl } = useThree();
   const bodiesNoSun = BODIES_ORDER.filter((n) => n !== 'Sun');
@@ -63,7 +67,8 @@ export function Bodies({ selectedBodyName,
     () =>
       bodiesNoSun.reduce<Record<string, SphereGeometry>>((acc, n) => {
         acc[n] = new SphereGeometry(BODIES_3D[n].radius, 48, 48);
-        return acc;}, {}),
+        return acc;
+      }, {}),
     []
   );
   const mats = useMemo(
@@ -75,10 +80,7 @@ export function Bodies({ selectedBodyName,
     [textures]
   );
 
-  const cloudGeom = useMemo(
-    () => new SphereGeometry(BODIES_3D.Earth.radius * 1.02, 48, 48),
-    []
-  );
+  const cloudGeom = useMemo(() => new SphereGeometry(BODIES_3D.Earth.radius * 1.02, 48, 48), []);
 
   // Cleanup GPU alla dismissione (le geometry/material sono fuori dal
   // declarative tree di r3f, quindi vanno dispose a mano).

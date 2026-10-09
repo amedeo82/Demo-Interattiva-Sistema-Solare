@@ -23,12 +23,7 @@ function useForceRender() {
   return force;
 }
 
-export function TelemetryHUD({
-  speed,
-  currentDate,
-  cameraDistanceRef,
-  fpsRef,
-}: TelemetryHUDProps) {
+export function TelemetryHUD({ speed, currentDate, cameraDistanceRef, fpsRef }: TelemetryHUDProps) {
   const force = useForceRender();
   useEffect(() => {
     const id = setInterval(force, REFRESH_MS);
