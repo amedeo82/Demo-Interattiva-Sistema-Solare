@@ -70,6 +70,10 @@ export interface Body3D {
   degPerDay: number;
   map?: string;
   rings?: string;
+  /** Tinta dell'atmosfera per il Fresnel shader (BackSide sphere). */
+  atmosphereColor?: string;
+  /** Opacità massima dell'atmosfera (0..1). */
+  atmosphereIntensity?: number;
 }
 
 export const BODIES_3D: Record<string, Body3D> = {
@@ -108,6 +112,8 @@ export const BODIES_3D: Record<string, Body3D> = {
     eccentricity: 0.0068,
     degPerDay: 360 / 224.7,
     map: `${TEX}/venus.jpg`,
+    atmosphereColor: '#f7d59a',
+    atmosphereIntensity: 0.9,
   },
   Earth: {
     name: 'Earth',
@@ -120,6 +126,8 @@ export const BODIES_3D: Record<string, Body3D> = {
     eccentricity: 0.0167,
     degPerDay: 360 / 365.25,
     map: `${TEX}/earth.jpg`,
+    atmosphereColor: '#7eb6ff',
+    atmosphereIntensity: 0.7,
   },
   Mars: {
     name: 'Mars',
@@ -144,6 +152,8 @@ export const BODIES_3D: Record<string, Body3D> = {
     eccentricity: 0.0489,
     degPerDay: 360 / 4332.59,
     map: `${TEX}/jupiter.jpg`,
+    atmosphereColor: '#e8c896',
+    atmosphereIntensity: 0.45,
   },
   Saturn: {
     name: 'Saturn',
@@ -157,6 +167,8 @@ export const BODIES_3D: Record<string, Body3D> = {
     degPerDay: 360 / 10759,
     map: `${TEX}/saturn.jpg`,
     rings: `${TEX}/saturn_rings.png`,
+    atmosphereColor: '#f0d8a0',
+    atmosphereIntensity: 0.4,
   },
   Uranus: {
     name: 'Uranus',
@@ -169,6 +181,8 @@ export const BODIES_3D: Record<string, Body3D> = {
     eccentricity: 0.0457,
     degPerDay: 360 / 30688.5,
     map: `${TEX}/uranus.jpg`,
+    atmosphereColor: '#9be8e8',
+    atmosphereIntensity: 0.55,
   },
   Neptune: {
     name: 'Neptune',
@@ -181,6 +195,8 @@ export const BODIES_3D: Record<string, Body3D> = {
     eccentricity: 0.0113,
     degPerDay: 360 / 60195,
     map: `${TEX}/neptune.jpg`,
+    atmosphereColor: '#6a8aff',
+    atmosphereIntensity: 0.55,
   },
 };
 

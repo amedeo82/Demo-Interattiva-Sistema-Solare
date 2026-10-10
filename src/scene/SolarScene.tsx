@@ -20,15 +20,27 @@ import { SaturnRings } from './SaturnRings';
 import { TourController, type TourStep } from './TourController';
 import { CameraTracker } from './CameraTracker';
 import { HoverRaycaster } from './HoverRaycaster';
+import { LoadingProvider } from './LoadingProvider';
+import { AsteroidBelt3D } from './AsteroidBelt3D';
+import { KuiperBelt3D } from './KuiperBelt3D';
+import { Comet3D } from './Comet3D';
+import { OrbitTrails } from './OrbitTrails';
+import { Conjunctions } from './Conjunctions';
+import { planets } from '../data/planets';
 import type { SimPlanetState } from '../hooks/useOrbitEngine';
 
 export interface SolarSceneProps {
   positionsRef: MutableRefObject<Record<string, SimPlanetState>>;
   /** Moltiplicatore effettivo (speed × slowmo) per la rotazione assiale. */
   simRateRef: MutableRefObject<number>;
+  /** Tempo di simulazione corrente (secondi a 1×) usato da trail/effemeridi. */
+  simTimeRef: MutableRefObject<number>;
+  /** Modalità scala 1:1 (in attesa di wiring completo in Bodies). */
+  realScale?: boolean;
   selectedBodyName: string | null;
   onSelectBody: (name: string) => void;
   postFxEnabled: boolean;
+  realistic?: boolean;
   tiltRef: MutableRefObject<{ pitch: number; yaw: number }>;
   /** Callback quando l'intro flythrough termina (per il titolo CSS). */
   onIntroComplete?: () => void;
@@ -55,9 +67,11 @@ export interface SolarSceneProps {
 export function SolarScene({
   positionsRef,
   simRateRef,
+  simTimeRef,
   selectedBodyName,
   onSelectBody,
   postFxEnabled,
+  realistic = true,
   tiltRef,
   onIntroComplete,
   freeCamera = false,
@@ -98,47 +112,60 @@ export function SolarScene({
       style={{ width: '100%', height: '100%' }}
     >
       <Suspense fallback={null}>
-        <Lighting />
-        <StarsBackground />
-        <Orbits />
-        <OrbitEngineBridge positionsRef={positionsRef} simRateRef={simRateRef}>
-          <Sun3D selected={selectedBodyName === 'Sun'} onSelect={() => onSelectBody('Sun')} />
-          <Bodies selectedBodyName={selectedBodyName} onSelectBody={onSelectBody} />
-          <SaturnRings />
-        </OrbitEngineBridge>
-        <CameraRig ref={rigRef} tiltRef={tiltRef} freeCamera={freeCamera} />
-        {/* S4.2 — Tracker live: aggiorna distanza/posizione/FPS dentro useFrame.
-            Va montato DENTRO il Canvas perché usa useThree + useFrame. */}
-        <CameraTracker
-          cameraDistanceRef={cameraDistanceRef}
-          cameraPositionRef={cameraPositionRef}
-          fpsRef={fpsRef}
-        />
-        {/* S4.3 — Raycast mouse: aggiorna mouseNdc + worldHit + hoveredBody */}
-        <HoverRaycaster
-          mouseNdcRef={mouseNdcRef}
-          worldHitRef={worldHitRef}
-          hoveredBodyRef={hoveredBodyRef}
-          positionsRef={positionsRef}
-        />
-        {/* S3.6 — Tour guidato (cicla flyTo fra panoramica, Terra, Saturno) */}
-        <TourController
-          active={tourActive}
-          controlsRef={controlsHolderRef}
-          positionsRef={positionsRef}
-          onSelectBody={onSelectBody}
-          onStep={onTourStep}
-        />
-        {/* Animatore camera: intro flythrough + fly-to on select.
-            DEVE stare DOPO CameraRig nell'albero React così che controlsHolderRef
-            sia già popolato al primo render. */}
-        <CameraAnimator
-          controlsRef={controlsHolderRef}
-          positionsRef={positionsRef}
-          selectedBodyName={selectedBodyName}
-          onIntroComplete={onIntroComplete}
-        />
-        {postFxEnabled && <PostProcessing />}
+        <LoadingProvider>
+          <Lighting />
+          <StarsBackground />
+          <Orbits />
+          <OrbitEngineBridge
+            positionsRef={positionsRef}
+            simRateRef={simRateRef}
+            simTimeRef={simTimeRef}
+          >
+            <Sun3D selected={selectedBodyName === 'Sun'} onSelect={() => onSelectBody('Sun')} />
+            <Bodies selectedBodyName={selectedBodyName} onSelectBody={onSelectBody} />
+            <SaturnRings />
+            {realistic && <AsteroidBelt3D />}
+            {realistic && <KuiperBelt3D />}
+            <Comet3D />
+            {selectedBodyName && selectedBodyName !== 'Sun' && (
+              <OrbitTrails planets={planets} names={[selectedBodyName]} />
+            )}
+            <Conjunctions />
+          </OrbitEngineBridge>
+          <CameraRig ref={rigRef} tiltRef={tiltRef} freeCamera={freeCamera} />
+          {/* S4.2 — Tracker live: aggiorna distanza/posizione/FPS dentro useFrame.
+              Va montato DENTRO il Canvas perché usa useThree + useFrame. */}
+          <CameraTracker
+            cameraDistanceRef={cameraDistanceRef}
+            cameraPositionRef={cameraPositionRef}
+            fpsRef={fpsRef}
+          />
+          {/* S4.3 — Raycast mouse: aggiorna mouseNdc + worldHit + hoveredBody */}
+          <HoverRaycaster
+            mouseNdcRef={mouseNdcRef}
+            worldHitRef={worldHitRef}
+            hoveredBodyRef={hoveredBodyRef}
+            positionsRef={positionsRef}
+          />
+          {/* S3.6 — Tour guidato (cicla flyTo fra panoramica, Terra, Saturno) */}
+          <TourController
+            active={tourActive}
+            controlsRef={controlsHolderRef}
+            positionsRef={positionsRef}
+            onSelectBody={onSelectBody}
+            onStep={onTourStep}
+          />
+          {/* Animatore camera: intro flythrough + fly-to on select.
+              DEVE stare DOPO CameraRig nell'albero React così che controlsHolderRef
+              sia già popolato al primo render. */}
+          <CameraAnimator
+            controlsRef={controlsHolderRef}
+            positionsRef={positionsRef}
+            selectedBodyName={selectedBodyName}
+            onIntroComplete={onIntroComplete}
+          />
+          {postFxEnabled && <PostProcessing />}
+        </LoadingProvider>
       </Suspense>
     </Canvas>
   );

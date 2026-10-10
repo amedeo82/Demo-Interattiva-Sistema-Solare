@@ -12,7 +12,7 @@
  */
 import { memo, useCallback, useRef, type CSSProperties } from 'react';
 import type { PlanetData } from '../data/planets';
-import { usePlanetTexture } from '../utils/textures';
+import { usePlanetTexture, usePlanetBump } from '../utils/textures';
 import { useFrameSubscription } from '../hooks/useOrbitEngine';
 import type { SimPlanetState } from '../hooks/useOrbitEngine';
 
@@ -44,9 +44,13 @@ function Planet({
   subscribeFrames,
 }: PlanetProps) {
   const texture = usePlanetTexture(planet.name, planet.color);
+  const bump = usePlanetBump(planet.name, planet.color);
   const rootRef = useRef<HTMLDivElement>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
+  const bumpRef = useRef<HTMLDivElement>(null);
   const terminatorRef = useRef<HTMLDivElement>(null);
+  const ringShadowOnPlanetRef = useRef<HTMLDivElement>(null);
+  const planetShadowOnRingsRef = useRef<HTMLDivElement>(null);
   // S2.2 — layer per il riflesso speculare: stessa logica imperativa del
   //  terminatore, ma gradiente più stretto e opacità bassa → "bagliore" del
   //  Sole sul lato giorno del pianeta.
@@ -80,8 +84,7 @@ function Planet({
       // proiettate sul disco del pianeta (sempre all'interno del 100%×100%).
       const angleRad = (pos.angle * Math.PI) / 180;
       const lightX = 50 - Math.sin(angleRad) * 50;
-      const lightY = 50 + Math.cos(angleRad) * 50;
-      const nightOp = isSelected ? 0.72 : 0.6;
+      const lightY = 50 + Math.cos(angleRad) * 50;      const nightOp = isSelected ? 0.72 : 0.6;
       // Terminatore radiale: la luce entra dal Sole, il lato opno è in ombra.
       // Il gradiente crea una transizione morbida (più realistica della
       // vecchia line-gradient che "tagliava" il pianeta in due).
@@ -108,6 +111,13 @@ function Planet({
           surfaceRef.current.style.transform = `rotate(${spinDir * spinDeg}deg)`;
         }
       }
+      // Bump map: stessa rotazione della texture albedo, in modo che il
+      // rilievo segua i crateri/continenti durante lo spin.
+      if (bumpRef.current && bump) {
+        const spinDeg = ((simTime * 360) / Math.max(Math.abs(planet.rotationHours) / 2.4, 2)) % 360;
+        const spinDir = planet.rotationHours < 0 ? -1 : 1;
+        bumpRef.current.style.backgroundPositionX = `${spinDir * spinDeg}%`;
+      }
       if (realistic) {
         for (let i = 0; i < planet.moons.length; i++) {
           const el = moonRefs.current[i];
@@ -119,8 +129,46 @@ function Planet({
           }px))`;
         }
       }
+      // Saturno: ombra degli anelli sul disco + ombra del pianeta sugli anelli.
+      // L'angolo pos.angle è la longitudine eliocentrica (0°=in alto, orario).
+      // Sole = origine, quindi il lato opposto al Sole (lato notte) è a
+      // angle+180° in coordinate del pianeta.
+      if (planet.name === 'Saturn') {
+        // Ombra anelli → disco: una sottile striscia scura che si sposta
+        // sopra/sotto il centro disco a seconda della fase orbitale.
+        // Quando pos.angle è in alto (Sole sopra il piano), l'ombra degli
+        // anelli cade sulla metà superiore del disco, e viceversa.
+        if (ringShadowOnPlanetRef.current) {
+          const yOffset = Math.cos(angleRad) * 35; // -35..+35 px
+          const xOffset = Math.sin(angleRad) * 18; // leggera asimmetria
+          ringShadowOnPlanetRef.current.style.transform = `translate(${xOffset}%, ${yOffset}%)`;
+          ringShadowOnPlanetRef.current.style.opacity = String(0.45 + Math.abs(Math.cos(angleRad)) * 0.35);
+        }
+        // Ombra pianeta → anelli: il "lato Sole" degli anelli è illuminato,
+        // il lato opposto è in ombra. Disegnamo un radial gradient con centro
+        // luce dal lato del Sole, scuro al bordo opposto.
+        if (planetShadowOnRingsRef.current) {
+          // L'anello è in coordinate locali: l'asse lungo è orizzontale.
+          // Il Sole, in coordinate del pianeta, è alla posizione (lightX, lightY)
+          // espressa come % del bounding box del disco; per l'anello (190%×60%)
+          // il Sole è FUORI dal bounding box (è lontano), quindi l'effetto è
+          // una sfumatura lineare: la metà verso il Sole è chiara, opposta
+          // scura. Usiamo un linear gradient in base all'angolo.
+          const sunDirX = -Math.sin(angleRad); // -1..+1, direzione "verso il Sole" lungo X
+          const sunDirY = Math.cos(angleRad); // -1..+1, direzione "verso il Sole" lungo Y
+          // L'anello è ruotato di -20°: consideriamo la correzione.
+          const ringRot = (-20 * Math.PI) / 180;
+          const sx = sunDirX * Math.cos(-ringRot) - sunDirY * Math.sin(-ringRot);
+          const sy = sunDirX * Math.sin(-ringRot) + sunDirY * Math.cos(-ringRot);
+          // Angolo del gradient 0..360° (CSS): 0° = su, 90° = dx.
+          const gradAngle = ((Math.atan2(sx, -sy) * 180) / Math.PI + 360) % 360;
+          planetShadowOnRingsRef.current.style.background = `linear-gradient(${gradAngle.toFixed(
+            0
+          )}deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 35%, transparent 60%, transparent 100%)`;
+        }
+      }
     },
-    [planet, texture, realistic, isSelected]
+    [planet, texture, bump, realistic, isSelected]
   );
   useFrameSubscription(subscribeFrames, onFrame);
 
@@ -166,6 +214,23 @@ function Planet({
         style={layerStyle}
       />
 
+      {/* Bump map: layer in scala di grigi che simula il rilievo via
+          mix-blend-mode overlay + filter contrast. Ruota in sync con la
+          texture albedo per allineare crateri/continenti. */}
+      {bump && (
+        <div
+          ref={bumpRef}
+          className="planet-bump absolute inset-0 overflow-hidden rounded-full"
+          style={{
+            backgroundImage: `url(${bump})`,
+            backgroundSize: '200% 100%',
+            mixBlendMode: 'overlay',
+            filter: 'contrast(1.8) brightness(1.05)',
+            opacity: 0.55,
+          }}
+        />
+      )}
+
       {/* S2.2 — riflesso speculare (sopra il disco, sotto l'atmosfera).
            Posizione aggiornata via ref in `onFrame`. */}
       <div ref={specularRef} className="planet-specular" />
@@ -186,7 +251,28 @@ function Planet({
       {/* S2.1 — terminatore radiale (sopra il disco, sotto l'atmosfera) */}
       <div ref={terminatorRef} className="planet-terminator" />
 
-      {planet.name === 'Saturn' && <div className="saturn-ring" />}
+      {planet.name === 'Saturn' && (
+        <>
+          {/* Anello principale: bordo ellittico colorato (vedi .saturn-ring) */}
+          <div className="saturn-ring" />
+          {/* Ombra del pianeta sugli anelli: layer scuro opposto al Sole.
+              Posizione luce aggiornata imperativamente in onFrame. */}
+          <div
+            ref={planetShadowOnRingsRef}
+            className="planet-shadow-on-rings pointer-events-none absolute"
+            aria-hidden
+          />
+        </>
+      )}
+      {/* Ombra degli anelli sul disco (solo Saturno): sottile striscia
+          scura orizzontale che si sposta con la fase orbitale. */}
+      {planet.name === 'Saturn' && (
+        <div
+          ref={ringShadowOnPlanetRef}
+          className="ring-shadow-on-planet pointer-events-none"
+          aria-hidden
+        />
+      )}
       {showLabel && <span className="planet-label">{planet.nameIt}</span>}
 
       {/* Satelliti naturali: posizione scritta dal motore via ref */}

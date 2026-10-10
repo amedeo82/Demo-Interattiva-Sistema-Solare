@@ -69,4 +69,5 @@ export const PREFS_KEYS = {
   showLabels: 'solarsys.showLabels',
   realistic: 'solarsys.realistic',
   postFxEnabled: 'solarsys.postfx',
+  realScale: 'solarsys.realscale',
 } as const;

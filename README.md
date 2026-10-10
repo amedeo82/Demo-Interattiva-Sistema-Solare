@@ -23,42 +23,49 @@ Una simulazione interattiva del sistema solare costruita con **React 18**, **Typ
 
 ## ✨ Funzionalità
 
-### Simulazione orbitala
+### Simulazione orbitale
 - **Fisica di Keplero**: orbite ellittiche con eccentricità reale, equazione di Keplero risolta per iterazione di Newton (`src/utils/kepler.ts`)
 - **Velocità variabile**: preset 0.25x–10x + slider continuo 0,1x–20x
 - **Posizioni per data**: picker per calcolare dove si trovavano i pianeti in una data specifica (epoca J2000)
-- **Scie orbitali**: trail alle spalle dei pianeti selezionati o inseguiti
-- **Fascia degli asteroidi**: ~200 asteroidi procedurali tra Marte e Giove (in modalità Realismo)
+- **Scie orbitali**: trail dietro ai pianeti selezionati (96 punti, 60s di sim, vertex colors sfumati)
+- **Timeline interattiva**: scrubber drag/touch/keyboard ±2 anni, pausa automatica durante drag
+- **Fascia asteroidi** (~350) e **Fascia di Kuiper** (~120 TNO) come `THREE.Points` con rotazione propria e inclinazione orbitale
+- **Cometa decorativa** con orbita eccentrica e coda orientata dinamicamente opposta al Sole
 
-### Grafica
-- **Texture procedurali** generate su canvas: crateri (Mercurio, Luna), nuvole (Venere, Terra, Giove), bande e Grande Macchia Rossa, poli ghiacciati — tutto senza asset esterni (`src/utils/textures.ts`)
-- **Rotazione assiale** con inclinazione realistica (es. Urano 97,77°)
-- **Effetti atmosferici** (glow) per Terra, Venere, Giove, Nettuno
-- **Anelli di Saturno** semitrasparenti, **satelliti naturali** (Luna, Galileiani, Titano…)
-- Corona solare pulsante, lens flare, cometa animata, sfondo stellato con nebulose
+### Grafica 3D
+- **Texture NASA 2K** per albedo + **bump map procedurali** (crateri, continenti, polvere, fasce) per dare rilievo
+- **Atmosfere Fresnel** (sphere BackSide + shader) su Venere, Terra, Giove, Saturno, Urano, Nettuno
+- **Rotazione assiale** con inclinazione reale (es. Urano 97,77°)
+- **Anelli di Saturno** con ombra anelli-pianeta e pianeta-anelli che si proietta dinamicamente in base alla fase
+- **Congiunzioni**: rilevamento automatico della coppia di pianeti più stretta, banner DOM e marker 3D con isteresi (5°/3°)
+- **Sole** con limb darkening, plasma, macule, doppia corona
+- **Nubi terrestri** con layer separato che ruota a velocità propria
 
 ### Interattività
-- **Zoom & pan**: rotellina del mouse, pulsanti dedicati, trascinamento della scena
-- **Modalità follow 🛰**: la camera insegue il pianeta selezionato durante la rivoluzione
-- **Pannello informativo espandibile**: composizione atmosferica, temperature, numero di lune, sonde spaziali inviate, curiosità
-- **⚖️ Confronto**: seleziona due pianeti e confronta diametro, distanza, periodo orbitale, lune, temperatura
-- **🧠 Quiz**: domande a risposta multipla generate in parte dai dati reali del dataset
-- Etichette dei pianeti attivabili/disattivabili
+- **Zoom & pan**: rotellina, drag, Shift+drag
+- **Free Cam mode**: chip dedicato per orbita illimitata
+- **Modalità follow 🛰**: la camera insegue il pianeta selezionato
+- **Pannello informativo espandibile**: composizione atmosferica, temperature, lune, missioni, curiosità
+- **⚖️ Confronto**: seleziona due pianeti e confronta diametro, distanza, periodo, lune, temperatura
+- **🧠 Quiz**: domande a risposta multipla generate dai dati reali
+- **🔊 Audio**: drone spaziale sintetizzato via Web Audio API (no download)
+- **📍 Oggi**: torna alla data corrente dopo aver scelto una data
+- **📏 Scala reale**: toggle 1:1 con disclaimer
+- Etichette pianeti attivabili/disattivabili
+
+### PWA & offline
+- **Manifest** + icone SVG (192/512)
+- **Service worker** con strategia network-first per HTML e cache-first per asset
+- Installabile su desktop e mobile
 
 ### Accessibilità & UX
-- Navigazione da tastiera: `Spazio` pausa · `←`/`→` velocità · `↑`/`↓` tilt camera · `+`/`−` tilt (alias) · `R` reset visuale · `T` reset tilt · `Esc` chiudi
-- **Scena 3D WebGL** con Three.js (via react-three-fiber). Rotellina = zoom, drag = orbit, Shift+drag = pan (drei OrbitControls).
-- **Cinematic transitions** (S3): fly-to con `easeInOutCubic` su planet select (1.2s), intro flythrough al mount (3s), slow-mo automatico 0.25× per 2.5s dopo select, tour guidato panoramica→Terra→Saturno.
-- **Title sequence** al primo mount con fade-in/out.
-- **Free Cam mode**: chip dedicato per orbita illimitata.
-- Pianeti come **sfere illuminate** dal Sole (MeshStandardMaterial + pointLight), con texture NASA 2K equirectangolari.
-- Saturno con **anelli procedurali** (RingGeometry + texture generata da script), tilt realistico 26.73°.
-- **Bloom + Vignette** post-processing cinematografico (toggle "FX" in header).
-- Scala distanze logaritmica, diametri proporzionali ai km reali (vedi `src/scene/bodies3d.ts`).
-- Vignette + atmosfera con scattering ring, terminatore radale pilotato dalla posizionee reale del Sole, riflessoee speculare sul lato giorno
-- Sole con **limb darkening**, plasma rotante, macule solari e doppia corona animata
-- Ruoli ARIA (`dialog`, `button`,`, `aria-pressed`)`) e focus management nei pannelli
-- Design responsive desktop/mobile, micro-animazioni e stati hover
+- Navigazione da tastiera: `Spazio` pausa · `←`/`→` velocità · `↑`/`↓` tilt · `+`/`−` tilt · `R` reset · `T` reset tilt · `Esc` chiudi · `Home` reset timeline
+- Ruoli ARIA (`dialog`, `button`, `aria-pressed`) e focus management
+- `prefers-reduced-motion` rispettato
+- **Design system** centralizzato (`src/index.css`): token CSS, superficie `glass` condivisa, slider/chip coerenti
+- Onboarding tip al primo avvio (persistito)
+- Cinematic transitions: fly-to 1.2s, intro flythrough 3s, slow-mo 0.25× automatico su select
+- Bloom + Vignette post-processing (toggle "FX")
 
 ## 🛠️ Stack tecnologico
 
@@ -66,7 +73,10 @@ Una simulazione interattiva del sistema solare costruita con **React 18**, **Typ
 |---|---|
 | Framework | React 18 + TypeScript 5 |
 | Build | Vite 6 |
-| Styling | Tailwind CSS 4 + CSS custom (animazioni, texture) |
+| 3D | Three.js + @react-three/fiber + @react-three/drei + postprocessing |
+| Styling | Tailwind CSS 4 + CSS custom (animazioni, shader) |
+| State | Zustand + custom hooks |
+| PWA | Service worker + manifest |
 | Test | Vitest + Testing Library + jsdom |
 | Qualità | ESLint 10, Prettier, GitHub Actions CI |
 | Screenshot docs | Playwright (script `scripts/screenshots.mjs`) |
@@ -122,31 +132,60 @@ vercel --prod   # produzione
 ## 📁 Struttura del progetto
 
 ```
-├── index.html                 # HTML entry point
+├── index.html                 # HTML entry point + PWA bootstrap
+├── public/
+│   ├── sw.js                  # Service worker (network-first HTML, cache-first asset)
+│   ├── manifest.webmanifest   # PWA manifest
+│   └── icon-*.svg             # Icone PWA
 ├── src/
 │   ├── main.tsx               # React entry point
-│   ├── App.tsx                # Scena, controlli header, zoom/pan/follow
-│   ├── index.css              # Stili globali, animazioni, effetti
+│   ├── App.tsx                # Composizione scena + header + timeline + onboarding
+│   ├── index.css              # Design tokens, glass, timeline, chip, slider
 │   ├── components/
-│   │   ├── Planet.tsx         # Pianeti: texture, atmosfera, lune, anelli
-│   │   ├── Starfield.tsx      # Stelle e nebulose su canvas
-│   │   ├── AsteroidBelt.tsx   # Fascia degli asteroidi procedurale
-│   │   ├── ControlsSidebar.tsx# Play/pausa, velocità, data, pannello info
+│   │   ├── Planet.tsx         # Pianeti DOM (texture, bump, atmosfera, ombre Saturno)
 │   │   ├── PlanetInfoPanel.tsx# Pannello sezioni espandibili
+│   │   ├── ControlsSidebar.tsx# Play/pausa, velocità, data, pannello info
 │   │   ├── CompareModal.tsx   # Confronto tra due pianeti
-│   │   └── QuizModal.tsx      # Quiz a risposta multipla
+│   │   ├── QuizModal.tsx      # Quiz a risposta multipla
+│   │   ├── IntroOverlay.tsx   # Title sequence con progress bar reale
+│   │   ├── Timeline.tsx       # Scrubber interattivo del tempo di simulazione
+│   │   ├── OnboardingTip.tsx  # Tip primo avvio (persistito)
+│   │   ├── ConjunctionBanner.tsx # Banner DOM per congiunzioni
+│   │   └── AmbientAudio.tsx   # Drone spaziale via Web Audio API
+│   ├── scene/
+│   │   ├── SolarScene.tsx     # Wrapper <Canvas> + loading provider
+│   │   ├── Bodies.tsx         # Pianeti 3D, atmosfere Fresnel, materiali
+│   │   ├── Sun3D.tsx          # Sole 3D con corona
+│   │   ├── SaturnRings.tsx    # Anelli procedurali
+│   │   ├── AsteroidBelt3D.tsx # ~350 asteroidi come THREE.Points
+│   │   ├── KuiperBelt3D.tsx   # ~120 TNO come THREE.Points
+│   │   ├── Comet3D.tsx        # Cometa con coda orientata dal Sole
+│   │   ├── OrbitTrails.tsx    # Scie orbitali pianeti selezionati
+│   │   ├── Conjunctions.tsx   # Rilevamento + marker 3D
+│   │   ├── Orbits.tsx         # Orbite ellittiche
+│   │   ├── CameraRig.tsx      # OrbitControls + tilt
+│   │   ├── CameraAnimator.tsx # Cinematic fly-to + intro flythrough
+│   │   ├── TourController.tsx # Tour guidato
+│   │   ├── HoverRaycaster.tsx # Raycast mouse per hover/selezione
+│   │   ├── PostProcessing.tsx # Bloom + Vignette
+│   │   ├── LoadingProvider.tsx# Ponte Canvas↔DOM per useProgress
+│   │   └── bodies3d.ts        # Manifest texture/distanze NASA + atmosfere
 │   ├── hooks/
-│   │   └── useOrbitEngine.ts  # Motore animazione (requestAnimationFrame)
+│   │   ├── useOrbitEngine.ts  # Motore rAF + seekTo
+│   │   └── useOrbitCounters.ts# Contatore orbite completate
 │   ├── utils/
-│   │   ├── kepler.ts          # Effemeridi, anomalie vere, orbite ellittiche
-│   │   ├── textures.ts        # Texture planetarie procedurali
-│   │   └── format.ts          # Formattazione numeri/date it-IT
+│   │   ├── kepler.ts          # Equazione di Keplero, anomalie, effemeridi
+│   │   ├── textures.ts        # Texture + bump map procedurali
+│   │   ├── simDate.ts         # Coerenza data → sim
+│   │   ├── format.ts          # Formattazione numeri/date it-IT
+│   │   ├── prefs.ts           # usePersistentState + PREFS_KEYS
+│   │   └── random.ts          # PRNG mulberry32
 │   └── data/
-│       └── planets.ts         # Dataset: orbite, fisiche, lune, missioni
+│       └── planets.ts         # Dataset pianeti
 ├── scripts/screenshots.mjs    # Generazione screenshot per la documentazione
 ├── docs/images/               # Screenshot del README
 ├── .github/workflows/ci.yml   # Pipeline CI
-└── vercel.json                # Configurazione Vercel
+└── vercel.json                # Configurazione Vercel (incluso service worker)
 ```
 
 ## 🪐 Dataset dei pianeti

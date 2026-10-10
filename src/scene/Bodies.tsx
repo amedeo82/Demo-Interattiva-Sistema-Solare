@@ -13,6 +13,7 @@ import {
   SphereGeometry,
   SRGBColorSpace,
   Vector3,
+  ShaderMaterial,
 } from 'three';
 import { useTexture } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
@@ -82,16 +83,62 @@ export function Bodies({
 
   const cloudGeom = useMemo(() => new SphereGeometry(BODIES_3D.Earth.radius * 1.02, 48, 48), []);
 
+  // Atmosfere: per ogni pianeta con atmosfera significativa, un ShaderMaterial
+  // Fresnel che produce un alone più brillante sul bordo del disco (dove la
+  // luce attraversa più atmosfera). L'opacità e il colore dipendono dal
+  // pianeta.
+  const ATMOSPHERE_PLANETS = ['Venus', 'Earth', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'];
+  const atmosphereMats = useMemo(() => {
+    return Object.fromEntries(
+      ATMOSPHERE_PLANETS.map((n) => [
+        n,
+        new ShaderMaterial({
+          uniforms: {
+            uColor: { value: new Color(BODIES_3D[n].atmosphereColor ?? '#88aaff') },
+            uIntensity: { value: BODIES_3D[n].atmosphereIntensity ?? 0.6 },
+          },
+          vertexShader: /* glsl */ `
+            varying vec3 vNormalW;
+            varying vec3 vViewDirW;
+            void main() {
+              vec4 wp = modelMatrix * vec4(position, 1.0);
+              vNormalW = normalize(mat3(modelMatrix) * normal);
+              vViewDirW = normalize(cameraPosition - wp.xyz);
+              gl_Position = projectionMatrix * viewMatrix * wp;
+            }
+          `,
+          fragmentShader: /* glsl */ `
+            varying vec3 vNormalW;
+            varying vec3 vViewDirW;
+            uniform vec3 uColor;
+            uniform float uIntensity;
+            void main() {
+              // Fresnel: più alto vicino all'orlo del disco
+              float fres = 1.0 - max(dot(vNormalW, vViewDirW), 0.0);
+              fres = pow(fres, 2.5);
+              gl_FragColor = vec4(uColor, fres * uIntensity);
+            }
+          `,
+          transparent: true,
+          blending: AdditiveBlending,
+          side: BackSide,
+          depthWrite: false,
+        }),
+      ])
+    );
+  }, []);
+
   // Cleanup GPU alla dismissione (le geometry/material sono fuori dal
   // declarative tree di r3f, quindi vanno dispose a mano).
   useEffect(
     () => () => {
       Object.values(geometries).forEach((g) => g.dispose());
       Object.values(mats).forEach((m) => m.dispose());
+      Object.values(atmosphereMats).forEach((m) => m.dispose());
       cloudGeom.dispose();
       cloudMat.dispose();
     },
-    [geometries, mats, cloudGeom, cloudMat]
+    [geometries, mats, atmosphereMats, cloudGeom, cloudMat]
   );
 
   useFrame((_, dt) => {
@@ -155,6 +202,12 @@ export function Bodies({
                   }}
                   geometry={cloudGeom}
                   material={cloudMat}
+                />
+              )}
+              {ATMOSPHERE_PLANETS.includes(name) && (
+                <mesh
+                  geometry={new SphereGeometry(BODIES_3D[name].radius * 1.06, 48, 48)}
+                  material={atmosphereMats[name]}
                 />
               )}
             </group>

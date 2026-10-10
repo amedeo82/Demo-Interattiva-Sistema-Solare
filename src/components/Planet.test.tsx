@@ -14,8 +14,10 @@ import type { SimPlanetState } from '../hooks/useOrbitEngine';
 // Spy sul hook delle texture: viene invocato a OGNI render di Planet,
 // quindi conta i render effettivi del componente.
 const textureSpy = vi.hoisted(() => vi.fn(() => null as string | null));
+const bumpSpy = vi.hoisted(() => vi.fn(() => null as string | null));
 vi.mock('../utils/textures', () => ({
   usePlanetTexture: () => textureSpy(),
+  usePlanetBump: () => bumpSpy(),
 }));
 
 const earth = planets.find((p) => p.name === 'Earth')!;

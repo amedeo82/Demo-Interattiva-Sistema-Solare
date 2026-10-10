@@ -157,6 +157,138 @@ export function paintPlanetTexture(kind: TextureKind, baseColor: string): string
   }
 }
 
+/**
+ * Bump map procedurale: immagine in scala di grigi che il renderer userà per
+ * modulare l'illuminazione e dare l'illusione di rilievo (crateri, fasce,
+ * macchie). Più scuro = incavo, più chiaro = rilievo. Disegnata alla stessa
+ * risoluzione della texture albedo per allineamento 1:1.
+ */
+export function paintPlanetBump(kind: TextureKind, baseColor: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = TEX_W;
+  canvas.height = TEX_H;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const rand = mulberry32(kind.length * 7919 + baseColor.charCodeAt(1) * 13 + 1);
+
+  // base neutro (grigio medio = nessun rilievo)
+  ctx.fillStyle = '#808080';
+  ctx.fillRect(0, 0, TEX_W, TEX_H);
+
+  switch (kind) {
+    case 'cratered': {
+      // crateri con bordo rialzato e ombra sul fondo
+      for (let i = 0; i < 80; i++) {
+        const x = rand() * TEX_W;
+        const y = rand() * TEX_H;
+        const r = 1.5 + rand() * 4.5;
+        // ombra (lato basso)
+        const grad = ctx.createRadialGradient(
+          x + r * 0.3,
+          y + r * 0.3,
+          r * 0.2,
+          x,
+          y,
+          r
+        );
+        grad.addColorStop(0, 'rgba(255,255,255,0.35)'); // picco centrale
+        grad.addColorStop(0.5, 'rgba(60,60,60,0.55)'); // parete interna
+        grad.addColorStop(1, 'rgba(140,140,140,0.0)'); // bordo neutro
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
+    case 'earthlike': {
+      // continenti emergenti
+      for (let i = 0; i < 30; i++) {
+        const x = rand() * TEX_W;
+        const y = rand() * TEX_H;
+        const rx = 3 + rand() * 12;
+        const ry = 2 + rand() * 8;
+        const grad = ctx.createRadialGradient(x, y, 0, x, y, Math.max(rx, ry));
+        grad.addColorStop(0, 'rgba(220,220,220,0.55)');
+        grad.addColorStop(1, 'rgba(110,110,110,0.0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.ellipse(x, y, rx, ry, rand() * Math.PI, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
+    case 'dusty': {
+      // polvere e canyon bassi
+      for (let i = 0; i < 35; i++) {
+        const x = rand() * TEX_W;
+        const y = rand() * TEX_H;
+        const r = 2 + rand() * 6;
+        const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+        grad.addColorStop(0, 'rgba(200,200,200,0.35)');
+        grad.addColorStop(1, 'rgba(120,120,120,0.0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // calotte polari rilevate
+      ctx.fillStyle = 'rgba(240,240,240,0.9)';
+      ctx.fillRect(0, 0, TEX_W, 4);
+      ctx.fillRect(0, TEX_H - 4, TEX_W, 4);
+      break;
+    }
+    case 'banded': {
+      // leggere ondulazioni verticali (fasce più chiare = nubi più alte)
+      for (let i = 0; i < 24; i++) {
+        const y = rand() * TEX_H;
+        const h = 2 + rand() * 5;
+        const grad = ctx.createLinearGradient(0, y, 0, y + h);
+        grad.addColorStop(0, 'rgba(200,200,200,0.0)');
+        grad.addColorStop(0.5, 'rgba(230,230,230,0.4)');
+        grad.addColorStop(1, 'rgba(180,180,180,0.0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, y, TEX_W, h);
+      }
+      if (baseColor === '#c8a060') {
+        // Grande Macchia Rossa: depressione centrale
+        const grad = ctx.createRadialGradient(TEX_W * 0.62, TEX_H * 0.62, 0, TEX_W * 0.62, TEX_H * 0.62, 10);
+        grad.addColorStop(0, 'rgba(60,60,60,0.7)');
+        grad.addColorStop(1, 'rgba(140,140,140,0.0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.ellipse(TEX_W * 0.62, TEX_H * 0.62, 10, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
+    case 'cloudy':
+    case 'icy':
+    default: {
+      // micro-velature: variazione leggera
+      for (let i = 0; i < 18; i++) {
+        const x = rand() * TEX_W;
+        const y = rand() * TEX_H;
+        const r = 4 + rand() * 8;
+        const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+        grad.addColorStop(0, 'rgba(200,200,200,0.2)');
+        grad.addColorStop(1, 'rgba(150,150,150,0.0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
+  }
+  try {
+    return canvas.toDataURL('image/png');
+  } catch {
+    return null;
+  }
+}
+
 /** Mappa nome pianeta → tipo di texture. */
 const KIND_BY_PLANET: Record<string, TextureKind> = {
   Mercury: 'cratered',
@@ -183,6 +315,23 @@ export function usePlanetTexture(name: string, color: string): string | null {
     if (cached !== undefined) return cached;
     const url = paintPlanetTexture(kind, color);
     TEXTURE_CACHE.set(key, url);
+    return url;
+  }, [name, color]);
+}
+
+const BUMP_CACHE = new Map<string, string | null>();
+
+/** Hook: URL data-uri della bump map procedurale. Allineata 1:1 con la
+ *  texture albedo per dare l'illusione di rilievo tramite shading CSS. */
+export function usePlanetBump(name: string, color: string): string | null {
+  return useMemo(() => {
+    const kind = KIND_BY_PLANET[name];
+    if (!kind) return null;
+    const key = `${name}|${color}`;
+    const cached = BUMP_CACHE.get(key);
+    if (cached !== undefined) return cached;
+    const url = paintPlanetBump(kind, color);
+    BUMP_CACHE.set(key, url);
     return url;
   }, [name, color]);
 }
