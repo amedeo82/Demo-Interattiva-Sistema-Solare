@@ -34,7 +34,5 @@ export function OrbitEngineBridge({
   simTimeRef: SimTimeRef;
   children: ReactNode;
 }) {
-  return (
-    <Ctx.Provider value={{ positionsRef, simRateRef, simTimeRef }}>{children}</Ctx.Provider>
-  );
+  return <Ctx.Provider value={{ positionsRef, simRateRef, simTimeRef }}>{children}</Ctx.Provider>;
 }

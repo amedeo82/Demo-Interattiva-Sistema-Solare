@@ -84,7 +84,8 @@ function Planet({
       // proiettate sul disco del pianeta (sempre all'interno del 100%×100%).
       const angleRad = (pos.angle * Math.PI) / 180;
       const lightX = 50 - Math.sin(angleRad) * 50;
-      const lightY = 50 + Math.cos(angleRad) * 50;      const nightOp = isSelected ? 0.72 : 0.6;
+      const lightY = 50 + Math.cos(angleRad) * 50;
+      const nightOp = isSelected ? 0.72 : 0.6;
       // Terminatore radiale: la luce entra dal Sole, il lato opno è in ombra.
       // Il gradiente crea una transizione morbida (più realistica della
       // vecchia line-gradient che "tagliava" il pianeta in due).
@@ -142,7 +143,9 @@ function Planet({
           const yOffset = Math.cos(angleRad) * 35; // -35..+35 px
           const xOffset = Math.sin(angleRad) * 18; // leggera asimmetria
           ringShadowOnPlanetRef.current.style.transform = `translate(${xOffset}%, ${yOffset}%)`;
-          ringShadowOnPlanetRef.current.style.opacity = String(0.45 + Math.abs(Math.cos(angleRad)) * 0.35);
+          ringShadowOnPlanetRef.current.style.opacity = String(
+            0.45 + Math.abs(Math.cos(angleRad)) * 0.35
+          );
         }
         // Ombra pianeta → anelli: il "lato Sole" degli anelli è illuminato,
         // il lato opposto è in ombra. Disegnamo un radial gradient con centro

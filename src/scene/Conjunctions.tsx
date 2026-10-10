@@ -15,14 +15,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import {
-  AdditiveBlending,
-  Color,
-  Group,
-  Mesh,
-  MeshBasicMaterial,
-  RingGeometry,
-} from 'three';
+import { AdditiveBlending, Color, Group, Mesh, MeshBasicMaterial, RingGeometry } from 'three';
 import { keplerPosition } from '../hooks/useOrbitEngine';
 import { planets as PLANETS_DATA } from '../data/planets';
 import { useOrbitEngineContext } from './OrbitEngineBridge';
@@ -159,12 +152,7 @@ export function Conjunctions({ onChange }: ConjunctionsProps) {
 
   return (
     <group ref={groupRef} visible={false}>
-      <mesh
-        ref={ringRef}
-        geometry={ringGeom}
-        material={ringMat}
-        rotation={[-Math.PI / 2, 0, 0]}
-      />
+      <mesh ref={ringRef} geometry={ringGeom} material={ringMat} rotation={[-Math.PI / 2, 0, 0]} />
     </group>
   );
 }

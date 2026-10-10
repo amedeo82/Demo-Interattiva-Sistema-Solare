@@ -184,14 +184,7 @@ export function paintPlanetBump(kind: TextureKind, baseColor: string): string | 
         const y = rand() * TEX_H;
         const r = 1.5 + rand() * 4.5;
         // ombra (lato basso)
-        const grad = ctx.createRadialGradient(
-          x + r * 0.3,
-          y + r * 0.3,
-          r * 0.2,
-          x,
-          y,
-          r
-        );
+        const grad = ctx.createRadialGradient(x + r * 0.3, y + r * 0.3, r * 0.2, x, y, r);
         grad.addColorStop(0, 'rgba(255,255,255,0.35)'); // picco centrale
         grad.addColorStop(0.5, 'rgba(60,60,60,0.55)'); // parete interna
         grad.addColorStop(1, 'rgba(140,140,140,0.0)'); // bordo neutro
@@ -253,7 +246,14 @@ export function paintPlanetBump(kind: TextureKind, baseColor: string): string | 
       }
       if (baseColor === '#c8a060') {
         // Grande Macchia Rossa: depressione centrale
-        const grad = ctx.createRadialGradient(TEX_W * 0.62, TEX_H * 0.62, 0, TEX_W * 0.62, TEX_H * 0.62, 10);
+        const grad = ctx.createRadialGradient(
+          TEX_W * 0.62,
+          TEX_H * 0.62,
+          0,
+          TEX_W * 0.62,
+          TEX_H * 0.62,
+          10
+        );
         grad.addColorStop(0, 'rgba(60,60,60,0.7)');
         grad.addColorStop(1, 'rgba(140,140,140,0.0)');
         ctx.fillStyle = grad;

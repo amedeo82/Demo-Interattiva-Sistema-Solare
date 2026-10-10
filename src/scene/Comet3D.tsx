@@ -97,7 +97,12 @@ export function Comet3D() {
     const M = ((ORBIT.M0 + (t / ORBIT.periodYears) * 360) * Math.PI) / 180;
     const E = solveKepler(M, ORBIT.e);
     // anomalia vera
-    const nu = 2 * Math.atan2(Math.sqrt(1 + ORBIT.e) * Math.sin(E / 2), Math.sqrt(1 - ORBIT.e) * Math.cos(E / 2));
+    const nu =
+      2 *
+      Math.atan2(
+        Math.sqrt(1 + ORBIT.e) * Math.sin(E / 2),
+        Math.sqrt(1 - ORBIT.e) * Math.cos(E / 2)
+      );
     // distanza
     const r = ORBIT.a * (1 - ORBIT.e * Math.cos(E));
 

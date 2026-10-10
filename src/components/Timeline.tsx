@@ -100,15 +100,8 @@ export default function Timeline({
         : `${yearsFromBase.toFixed(2)} anni`;
 
   return (
-    <div
-      className="timeline"
-      role="group"
-      aria-label="Timeline della simulazione"
-    >
-      <span
-        className="font-mono text-[10px] text-white/50 tabular-nums"
-        title="Inizio timeline"
-      >
+    <div className="timeline" role="group" aria-label="Timeline della simulazione">
+      <span className="font-mono text-[10px] text-white/50 tabular-nums" title="Inizio timeline">
         −{(rangeSimSeconds / 2 / yearSimSeconds).toFixed(0)}y
       </span>
       <div
@@ -129,15 +122,9 @@ export default function Timeline({
         onKeyDown={onKeyDown}
       >
         <div className="timeline-fill" />
-        <div
-          className="timeline-thumb"
-          style={{ left: `${fillPct}%` }}
-        />
+        <div className="timeline-thumb" style={{ left: `${fillPct}%` }} />
       </div>
-      <span
-        className="font-mono text-[10px] text-white/50 tabular-nums"
-        title="Fine timeline"
-      >
+      <span className="font-mono text-[10px] text-white/50 tabular-nums" title="Fine timeline">
         +{(rangeSimSeconds / 2 / yearSimSeconds).toFixed(0)}y
       </span>
       <span

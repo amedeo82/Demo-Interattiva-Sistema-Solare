@@ -429,7 +429,8 @@ export default function App({ quizRnd }: AppProps = {}) {
               className="pointer-events-none absolute left-1/2 bottom-24 z-20 -translate-x-1/2 max-w-md rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-1.5 text-center text-[11px] text-amber-200 backdrop-blur-sm"
               role="status"
             >
-              ⚠️ Scala reale: i pianeti interni sono punti quasi invisibili. Usa lo zoom per esplorare.
+              ⚠️ Scala reale: i pianeti interni sono punti quasi invisibili. Usa lo zoom per
+              esplorare.
             </div>
           )}
 

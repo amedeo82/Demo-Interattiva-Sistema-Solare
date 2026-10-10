@@ -49,12 +49,7 @@ export function OnboardingTip({
   };
 
   return (
-    <div
-      className="onboard-tip"
-      data-side={side}
-      style={{ top, left, right }}
-      role="status"
-    >
+    <div className="onboard-tip" data-side={side} style={{ top, left, right }} role="status">
       <div>{text}</div>
       <button className="onboard-tip-close" onClick={dismiss} aria-label="Chiudi suggerimento">
         ✨ Ho capito

@@ -306,12 +306,7 @@ body,
   right: -45%;
   top: 47%;
   height: 6%;
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    rgba(0, 0, 0, 0.55) 50%,
-    transparent 100%
-  );
+  background: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.55) 50%, transparent 100%);
   mix-blend-mode: multiply;
   border-radius: 50%;
   will-change: opacity, transform;
