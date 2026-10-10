@@ -151,7 +151,9 @@ export default function PlanetInfoPanel({ planet, onClose, positionsRef }: Props
       role="dialog"
       aria-label={`Informazioni su ${planet.nameIt}`}
       onKeyDown={onKeyDown}
-      style={isMobile ? undefined : pos ? { top: pos.y, right: pos.x } : { top: '1rem', right: '1rem' }}
+      style={
+        isMobile ? undefined : pos ? { top: pos.y, right: pos.x } : { top: '1rem', right: '1rem' }
+      }
       className={
         isMobile
           ? 'panel-in panel-scanline absolute inset-x-0 bottom-0 z-[200] flex max-h-[72dvh] w-full flex-col overflow-hidden rounded-t-2xl p-0'

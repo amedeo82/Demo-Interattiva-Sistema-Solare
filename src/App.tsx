@@ -310,10 +310,7 @@ export default function App({ quizRnd }: AppProps = {}) {
     // Mobile: Web Share API con file immagine
     const blob = await (await fetch(dataUrl)).blob();
     const file = new File([blob], `solar-system-${Date.now()}.png`, { type: 'image/png' });
-    if (
-      typeof navigator.canShare === 'function' &&
-      navigator.canShare({ files: [file] })
-    ) {
+    if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({ files: [file], title: 'Sistema Solare Interattivo' });
         return;

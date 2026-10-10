@@ -20,12 +20,7 @@ export function Orbits({ realScale = false }: { realScale?: boolean } = {}) {
         for (let i = 0; i <= SEGMENTS; i++) {
           const angle = (i / SEGMENTS) * 360;
           // 4.9 — Ω: orienta l'orbita nel piano dell'eclittica
-          const p = angleToOrbitPosition(
-            angle,
-            dist,
-            undefined,
-            body.longitudeOfAscendingNode
-          );
+          const p = angleToOrbitPosition(angle, dist, undefined, body.longitudeOfAscendingNode);
           pts.push([p.x, p.y, p.z]);
         }
         return { name, points: pts };

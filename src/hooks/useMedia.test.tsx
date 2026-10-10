@@ -85,8 +85,9 @@ describe('App — layout mobile', () => {
     expect(fab).toHaveAttribute('aria-expanded', 'false');
     // La lista pianeti è sempre montata (anche a sheet chiusa)
     expect(
-      screen.getAllByRole('button', { name: /^(Mercurio|Venere|Terra|Marte|Giove|Saturno|Urano|Nettuno)$/i })
-        .length
+      screen.getAllByRole('button', {
+        name: /^(Mercurio|Venere|Terra|Marte|Giove|Saturno|Urano|Nettuno)$/i,
+      }).length
     ).toBeGreaterThanOrEqual(8);
   });
 

@@ -13,19 +13,10 @@
  */
 import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
-import {
-  RingGeometry,
-  MeshBasicMaterial,
-  DoubleSide,
-  Group,
-  Texture,
-} from 'three';
+import { RingGeometry, MeshBasicMaterial, DoubleSide, Group, Texture } from 'three';
 import { BODIES_3D, REAL_SCALE_FACTOR, angleToOrbitPosition } from './bodies3d';
 import { useOrbitEngineContext } from './OrbitEngineBridge';
-import {
-  makeUranusRingsTexture,
-  makeNeptuneRingsTexture,
-} from '../utils/proceduralTextures';
+import { makeUranusRingsTexture, makeNeptuneRingsTexture } from '../utils/proceduralTextures';
 
 type RingPlanet = 'Uranus' | 'Neptune';
 
@@ -34,13 +25,7 @@ const CONFIGS: Record<RingPlanet, { inner: number; outer: number }> = {
   Neptune: { inner: 1.4, outer: 1.7 },
 };
 
-function SinglePlanetRings({
-  planet,
-  realScale,
-}: {
-  planet: RingPlanet;
-  realScale: boolean;
-}) {
+function SinglePlanetRings({ planet, realScale }: { planet: RingPlanet; realScale: boolean }) {
   const config = CONFIGS[planet];
   const body = BODIES_3D[planet];
   const inner = body.radius * config.inner;
@@ -89,12 +74,7 @@ function SinglePlanetRings({
     const pos = positionsRef.current[planet];
     if (!pos) return;
     const dist = realScale ? body.distanceAu * REAL_SCALE_FACTOR : body.orbitDistance;
-    angleToOrbitPosition(
-      pos.angle,
-      dist,
-      grp.position,
-      body.longitudeOfAscendingNode
-    );
+    angleToOrbitPosition(pos.angle, dist, grp.position, body.longitudeOfAscendingNode);
   });
 
   if (!mat) return null;

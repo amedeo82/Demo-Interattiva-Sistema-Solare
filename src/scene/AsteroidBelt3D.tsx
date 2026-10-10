@@ -11,13 +11,7 @@
  */
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import {
-  AdditiveBlending,
-  BufferAttribute,
-  BufferGeometry,
-  Points,
-  ShaderMaterial,
-} from 'three';
+import { AdditiveBlending, BufferAttribute, BufferGeometry, Points, ShaderMaterial } from 'three';
 import { mulberry32 } from '../utils/random';
 import { useOrbitEngineContext } from './OrbitEngineBridge';
 import { REAL_SCALE_FACTOR } from './bodies3d';
@@ -57,11 +51,7 @@ export function generateAsteroids(count = 350, seed = 42): Asteroid[] {
     // Distribuzione spettrale realistica (con seed deterministico).
     const r = rand();
     const palette =
-      r < 0.75
-        ? SPECTRAL_PALETTE.C
-        : r < 0.9
-          ? SPECTRAL_PALETTE.S
-          : SPECTRAL_PALETTE.M;
+      r < 0.75 ? SPECTRAL_PALETTE.C : r < 0.9 ? SPECTRAL_PALETTE.S : SPECTRAL_PALETTE.M;
     const color = palette[Math.floor(rand() * palette.length)];
     list.push({
       angle: rand() * 360,
@@ -108,7 +98,13 @@ const FRAG = /* glsl */ `
 
 const REAL_SCALE = REAL_SCALE_FACTOR; // re-export per chiarezza nel file
 
-export function AsteroidBelt3D({ count = 350, realScale = false }: { count?: number; realScale?: boolean }) {
+export function AsteroidBelt3D({
+  count = 350,
+  realScale = false,
+}: {
+  count?: number;
+  realScale?: boolean;
+}) {
   const { simRateRef } = useOrbitEngineContext();
   const asteroids = useMemo(() => generateAsteroids(count), [count]);
 

@@ -67,10 +67,11 @@ export function Moons({
 
   // Crea geometry/material per ogni luna (fuori dal declarative tree r3f).
   const geometries = useMemo(
-    () => MOON_LIST.reduce<Record<string, SphereGeometry>>((acc, m) => {
-      acc[m.name] = new SphereGeometry(m.size, 16, 16);
-      return acc;
-    }, {}),
+    () =>
+      MOON_LIST.reduce<Record<string, SphereGeometry>>((acc, m) => {
+        acc[m.name] = new SphereGeometry(m.size, 16, 16);
+        return acc;
+      }, {}),
     []
   );
   const materials = useMemo(
@@ -109,12 +110,7 @@ export function Moons({
         ? (parentBody?.distanceAu ?? 0) * REAL_SCALE_FACTOR
         : parent.radius;
       const angle = m.initialAngle + (simTime / m.period) * 360;
-      angleToOrbitPosition(
-        parent.angle,
-        parentDist,
-        tmpVec,
-        parentBody?.longitudeOfAscendingNode
-      );
+      angleToOrbitPosition(parent.angle, parentDist, tmpVec, parentBody?.longitudeOfAscendingNode);
       grp.position.copy(tmpVec);
       // Posiziona la luna attorno al pianeta genitore (offset angolare).
       // Anche il raggio orbitale della luna scala con la modalità corrente.

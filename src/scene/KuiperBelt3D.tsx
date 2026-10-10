@@ -79,7 +79,13 @@ const FRAG = /* glsl */ `
   }
 `;
 
-export function KuiperBelt3D({ count = 120, realScale = false }: { count?: number; realScale?: boolean }) {
+export function KuiperBelt3D({
+  count = 120,
+  realScale = false,
+}: {
+  count?: number;
+  realScale?: boolean;
+}) {
   const { simRateRef } = useOrbitEngineContext();
   const objects = useMemo(() => generateKuiperObjects(count), [count]);
   const pointsRef = useRef<Points<BufferGeometry, ShaderMaterial> | null>(null);

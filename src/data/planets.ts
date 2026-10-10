@@ -186,7 +186,7 @@ export const planets: PlanetData[] = [
     eccentricity: 0.0934,
     meanLongitudeJ2000: 355.45,
     longitudeOfAscendingNode: 49.56,
-    argumentOfPerihelion: 286.50,
+    argumentOfPerihelion: 286.5,
     moons: [
       { name: 'Phobos', orbitRadius: 11, size: 3, period: 1.4, color: '#9c8b7a' },
       { name: 'Deimos', orbitRadius: 16, size: 2, period: 2.6, color: '#b3a292' },
