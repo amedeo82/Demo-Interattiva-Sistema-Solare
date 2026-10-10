@@ -11,6 +11,7 @@ import AmbientAudio from './components/AmbientAudio';
 const CompareModal = lazy(() => import('./components/CompareModal'));
 const QuizModal = lazy(() => import('./components/QuizModal'));
 import { useOrbitEngine } from './hooks/useOrbitEngine';
+import { useIsMobile } from './hooks/useMedia';
 import {
   anglesForDate,
   anomaliesForDate,
@@ -28,17 +29,6 @@ const SolarScene = lazy(() =>
 );
 
 const { speedOptions: SPEED_OPTIONS, defaultSpeed: DEFAULT_SPEED } = CONFIG;
-
-/** Hook che traccia la dimensione viewport (rende il layout reattivo). */
-function useViewport() {
-  const [size, setSize] = useState({ w: window.innerWidth, h: window.innerHeight });
-  useEffect(() => {
-    const update = () => setSize({ w: window.innerWidth, h: window.innerHeight });
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, []);
-  return size;
-}
 
 /** Limiti di rotazione della camera 3D (gradi). TILT_YAW riservato a frecce ←/→ future. */
 const TILT_PITCH_MIN = -45;
@@ -121,10 +111,18 @@ export default function App({ quizRnd }: AppProps = {}) {
   const mouseNdcRef = useRef({ x: 0, y: 0 });
   const worldHitRef = useRef<{ x: number; y: number; z: number } | null>(null);
   const hoveredBodyRef = useRef<string | null>(null);
+  // Mobile/tablet (< 1024px): header compatto, controlli in bottom sheet,
+  // pannello info a tutta larghezza, performance GPU ridotte (dpr/ particelle).
+  const isMobile = useIsMobile();
+  // Sheet controlli mobile: chiuso di default; si apre col FAB "☰ Controlli".
+  const [controlsSheetOpen, setControlsSheetOpen] = useState(false);
   // Post-processing (Bloom + Vignette): persistito come le altre preferenze.
+  // Su mobile il default al primo avvio è OFF (il bloom è il pass più costoso
+  // su GPU integrate di smartphone); la preferenza dell'utente ha sempre la
+  // precedenza.
   const [postFxEnabled, setPostFxEnabled] = usePersistentState<boolean>(
     PREFS_KEYS.postFxEnabled,
-    true,
+    !isMobile,
     (v) => typeof v === 'boolean'
   );
   // Modalità "scala reale": persistita. L'effetto 3D vero (distanze 1:1)
@@ -134,7 +132,6 @@ export default function App({ quizRnd }: AppProps = {}) {
     false,
     (v) => typeof v === 'boolean'
   );
-  useViewport();
   // Motore animativo requestAnimationFrame con orbite kepleriane ed eccentricità.
   // Quando si sceglie una data, offset angolari E tempo simulato di partenza
   // derivano dalla stessa anomalia media (vedi utils/simDate): la scena mostra
@@ -292,7 +289,7 @@ export default function App({ quizRnd }: AppProps = {}) {
         </h1>
         <div className="flex flex-wrap items-center gap-2">
           <label
-            className="hidden items-center gap-2 text-xs text-white/60 sm:flex"
+            className="hidden items-center gap-2 text-xs text-white/60 lg:flex"
             title="Mostra le posizioni dei pianeti a una data specifica"
           >
             📅 Data
@@ -322,7 +319,7 @@ export default function App({ quizRnd }: AppProps = {}) {
           <button
             onClick={() => setRealistic((v) => !v)}
             aria-pressed={realistic}
-            className={`chip ${realistic ? 'active' : ''}`}
+            className={`chip hidden sm:block ${realistic ? 'active' : ''}`}
             title="Texture procedurali, lune e fascia degli asteroidi"
           >
             Realismo
@@ -330,7 +327,7 @@ export default function App({ quizRnd }: AppProps = {}) {
           <button
             onClick={() => setRealScale((v) => !v)}
             aria-pressed={realScale}
-            className={`chip ${realScale ? 'active' : ''}`}
+            className={`chip hidden sm:block ${realScale ? 'active' : ''}`}
             title="Scala 1:1 (stelle molto lontane: la maggior parte dei pianeti diventa invisibile)"
           >
             📏 Scala reale
@@ -338,7 +335,7 @@ export default function App({ quizRnd }: AppProps = {}) {
           <button
             onClick={() => setPostFxEnabled((v) => !v)}
             aria-pressed={postFxEnabled}
-            className={`chip ${postFxEnabled ? 'active' : ''}`}
+            className={`chip hidden sm:block ${postFxEnabled ? 'active' : ''}`}
             title="Bloom (alone del Sole) e vignette cinematografica"
           >
             ✨ FX
@@ -351,9 +348,42 @@ export default function App({ quizRnd }: AppProps = {}) {
             🧠 Quiz
           </button>
           {/* Menu overflow "⋯" — visibile solo quando i chip principali non
-              entrano nell'header. Mostriamo Confronto/Tour/Free Cam. */}
+              entrano nell'header. Su desktop mostra Confronto/Tour/Free Cam;
+              su mobile raccoglie anche i toggle nascosti dall'header stretto. */}
           <OverflowMenu
             items={[
+              ...(isMobile
+                ? [
+                    {
+                      key: 'labels',
+                      label: '🏷 Etichette',
+                      title: 'Mostra o nascondi i nomi dei pianeti',
+                      active: showLabels,
+                      onClick: () => setShowLabels((v) => !v),
+                    },
+                    {
+                      key: 'realistic',
+                      label: '🌍 Realismo',
+                      title: 'Texture procedurali, lune e fascia degli asteroidi',
+                      active: realistic,
+                      onClick: () => setRealistic((v) => !v),
+                    },
+                    {
+                      key: 'realscale',
+                      label: '📏 Scala reale',
+                      title: 'Scala 1:1 (i pianeti interni diventano quasi invisibili)',
+                      active: realScale,
+                      onClick: () => setRealScale((v) => !v),
+                    },
+                    {
+                      key: 'postfx',
+                      label: '✨ FX',
+                      title: 'Bloom (alone del Sole) e vignette cinematografica',
+                      active: postFxEnabled,
+                      onClick: () => setPostFxEnabled((v) => !v),
+                    },
+                  ]
+                : []),
               {
                 key: 'compare',
                 label: '⚖️ Confronto',
@@ -382,7 +412,7 @@ export default function App({ quizRnd }: AppProps = {}) {
               type W = Window & { __toggleAmbient?: () => void };
               (window as W).__toggleAmbient?.();
             }}
-            className="chip"
+            className="chip hidden sm:block"
             title="Drone ambientale di sottofondo (sintetizzato, no download)"
           >
             🔊 Audio
@@ -460,6 +490,7 @@ export default function App({ quizRnd }: AppProps = {}) {
               mouseNdcRef={mouseNdcRef}
               worldHitRef={worldHitRef}
               hoveredBodyRef={hoveredBodyRef}
+              mobile={isMobile}
             />
           </Suspense>
 
@@ -547,30 +578,97 @@ export default function App({ quizRnd }: AppProps = {}) {
           </div>
         </main>
 
-        {/* Sidebar controlli */}
-        <div className="relative">
-          <ControlsSidebar
-            isPlaying={isPlaying}
-            onTogglePlay={() => setIsPlaying((p) => !p)}
-            speed={speed}
-            onSpeedChange={setSpeed}
-            speedOptions={SPEED_OPTIONS}
-            planets={planets}
-            selectedName={selectedPlanet?.name ?? null}
-            onSelectPlanet={handleSelectPlanet}
-            currentDate={currentDate}
-          />
-          {/* Onboarding tip: mostrato al primo avvio, dopo l'intro cinematografico */}
+        {/* Sidebar controlli: su desktop è la colonna laterale; su mobile
+            diventa una bottom sheet che copre la scena solo quando aperta
+            (FAB "☰ Controlli" in basso a destra). Il contenuto resta sempre
+            montato: la lista pianeti resta accessibile agli screen reader. */}
+        <div className={isMobile ? 'absolute inset-0' : 'relative'}>
+          <div
+            id="controls-sheet"
+            className={isMobile ? `mobile-sheet ${controlsSheetOpen ? 'open' : ''}` : 'relative'}
+          >
+            {isMobile && (
+              <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-[#0d0d2a]/95 px-4 py-2">
+                <span className="mobile-sheet-grip" aria-hidden />
+                <button
+                  onClick={() => setControlsSheetOpen(false)}
+                  aria-label="Chiudi pannello controlli"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/5 text-xs text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+            {isMobile && (
+              <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-[#0d0d2a]/95 px-4 py-2">
+                <label
+                  className="flex items-center gap-2 text-xs text-white/60"
+                  htmlFor="sim-date-mobile"
+                >
+                  📅 Data
+                  <input
+                    id="sim-date-mobile"
+                    type="date"
+                    value={simDate ? simDate.toISOString().slice(0, 10) : ''}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setSimDate(v ? new Date(`${v}T12:00:00Z`) : null);
+                    }}
+                    className="rounded-lg border border-white/15 bg-[#141433] px-2 py-1 text-xs text-white"
+                  />
+                </label>
+                {simDate && (
+                  <button onClick={goToToday} className="chip" title="Torna alla data di oggi">
+                    📍 Oggi
+                  </button>
+                )}
+              </div>
+            )}
+            <ControlsSidebar
+              isPlaying={isPlaying}
+              onTogglePlay={() => setIsPlaying((p) => !p)}
+              speed={speed}
+              onSpeedChange={setSpeed}
+              speedOptions={SPEED_OPTIONS}
+              planets={planets}
+              selectedName={selectedPlanet?.name ?? null}
+              onSelectPlanet={(p) => {
+                handleSelectPlanet(p);
+                // Su mobile la sheet si chiude per lasciare spazio al
+                // pannello info e alla scena sul pianeta scelto.
+                setControlsSheetOpen(false);
+              }}
+              currentDate={currentDate}
+            />
+          </div>
+          {/* Onboarding tip: mostrato al primo avvio, dopo l'intro cinematografico.
+              Su mobile è ancorato in basso al centro (la sidebar non è visibile). */}
           {!introVisible && (
             <OnboardingTip
-              top="40%"
-              left="-260px"
-              side="right"
               text="Clicca un pianeta per vederlo da vicino. Trascina la timeline sopra per viaggiare nel tempo. Buon viaggio! 🚀"
+              side={isMobile ? 'top' : 'right'}
+              {...(isMobile
+                ? { bottom: '96px', left: '16px', right: '16px' }
+                : { top: '40%', left: '-260px' })}
             />
           )}
         </div>
       </div>
+
+      {/* FAB controlli mobile: apre/chiude la bottom sheet. Nascosto su
+          desktop (>= 1024px) dove la sidebar è sempre visibile. */}
+      {isMobile && (
+        <button
+          type="button"
+          className="mobile-fab"
+          onClick={() => setControlsSheetOpen((v) => !v)}
+          aria-expanded={controlsSheetOpen}
+          aria-controls="controls-sheet"
+        >
+          <span aria-hidden>{controlsSheetOpen ? '✕' : '☰'}</span>
+          <span>{controlsSheetOpen ? 'Chiudi' : 'Controlli'}</span>
+        </button>
+      )}
 
       <Suspense fallback={null}>
         {showCompare && <CompareModal planets={planets} onClose={() => setShowCompare(false)} />}

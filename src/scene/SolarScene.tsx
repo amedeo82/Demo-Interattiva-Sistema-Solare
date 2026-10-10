@@ -62,6 +62,8 @@ export interface SolarSceneProps {
   worldHitRef: MutableRefObject<{ x: number; y: number; z: number } | null>;
   /** S4.3 — ref nome corpo hovered. */
   hoveredBodyRef: MutableRefObject<string | null>;
+  /** Tier mobile: dpr ridotto e fasce di particelle più leggere per GPU di smartphone. */
+  mobile?: boolean;
 }
 
 export function SolarScene({
@@ -83,7 +85,12 @@ export function SolarScene({
   mouseNdcRef,
   worldHitRef,
   hoveredBodyRef,
+  mobile = false,
 }: SolarSceneProps) {
+  // Fasce di particelle ridotte su mobile: Points è 1 draw call ma il fill-rate
+  // su GPU integrate di smartphone è il collo di bottiglia reale.
+  const asteroidCount = mobile ? 200 : 350;
+  const kuiperCount = mobile ? 70 : 120;
   // Ref al OrbitControls per consentire a CameraAnimator di pilotare la camera.
   // IMPORTANTE: deve essere un oggetto STABILE (no getter inline), altrimenti
   // ogni render di App crea un nuovo oggetto → useEffect [controlsRef]
@@ -103,6 +110,7 @@ export function SolarScene({
   return (
     <Canvas
       camera={{ position: [0, 70, 100], fov: 45, near: 0.01, far: 5000 }}
+      dpr={mobile ? [1, 1.25] : [1, 1.75]}
       gl={{
         antialias: true,
         toneMapping: ACESFilmicToneMapping,
@@ -124,8 +132,8 @@ export function SolarScene({
             <Sun3D selected={selectedBodyName === 'Sun'} onSelect={() => onSelectBody('Sun')} />
             <Bodies selectedBodyName={selectedBodyName} onSelectBody={onSelectBody} />
             <SaturnRings />
-            {realistic && <AsteroidBelt3D />}
-            {realistic && <KuiperBelt3D />}
+            {realistic && <AsteroidBelt3D count={asteroidCount} />}
+            {realistic && <KuiperBelt3D count={kuiperCount} />}
             <Comet3D />
             {selectedBodyName && selectedBodyName !== 'Sun' && (
               <OrbitTrails planets={planets} names={[selectedBodyName]} />

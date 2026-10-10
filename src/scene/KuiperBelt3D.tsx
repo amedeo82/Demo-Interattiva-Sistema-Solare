@@ -78,9 +78,9 @@ const FRAG = /* glsl */ `
   }
 `;
 
-export function KuiperBelt3D() {
+export function KuiperBelt3D({ count = 120 }: { count?: number }) {
   const { simRateRef } = useOrbitEngineContext();
-  const objects = useMemo(() => generateKuiperObjects(), []);
+  const objects = useMemo(() => generateKuiperObjects(count), [count]);
   const pointsRef = useRef<Points | null>(null);
   const localTimeRef = useRef(0);
 

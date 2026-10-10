@@ -33,7 +33,7 @@ export default function ControlsSidebar({
   currentDate,
 }: Props) {
   return (
-    <div className="flex w-full shrink-0 flex-col gap-4 overflow-y-auto bg-[#0d0d2a]/85 p-4 backdrop-blur-md md:w-64 lg:border-l lg:border-white/10">
+    <div className="flex w-full shrink-0 flex-col gap-4 overflow-y-auto bg-[#0d0d2a]/85 p-4 pb-safe backdrop-blur-md md:w-64 lg:border-l lg:border-white/10">
       <h3 style={sectionTitle}>Controlli</h3>
 
       {/* Play/Pausa + scorciatoia tastiera */}
@@ -46,7 +46,8 @@ export default function ControlsSidebar({
           <span aria-hidden>{isPlaying ? '⏸' : '▶'}</span>
           {isPlaying ? 'Pausa' : 'Riproduci'}
         </button>
-        <p className="mt-1.5 text-center text-[11px] text-white/35">
+        {/* Scorciatoie tastiera: sensate solo con una tastiera fisica */}
+        <p className="mt-1.5 hidden text-center text-[11px] text-white/35 md:block">
           Scorciatoie: <kbd className="kbd">Spazio</kbd> pausa · <kbd className="kbd">←</kbd>{' '}
           <kbd className="kbd">→</kbd> velocità · <kbd className="kbd">↑</kbd>
           <kbd className="kbd">↓</kbd> tilt · <kbd className="kbd">R</kbd> reset ·{' '}

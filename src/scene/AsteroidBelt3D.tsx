@@ -80,9 +80,9 @@ const FRAG = /* glsl */ `
   }
 `;
 
-export function AsteroidBelt3D() {
+export function AsteroidBelt3D({ count = 350 }: { count?: number }) {
   const { simRateRef } = useOrbitEngineContext();
-  const asteroids = useMemo(() => generateAsteroids(), []);
+  const asteroids = useMemo(() => generateAsteroids(count), [count]);
 
   const geomRef = useRef<BufferGeometry | null>(null);
   const matRef = useRef<ShaderMaterial | null>(null);
