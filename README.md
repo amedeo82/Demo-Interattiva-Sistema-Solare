@@ -2,24 +2,45 @@
 
 Una simulazione interattiva del sistema solare costruita con **React 18**, **TypeScript**, **Vite** e **Tailwind CSS**: otto pianeti in orbita attorno al Sole con fisica keplariana, texture procedurali, satelliti naturali, fascia degli asteroidi e modalità educative (quiz e confronto).
 
-## 📸 Screenshot
+## 🖼️ Galleria
 
-| Vista principale | Modalità "Realismo" |
-|:---:|:---:|
-| ![Vista principale](docs/images/01-home.png) | ![Modalità realismo](docs/images/02-realism-mode.png) |
-| Orbite animate, Sole con corona e brillanzi, sfondo stellato | Texture procedurali, lune, fascia degli asteroidi |
+### Vista principale (desktop)
 
-| Pannello informativo | Confronto pianeti |
-|:---:|:---:|
-| ![Pannello informativo](docs/images/03-planet-info.png) | ![Confronto pianeti](docs/images/04-compare.png) |
-| Sezioni espandibili: atmosfera, temperatura, lune, missioni, curiosità | Metriche a barra e rapporti dimensionali tra due pianeti |
+![Hero](docs/mockups/01-hero.svg)
 
-| Quiz mode | Layout mobile |
-|:---:|:---:|
-| ![Quiz mode](docs/images/05-quiz.png) | ![Mobile](docs/images/06-mobile.png) |
-| Domande a risposta multipla generate dai dati del dataset | Interfaccia responsive su schermi piccoli |
+Pianeti in orbita kepleriana, timeline interattiva in alto, sidebar controlli, banner congiunzione Venere–Terra, tip di onboarding. Il pianeta selezionato (Terra) ha alone viola, scia orbitale e orbita evidenziata.
 
-> Gli screenshot sono generati automaticamente con Playwright: [`scripts/screenshots.mjs`](scripts/screenshots.mjs). Per rigenerarli: `npm run build && npm run preview` in un terminale, poi `node scripts/screenshots.mjs` in un altro.
+### Pannello informativo pianeta
+
+![Planet info](docs/mockups/02-planet-info.svg)
+
+Sezioni espandibili con atmosfera, missioni spaziali, curiosità. Statistiche live: orbite completate nella sessione, posizione dei satelliti. Linea scan "strumentazione di bordo" attraversa il pannello ogni 6s.
+
+### Confronto pianeti
+
+![Compare](docs/mockups/03-compare.svg)
+
+Selettori dropdown, tabella con righe comparative, valore maggiore in verde per ogni metrica. In basso: rapporto dimensionale Terra vs Giove (11,2×).
+
+### Quiz spaziale
+
+![Quiz](docs/mockups/04-quiz.svg)
+
+Domande a risposta multipla generate dai dati del dataset. Risposta corretta evidenziata in verde, sbagliata in rosso. Counter "Prossima domanda →" alla fine di ogni step.
+
+### Layout mobile
+
+![Mobile](docs/mockups/05-mobile.svg)
+
+Header compatto, timeline a tutta larghezza, sidebar collassata con play/velocità in alto e lista pianeti scrollabile.
+
+### Architettura della scena 3D
+
+![Architecture](docs/mockups/06-architecture.svg)
+
+Scomposizione dei componenti visivi: Sole (limb darkening + corona), Pianeta (albedo + bump + atmosfera Fresnel + terminatore), Saturno (anelli + ombre bidirezionali), Fascia asteroidi, Timeline + Scie, Congiunzioni, PWA + Audio.
+
+> I mockup in `docs/mockups/` sono SVG statici di alta qualità. Per screenshot reali della scena 3D in movimento, vedi [`scripts/screenshots.mjs`](scripts/screenshots.mjs) (richiede Playwright).
 
 ## ✨ Funzionalità
 
@@ -202,6 +223,12 @@ vercel --prod   # produzione
 | Nettuno | 49.528 km | 4.495,1 mln km | 60.190 giorni | 16 | 0,0113 | 28,32° |
 
 I dati completi (composizione atmosferica, temperature, missioni spaziali, curiosità) vivono in `src/data/planets.ts` e alimentano sia il pannello informativo sia il quiz.
+
+## 📖 Documentazione
+
+- [`docs/FEATURES.md`](docs/FEATURES.md) — descrizione tecnica di ogni feature con riferimenti al codice
+- [`docs/MOCKUPS.md`](docs/MOCKUPS.md) — galleria dei mockup SVG e note tecniche
+- [`docs/UI-UX-REVIEW.md`](docs/UI-UX-REVIEW.md) — review UI/UX del progetto
 
 ## 📄 Licenza
 

@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 540" font-family="-apple-system, 'Inter', system-ui, sans-serif">
+  <defs>
+    <linearGradient id="panel-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="rgba(20,20,50,0.96)"/>
+      <stop offset="100%" stop-color="rgba(13,13,42,0.96)"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="540" fill="rgba(0,0,0,0.85)"/>
+
+  <g transform="translate(120, 30)">
+    <rect x="0" y="0" width="560" height="480" rx="20" fill="url(#panel-bg)" stroke="rgba(255,255,255,0.18)"/>
+    <text x="22" y="40" fill="white" font-size="18" font-weight="700">🧠 Quiz spaziale</text>
+    <rect x="504" y="18" width="36" height="36" rx="8" fill="rgba(255,255,255,0.05)"/>
+    <text x="522" y="42" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="14">✕</text>
+
+    <!-- Question header -->
+    <text x="22" y="80" fill="rgba(255,255,255,0.4)" font-size="11" font-weight="600" letter-spacing="1.5">DOMANDA 2 DI 5</text>
+    <text x="22" y="110" fill="white" font-size="14" font-weight="500">Quale pianeta completa l'orbita più rapidamente?</text>
+
+    <!-- Options -->
+    <g transform="translate(22, 140)">
+      <rect x="0" y="0" width="494" height="42" rx="8" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.1)"/>
+      <text x="22" y="27" fill="white" font-size="13">♄ Saturno</text>
+    </g>
+    <g transform="translate(22, 192)">
+      <rect x="0" y="0" width="494" height="42" rx="8" fill="rgba(168,85,247,0.3)" stroke="rgba(168,85,247,0.7)"/>
+      <text x="22" y="27" fill="#e9d5ff" font-size="13">☿ Mercurio</text>
+      <!-- checkmark -->
+      <circle cx="466" cy="21" r="12" fill="#86efac" opacity="0.2"/>
+      <text x="466" y="26" text-anchor="middle" fill="#86efac" font-size="14">✓</text>
+    </g>
+    <g transform="translate(22, 244)">
+      <rect x="0" y="0" width="494" height="42" rx="8" fill="rgba(248,113,113,0.25)" stroke="rgba(248,113,113,0.5)"/>
+      <text x="22" y="27" fill="rgba(255,255,255,0.8)" font-size="13">♂ Marte</text>
+      <text x="466" y="26" text-anchor="middle" fill="#fca5a5" font-size="14">✕</text>
+    </g>
+    <g transform="translate(22, 296)">
+      <rect x="0" y="0" width="494" height="42" rx="8" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.1)"/>
+      <text x="22" y="27" fill="white" font-size="13">♀ Venere</text>
+    </g>
+
+    <!-- Next button -->
+    <g transform="translate(22, 360)">
+      <rect x="0" y="0" width="494" height="42" rx="10" fill="linear-gradient(135deg, rgba(34,197,94,0.28), rgba(34,197,94,0.1))" stroke="rgba(34,197,94,0.45)"/>
+      <text x="247" y="27" text-anchor="middle" fill="#86efac" font-size="13" font-weight="600">Prossima domanda →</text>
+    </g>
+
+    <!-- Score mini -->
+    <text x="22" y="430" fill="rgba(255,255,255,0.5)" font-size="11">Punteggio: <tspan font-weight="700" fill="white">1/5</tspan></text>
+  </g>
+</svg>
