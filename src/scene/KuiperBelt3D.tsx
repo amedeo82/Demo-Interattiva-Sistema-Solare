@@ -16,6 +16,7 @@ import {
 } from 'three';
 import { mulberry32 } from '../utils/random';
 import { useOrbitEngineContext } from './OrbitEngineBridge';
+import { REAL_SCALE_FACTOR } from './bodies3d';
 
 export interface KuiperObject {
   angle: number;
@@ -78,12 +79,19 @@ const FRAG = /* glsl */ `
   }
 `;
 
-export function KuiperBelt3D() {
+export function KuiperBelt3D({
+  count = 120,
+  realScale = false,
+}: {
+  count?: number;
+  realScale?: boolean;
+}) {
   const { simRateRef } = useOrbitEngineContext();
-  const objects = useMemo(() => generateKuiperObjects(), []);
-  const pointsRef = useRef<Points | null>(null);
+  const objects = useMemo(() => generateKuiperObjects(count), [count]);
+  const pointsRef = useRef<Points<BufferGeometry, ShaderMaterial> | null>(null);
   const localTimeRef = useRef(0);
 
+  const KUIPER_OMEGA_DEG = 100; // 4.9 — media pesata Nettuno 131.72° e zone esterne
   const geometry = useMemo(() => {
     const g = new BufferGeometry();
     const count = objects.length;
@@ -91,12 +99,19 @@ export function KuiperBelt3D() {
     const sz = new Float32Array(count);
     const op = new Float32Array(count);
     const cols = new Float32Array(count * 3);
+    const omegaRad = (KUIPER_OMEGA_DEG * Math.PI) / 180;
+    const cosO = Math.cos(omegaRad);
+    const sinO = Math.sin(omegaRad);
     for (let i = 0; i < count; i++) {
       const a = objects[i];
+      // 4.8 — coerente con AsteroidBelt e Bodies
+      const distScale = realScale ? REAL_SCALE_FACTOR : 1;
       const rad = (a.angle * Math.PI) / 180;
-      pos[i * 3] = a.radius * Math.sin(rad);
-      pos[i * 3 + 1] = a.radius * Math.sin(a.inclination);
-      pos[i * 3 + 2] = a.radius * Math.cos(rad);
+      const xRaw = a.radius * distScale * Math.sin(rad);
+      const zRaw = -a.radius * distScale * Math.cos(rad);
+      pos[i * 3] = xRaw * cosO - zRaw * sinO;
+      pos[i * 3 + 1] = a.radius * distScale * Math.sin(a.inclination);
+      pos[i * 3 + 2] = xRaw * sinO + zRaw * cosO;
       sz[i] = a.size;
       op[i] = a.opacity;
       cols[i * 3] = a.color.r;
@@ -108,7 +123,7 @@ export function KuiperBelt3D() {
     g.setAttribute('aOpacity', new BufferAttribute(op, 1));
     g.setAttribute('aColor', new BufferAttribute(cols, 3));
     return g;
-  }, [objects]);
+  }, [objects, realScale]);
 
   const material = useMemo(
     () =>
@@ -130,13 +145,19 @@ export function KuiperBelt3D() {
     const earthDegPerSec = 36;
     const attr = points.geometry.getAttribute('position') as BufferAttribute;
     const arr = attr.array as Float32Array;
+    const omegaRad = (KUIPER_OMEGA_DEG * Math.PI) / 180;
+    const cosO = Math.cos(omegaRad);
+    const sinO = Math.sin(omegaRad);
     for (let i = 0; i < objects.length; i++) {
       const a = objects[i];
       const cur = a.angle + earthDegPerSec * t * a.speed;
+      const distScale = realScale ? REAL_SCALE_FACTOR : 1;
       const rad = (cur * Math.PI) / 180;
-      arr[i * 3] = a.radius * Math.sin(rad);
-      arr[i * 3 + 1] = a.radius * Math.sin(a.inclination);
-      arr[i * 3 + 2] = a.radius * Math.cos(rad);
+      const xRaw = a.radius * distScale * Math.sin(rad);
+      const zRaw = -a.radius * distScale * Math.cos(rad);
+      arr[i * 3] = xRaw * cosO - zRaw * sinO;
+      arr[i * 3 + 1] = a.radius * distScale * Math.sin(a.inclination);
+      arr[i * 3 + 2] = xRaw * sinO + zRaw * cosO;
     }
     attr.needsUpdate = true;
   });
@@ -144,7 +165,7 @@ export function KuiperBelt3D() {
   return (
     <points
       ref={(p) => {
-        pointsRef.current = p;
+        pointsRef.current = p as Points<BufferGeometry, ShaderMaterial> | null;
       }}
       geometry={geometry}
       material={material}

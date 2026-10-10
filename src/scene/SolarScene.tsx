@@ -17,6 +17,8 @@ import { CameraAnimator } from './CameraAnimator';
 import { PostProcessing } from './PostProcessing';
 import { OrbitEngineBridge } from './OrbitEngineBridge';
 import { SaturnRings } from './SaturnRings';
+import { PlanetRings } from './PlanetRings';
+import { Moons } from './Moons';
 import { TourController, type TourStep } from './TourController';
 import { CameraTracker } from './CameraTracker';
 import { HoverRaycaster } from './HoverRaycaster';
@@ -35,8 +37,6 @@ export interface SolarSceneProps {
   simRateRef: MutableRefObject<number>;
   /** Tempo di simulazione corrente (secondi a 1×) usato da trail/effemeridi. */
   simTimeRef: MutableRefObject<number>;
-  /** Modalità scala 1:1 (in attesa di wiring completo in Bodies). */
-  realScale?: boolean;
   selectedBodyName: string | null;
   onSelectBody: (name: string) => void;
   postFxEnabled: boolean;
@@ -62,6 +62,14 @@ export interface SolarSceneProps {
   worldHitRef: MutableRefObject<{ x: number; y: number; z: number } | null>;
   /** S4.3 — ref nome corpo hovered. */
   hoveredBodyRef: MutableRefObject<string | null>;
+  /** Modalità scala 1:1 (AU lineari) — vedi `bodies3d.REAL_SCALE_FACTOR`. */
+  realScale?: boolean;
+  /** 4.5 — Abilita shadow map: la Luna può proiettare ombra sulla Terra
+   *  e viceversa (eclissi). Default OFF: shadow map 1024×1024 hanno un
+   *  costo GPU non banale. */
+  eclipsesEnabled?: boolean;
+  /** Tier mobile: dpr ridotto e fasce di particelle più leggere per GPU di smartphone. */
+  mobile?: boolean;
 }
 
 export function SolarScene({
@@ -83,7 +91,14 @@ export function SolarScene({
   mouseNdcRef,
   worldHitRef,
   hoveredBodyRef,
+  mobile = false,
+  realScale = false,
+  eclipsesEnabled = false,
 }: SolarSceneProps) {
+  // Fasce di particelle ridotte su mobile: Points è 1 draw call ma il fill-rate
+  // su GPU integrate di smartphone è il collo di bottiglia reale.
+  const asteroidCount = mobile ? 200 : 350;
+  const kuiperCount = mobile ? 70 : 120;
   // Ref al OrbitControls per consentire a CameraAnimator di pilotare la camera.
   // IMPORTANTE: deve essere un oggetto STABILE (no getter inline), altrimenti
   // ogni render di App crea un nuovo oggetto → useEffect [controlsRef]
@@ -103,29 +118,40 @@ export function SolarScene({
   return (
     <Canvas
       camera={{ position: [0, 70, 100], fov: 45, near: 0.01, far: 5000 }}
+      dpr={mobile ? [1, 1.25] : [1, 1.75]}
       gl={{
         antialias: true,
         toneMapping: ACESFilmicToneMapping,
         toneMappingExposure: 1.05,
         outputColorSpace: SRGBColorSpace,
+        // 4.11 — preserveDrawingBuffer permette `canvas.toDataURL()` per gli
+        // screenshot. Costo trascurabile (~2-3% GPU) e necessario perché
+        // senza di esso il browser scarta il buffer dopo il present.
+        preserveDrawingBuffer: true,
       }}
       style={{ width: '100%', height: '100%' }}
     >
       <Suspense fallback={null}>
         <LoadingProvider>
-          <Lighting />
+          <Lighting eclipsesEnabled={eclipsesEnabled} />
           <StarsBackground />
-          <Orbits />
+          <Orbits realScale={realScale} />
           <OrbitEngineBridge
             positionsRef={positionsRef}
             simRateRef={simRateRef}
             simTimeRef={simTimeRef}
           >
             <Sun3D selected={selectedBodyName === 'Sun'} onSelect={() => onSelectBody('Sun')} />
-            <Bodies selectedBodyName={selectedBodyName} onSelectBody={onSelectBody} />
-            <SaturnRings />
-            {realistic && <AsteroidBelt3D />}
-            {realistic && <KuiperBelt3D />}
+            <Bodies
+              selectedBodyName={selectedBodyName}
+              onSelectBody={onSelectBody}
+              realScale={realScale}
+            />
+            <SaturnRings realScale={realScale} />
+            {realistic && <PlanetRings realScale={realScale} />}
+            {realistic && <AsteroidBelt3D count={asteroidCount} realScale={realScale} />}
+            {realistic && <KuiperBelt3D count={kuiperCount} realScale={realScale} />}
+            {realistic && <Moons realScale={realScale} eclipsesEnabled={eclipsesEnabled} />}
             <Comet3D />
             {selectedBodyName && selectedBodyName !== 'Sun' && (
               <OrbitTrails planets={planets} names={[selectedBodyName]} />

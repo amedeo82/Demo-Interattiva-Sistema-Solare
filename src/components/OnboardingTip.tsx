@@ -16,10 +16,11 @@ export interface OnboardingTipProps {
   text: string;
   /** Lato del puntatore (top/right/left). */
   side?: 'top' | 'right' | 'left';
-  /** Posizione (top/left in % dal container parent). */
+  /** Posizione (top/left/bottom in % o px dal container parent). */
   top?: string;
   left?: string;
   right?: string;
+  bottom?: string;
   onDismiss?: () => void;
 }
 
@@ -30,6 +31,7 @@ export function OnboardingTip({
   top,
   left,
   right,
+  bottom,
   onDismiss,
 }: OnboardingTipProps) {
   const [visible, setVisible] = useState(false);
@@ -49,7 +51,12 @@ export function OnboardingTip({
   };
 
   return (
-    <div className="onboard-tip" data-side={side} style={{ top, left, right }} role="status">
+    <div
+      className="onboard-tip"
+      data-side={side}
+      style={{ top, left, right, bottom }}
+      role="status"
+    >
       <div>{text}</div>
       <button className="onboard-tip-close" onClick={dismiss} aria-label="Chiudi suggerimento">
         ✨ Ho capito

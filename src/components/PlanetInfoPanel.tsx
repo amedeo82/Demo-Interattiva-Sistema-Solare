@@ -2,6 +2,7 @@ import { useEffect, useRef, useReducer, useState, useCallback } from 'react';
 import type { PlanetData } from '../data/planets';
 import { formatNumber, formatOrbitalPeriod } from '../utils/format';
 import { useOrbitCounters, type OrbitCountersRef } from '../hooks/useOrbitCounters';
+import { useIsMobile } from '../hooks/useMedia';
 import type { SimPlanetState } from '../hooks/useOrbitEngine';
 import { PREFS_KEYS, loadJSON, saveJSON, type PanelPos } from '../utils/prefs';
 
@@ -36,6 +37,9 @@ function validatePos(v: unknown): v is PanelPos {
 }
 
 export default function PlanetInfoPanel({ planet, onClose, positionsRef }: Props) {
+  // Mobile: il pannello diventa una bottom sheet a tutta larghezza
+  // (niente drag/posizione persistita: su schermo stretto non c'è spazio).
+  const isMobile = useIsMobile();
   const closeRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const dragStateRef = useRef<{
@@ -67,7 +71,7 @@ export default function PlanetInfoPanel({ planet, onClose, positionsRef }: Props
   }, [planet.name]);
 
   // Posizione trascinabile: persistita in localStorage (pixel relativi al
-  // contenitore <main>, dall'angolo top-right).
+  // contenitore <main>, dall'angolo top-right). Solo desktop.
   const [pos, setPos] = useState<PanelPos | null>(() =>
     loadJSON(PREFS_KEYS.panelPos, null, validatePos)
   );
@@ -147,21 +151,29 @@ export default function PlanetInfoPanel({ planet, onClose, positionsRef }: Props
       role="dialog"
       aria-label={`Informazioni su ${planet.nameIt}`}
       onKeyDown={onKeyDown}
-      style={pos ? { top: pos.y, right: pos.x } : { top: '1rem', right: '1rem' }}
-      className="panel-in panel-scanline absolute z-[200] flex
-                 w-[min(360px,calc(100vw-2rem))] flex-col rounded-2xl p-0
-                 max-h-[calc(100%-2rem)] overflow-hidden"
+      style={
+        isMobile ? undefined : pos ? { top: pos.y, right: pos.x } : { top: '1rem', right: '1rem' }
+      }
+      className={
+        isMobile
+          ? 'panel-in panel-scanline absolute inset-x-0 bottom-0 z-[200] flex max-h-[72dvh] w-full flex-col overflow-hidden rounded-t-2xl p-0'
+          : 'panel-in panel-scanline absolute z-[200] flex\n                 w-[min(360px,calc(100vw-2rem))] flex-col rounded-2xl p-0\n                 max-h-[calc(100%-2rem)] overflow-hidden'
+      }
     >
-      {/* Handle + titolo compatto (orizzontale) */}
+      {/* Handle + titolo compatto (orizzontale). Su mobile: grab bar fissa
+          in alto (no drag, no reset posizione). */}
       <div
-        onPointerDown={onDragStart}
-        onPointerMove={onDragMove}
-        onPointerUp={onDragEnd}
-        onPointerCancel={onDragEnd}
-        className="flex shrink-0 cursor-grab items-center gap-3 border-b border-white/10 px-4 py-3 active:cursor-grabbing select-none"
-        title="Trascina per riposizionare"
+        onPointerDown={isMobile ? undefined : onDragStart}
+        onPointerMove={isMobile ? undefined : onDragMove}
+        onPointerUp={isMobile ? undefined : onDragEnd}
+        onPointerCancel={isMobile ? undefined : onDragEnd}
+        className={`flex shrink-0 items-center gap-3 border-b border-white/10 px-4 py-3 select-none ${
+          isMobile ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
+        }`}
+        title={isMobile ? undefined : 'Trascina per riposizionare'}
         data-testid="panel-drag-handle"
       >
+        {isMobile && <div className="mobile-sheet-grip absolute left-1/2 top-1.5" aria-hidden />}
         <div
           className="relative h-9 w-9 shrink-0 rounded-full"
           aria-hidden
@@ -183,7 +195,7 @@ export default function PlanetInfoPanel({ planet, onClose, positionsRef }: Props
             {planet.name} · {planet.symbol}
           </p>
         </div>
-        {pos && (
+        {!isMobile && pos && (
           <button
             onClick={resetPos}
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[11px] text-white/60 transition-colors hover:bg-white/10 hover:text-white"

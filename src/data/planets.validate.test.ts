@@ -69,6 +69,22 @@ describe('dataset pianeti — accuratezza scientifica', () => {
     // Urano: 98° di inclinazione → convenzionalmente trattata come retrograda
     expect(Math.abs(uranus.axialTilt)).toBeGreaterThan(90);
   });
+
+  // 4.9 — Elementi orbitali J2000 (Ω e ω) sono presenti per ogni pianeta.
+  it.each(planets.map((p) => [p.name, p] as const))(
+    '%s: longitudine del nodo ascendente Ω nel range [0, 360)',
+    (_name, p) => {
+      expect(p.longitudeOfAscendingNode).toBeGreaterThanOrEqual(0);
+      expect(p.longitudeOfAscendingNode).toBeLessThan(360);
+    }
+  );
+  it.each(planets.map((p) => [p.name, p] as const))(
+    '%s: argomento del perielio ω nel range [0, 360)',
+    (_name, p) => {
+      expect(p.argumentOfPerihelion).toBeGreaterThanOrEqual(0);
+      expect(p.argumentOfPerihelion).toBeLessThan(360);
+    }
+  );
 });
 
 describe('dataset pianeti — completezza per i componenti UI', () => {
@@ -120,5 +136,21 @@ describe('dataset pianeti — completezza per i componenti UI', () => {
     expect(planets.find((p) => p.name === 'Mercury')!.moons).toHaveLength(0);
     expect(planets.find((p) => p.name === 'Venus')!.moons).toHaveLength(0);
     expect(planets.find((p) => p.name === 'Earth')!.moons[0].name).toBe('Luna');
+  });
+
+  // 4.1 — Le lune principali sono definite per i pianeti che le hanno
+  it('i pianeti con lune principali reali hanno almeno una luna nel dataset', () => {
+    const expectedMoons: Record<string, number> = {
+      Earth: 1,
+      Mars: 2,
+      Jupiter: 4,
+      Saturn: 2,
+      Uranus: 1,
+      Neptune: 1,
+    };
+    for (const [name, count] of Object.entries(expectedMoons)) {
+      const p = planets.find((x) => x.name === name)!;
+      expect(p.moons.length).toBeGreaterThanOrEqual(count);
+    }
   });
 });

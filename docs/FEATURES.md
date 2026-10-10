@@ -252,3 +252,186 @@ Classi riusate:
 - `.timeline` / `.timeline-track` / `.timeline-fill` / `.timeline-thumb` — scrubber
 - `.onboard-tip` — tip di onboarding
 - `.font-display` / `.font-mono` — typography
+
+---
+
+## Sprint S5 — Mobile responsive (ottobre 2026)
+
+### Bottom sheet controlli
+
+Su viewport `< 1024px` (breakpoint `lg` di Tailwind), la sidebar non è più
+una colonna laterale ma una bottom sheet richiamabile con un FAB.
+
+**File**: `src/components/ControlsSidebar.tsx`, `src/App.tsx`, `src/hooks/useMedia.ts` (NUOVO)
+
+- `useIsMobile()` legge `window.matchMedia('(max-width: 1023px)')` e si
+  aggiorna su rotazione/resize
+- Su mobile la sheet è ancorata in basso (`position: absolute; bottom: 0`),
+  `max-height: min(75dvh, 560px)`, con grab bar e header (✕ per chiudere)
+- Il contenuto è sempre montato (`visibility: hidden` da chiuso, non
+  `display: none`) → la lista pianeti resta nell'albero di accessibilità
+- Apertura/chiusura: `mobile-fab` (pulse con glow viola, `right: max(1rem,
+  env(safe-area-inset-right))` per supporto notch)
+- `overflow-y: auto` interno per scrollare la lista pianeti
+
+### Header compatto
+
+I chip secondari (Etichette, Realismo, Eclissi, Scala reale, FX, Audio) sono
+nascosti sotto 640px via `hidden sm:block`; su mobile sono raccolti nel
+menu overflow "⋯" con stato `active` (pallino viola).
+
+**File**: `src/App.tsx`, `src/index.css`
+
+### Pannello info → bottom sheet
+
+**File**: `src/components/PlanetInfoPanel.tsx`
+
+- Su mobile: `inset-x-0 bottom-0`, full width, `max-h-[72dvh]`, grab bar in
+  alto, `rounded-t-2xl`
+- Drag e reset posizione disattivati (non hanno senso su schermo stretto);
+  su desktop comportamento invariato
+
+### Performance mobile
+
+**File**: `src/scene/SolarScene.tsx`
+
+- `dpr` limitato a `[1, 1.25]` su mobile vs `[1, 1.75]` desktop
+- `AsteroidBelt3D count={200}` (vs 350) e `KuiperBelt3D count={70}` (vs 120)
+- `postFxEnabled` default `false` su mobile al primo avvio (bloom è il
+  pass più costoso su GPU integrate)
+
+### Viewport & touch
+
+**File**: `index.html`, `src/index.css`
+
+- `viewport-fit=cover` + `user-scalable=no` (il pinch del browser
+  confligge col pinch-zoom della camera 3D, gestito da OrbitControls)
+- `env(safe-area-inset-*)` su FAB, sheet, header (notch / barra home)
+- `@media (pointer: coarse)` → target touch ≥ 44px su chip, view-btn,
+  timeline-thumb, planet-row
+- `-webkit-tap-highlight-color: transparent` (niente flash grigi su tap)
+
+---
+
+## Sprint S6 — Realismo 3D (ottobre 2026)
+
+### Lune orbitanti (12 lune)
+
+**File**: `src/scene/Moons.tsx` (NUOVO), `src/data/planets.ts`
+
+- Luna (Terra), Phobos + Deimos (Marte), Io + Europa + Ganimede + Callisto
+  (Giove), Titano + Encelado (Saturno), Titania (Urano), Tritone (Nettuno)
+- Ogni luna è una sfera `MeshStandardMaterial` illuminata dal pointLight
+  del Sole → mostrano naturalmente il terminatore (lato giorno/notte)
+- Periodo orbitale in "secondi di simulazione" (coerente con la slow-mo)
+- Inclinazione ±2° random, fase iniziale deterministica (hash del nome)
+- `raycast={() => null}` per non intercettare i click dei pianeti
+
+### Nubi Venere
+
+**File**: `src/scene/Bodies.tsx`, `src/utils/proceduralTextures.ts` (NUOVO)
+
+Layer mesh sferico (raggio × 1.02) con `makeVenusCloudsTexture()`:
+gradiente verticale giallo/crema + swirl sinusoidali modulati in latitudine
++ bande equatoriali dense. Rotazione leggermente più veloce della
+superficie (× 1.087). La Terra aveva già `earth_clouds.png`.
+
+### Anelli Urano + Nettuno
+
+**File**: `src/scene/PlanetRings.tsx` (NUOVO)
+
+- Urano (tilt 98° "rotolamento"): fascia stretta semitrasparente generata
+  proceduralmente, allineata al piano equatoriale (quindi "verticale" nella
+  scena)
+- Nettuno: 5 streaks sottili (Adams, Le Verrier, Galle, Arago, Lassell)
+- Saturno mantiene `<SaturnRings />` con la texture NASA reale
+
+### Colori spettrali asteroidi
+
+**File**: `src/scene/AsteroidBelt3D.tsx`
+
+`generateAsteroids` ora assegna un colore per asteroide basato sulla classe
+spettrale: **C-type** carbonacei scuri (~75%, `#3a3530`/`#4a423a`/`#5a4e44`),
+**S-type** silicacei chiari (~15%, `#b9a48a`/`#c8b89a`/`#a89678`),
+**M-type** metallici (~5%, `#8a8580`/`#a89e94`/`#9a9590`).
+
+Lo shader vertex ha un nuovo attribute `aColor` (prima era un uniform
+`uColor` fisso `#b9a58c`); il fragment usa `vColor` per il colore
+finale. Determinismo mantenuto via seed.
+
+### Scala reale 1:1 (wiring completo)
+
+**File**: `src/scene/bodies3d.ts`, tutti i componenti orbitali
+
+- `REAL_SCALE_FACTOR = 0.5` (1 AU = 0.5 unità di scena)
+- Prop `realScale` propagata da `App` → `SolarScene` → `Bodies`, `Orbits`,
+  `SaturnRings`, `PlanetRings`, `AsteroidBelt3D`, `KuiperBelt3D`, `Moons`
+- In `realScale` le distanze passano da "logaritmiche compresse" a "AU
+  lineari": Mercurio ~0.2 unità (punto quasi invisibile), Nettuno ~15
+
+### Eclissi (shadow map)
+
+**File**: `src/scene/Lighting.tsx`, `src/scene/Bodies.tsx`, `src/scene/Moons.tsx`
+
+- Toggle "🌑 Eclissi" in header (`PREFS_KEYS.eclipsesEnabled`, default OFF)
+- Quando attivo: `gl.shadowMap.enabled = true`, `type = PCFSoftShadowMap`,
+  `pointLight` del Sole `castShadow = true`
+- Tutti i pianeti e le lune: `castShadow + receiveShadow`
+- Effetto: la Luna proietta ombra sulla Terra durante un'eclissi lunare
+  (e viceversa, eclissi solare se l'allineamento geometrico accade)
+
+### Elementi orbitali Ω/ω (J2000)
+
+**File**: `src/data/planets.ts`, `src/scene/bodies3d.ts`, tutti i componenti orbitali
+
+Aggiunti `longitudeOfAscendingNode` e `argumentOfPerihelion` a tutti gli
+8 pianeti (valori NASA J2000). `angleToOrbitPosition` accetta ora un
+`ascendingNodeDeg` opzionale che ruota l'orbita attorno all'asse Y.
+
+| Pianeta | Ω (°) | ω (°) |
+|---|---|---|
+| Mercurio | 48.33 | 29.12 |
+| Venere | 76.68 | 54.92 |
+| Terra | 174.95 | 102.95 |
+| Marte | 49.56 | 286.50 |
+| Giove | 100.46 | 273.85 |
+| Saturno | 113.72 | 339.39 |
+| Urano | 73.92 | 96.99 |
+| Nettuno | 131.72 | 259.88 |
+
+La "linea degli apsidi" di ciascun pianeta è ora orientata
+realisticamente, e le congiunzioni calcolate guadagnano precisione
+arcominuto (anche se `Conjunctions.tsx` non usa ancora ω esplicitamente
+per il calcolo del passaggio ravvicinato — roadmap futura).
+
+### Screenshot mode
+
+**File**: `src/App.tsx`, `src/scene/SolarScene.tsx`
+
+- Bottone "📷 Foto" in header + tasto `S` da tastiera
+- `gl.preserveDrawingBuffer = true` (necessario per `toDataURL` su
+  canvas WebGL)
+- `canvas.toDataURL('image/png')` → download diretto su desktop
+- **Web Share API** su mobile (`navigator.share({ files: [file] })`) per
+  condivisione diretta nel pannello nativo
+- Flash overlay 200ms (`@keyframes screenshot-flash`) come feedback visivo
+- File scaricato: `solar-system-{timestamp}.png`
+
+### Bug fix scoperti durante S5
+
+- **`.onboard-tip` / `.onboard-tip-close` senza stili** (pre-esistente):
+  il tip di onboarding era renderizzato senza formattazione. Stili aggiunti
+  in `src/index.css` (pannello hologramma coerente col tema).
+- **`.timeline-track` / `.timeline-fill` / `.timeline-thumb` / `.view-btn`
+  / `.speed-slider` senza stili** (pre-esistente, probabile perdita in
+  un refactor CSS): scrubber e pulsanti vista erano "nudi". Stili
+  completi aggiunti in `src/index.css`.
+
+---
+
+## Changelog sprint recenti
+
+| Sprint | Focus | Deliverable | Test |
+|--------|-------|-------------|------|
+| **S5** | Mobile responsive | bottom sheet controlli + pannello info, header compatto, FAB, touch/safe-area, perf tier | 163/163 |
+| **S6** | Realismo 3D | 12 lune, nubi Venere, anelli Urano/Nettuno, colori spettrali, scala reale, eclissi, Ω/ω, screenshot | 180/180 |

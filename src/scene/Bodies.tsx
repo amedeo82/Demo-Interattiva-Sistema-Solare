@@ -18,15 +18,23 @@ import {
 import { useTexture } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { BODIES_3D, BODIES_ORDER, angleToOrbitPosition } from './bodies3d';
+import { makeVenusCloudsTexture } from '../utils/proceduralTextures';
 import type { SimPlanetState } from '../hooks/useOrbitEngine';
 import { useOrbitEngineContext } from './OrbitEngineBridge';
 
 export function Bodies({
   selectedBodyName,
   onSelectBody,
+  realScale = false,
+  eclipsesEnabled = false,
 }: {
   selectedBodyName: string | null;
   onSelectBody: (n: string) => void;
+  /** Scala reale 1:1 (UA → unità). Default: scala logaritmica compressa
+   *  (tutti i pianeti visibili senza zoom estremo). Vedi `bodies3d.ts`. */
+  realScale?: boolean;
+  /** 4.5 — Abilita shadow map per eclissi Terra-Luna. Default OFF. */
+  eclipsesEnabled?: boolean;
 }) {
   const { positionsRef, simRateRef } = useOrbitEngineContext();
   const { gl } = useThree();
@@ -47,17 +55,36 @@ export function Bodies({
     earthCloudsTex.needsUpdate = true;
   }, [textures, earthCloudsTex, gl]);
 
-  const cloudMat = useMemo(
-    () =>
-      new MeshStandardMaterial({
-        color: '#ffffff',
-        alphaMap: earthCloudsTex,
-        transparent: true,
-        depthWrite: false,
-        roughness: 1,
-      }),
-    [earthCloudsTex]
-  );
+  // Layer nubi: per ogni pianeta con copertura significativa, un secondo
+  // mesh sferico leggermente più grande con texture dedicata e trasparenza
+  // additiva. La rotazione è leggermente più veloce della superficie (per
+  // simulare il moto atmosferico / shear). Supportiamo Terra (texture NASA
+  // earth_clouds.png) e Venere (texture procedurale generata al volo).
+  const CLOUD_PLANETS = ['Earth', 'Venus'] as const;
+  const cloudTextures = useMemo(() => {
+    return {
+      Earth: earthCloudsTex,
+      Venus: makeVenusCloudsTexture(),
+    } as const;
+  }, [earthCloudsTex]);
+  const cloudMats = useMemo(() => {
+    return Object.fromEntries(
+      CLOUD_PLANETS.map((n) => [
+        n,
+        new MeshStandardMaterial({
+          map: cloudTextures[n],
+          transparent: true,
+          depthWrite: false,
+          roughness: 1,
+        }),
+      ])
+    ) as Record<(typeof CLOUD_PLANETS)[number], MeshStandardMaterial>;
+  }, [cloudTextures]);
+  const cloudGeoms = useMemo(() => {
+    return Object.fromEntries(
+      CLOUD_PLANETS.map((n) => [n, new SphereGeometry(BODIES_3D[n].radius * 1.02, 48, 48)])
+    ) as Record<(typeof CLOUD_PLANETS)[number], SphereGeometry>;
+  }, []);
   const cloudRefs = useRef<Record<string, Mesh | null>>({});
 
   const meshRefs = useRef<Record<string, Mesh | null>>({});
@@ -80,8 +107,6 @@ export function Bodies({
       }, {}),
     [textures]
   );
-
-  const cloudGeom = useMemo(() => new SphereGeometry(BODIES_3D.Earth.radius * 1.02, 48, 48), []);
 
   // Atmosfere: per ogni pianeta con atmosfera significativa, un ShaderMaterial
   // Fresnel che produce un alone più brillante sul bordo del disco (dove la
@@ -135,10 +160,10 @@ export function Bodies({
       Object.values(geometries).forEach((g) => g.dispose());
       Object.values(mats).forEach((m) => m.dispose());
       Object.values(atmosphereMats).forEach((m) => m.dispose());
-      cloudGeom.dispose();
-      cloudMat.dispose();
+      Object.values(cloudMats).forEach((m) => m.dispose());
+      Object.values(cloudGeoms).forEach((g) => g.dispose());
     },
-    [geometries, mats, atmosphereMats, cloudGeom, cloudMat]
+    [geometries, mats, atmosphereMats, cloudMats, cloudGeoms]
   );
 
   useFrame((_, dt) => {
@@ -151,13 +176,18 @@ export function Bodies({
       if (!m || !g) continue;
       const p: SimPlanetState | undefined = pos[name];
       if (!p) continue;
-      angleToOrbitPosition(p.angle, body.orbitDistance, tmpVec);
+      // 4.8 — Scala reale: in `realScale` le posizioni sono in AU
+      // moltiplicati per un fattore di compressione (REAL_SCALE = 0.5:
+      // 1 AU = 0.5 unità, Nettuno ~15 unità). Fuori: scala logaritmica
+      // compressa (Mercurio ~7, Nettuno ~75) — tutti visibili senza zoom.
+      const dist = realScale ? body.distanceAu * 0.5 : body.orbitDistance;
+      angleToOrbitPosition(p.angle, dist, tmpVec, body.longitudeOfAscendingNode);
       g.position.copy(tmpVec);
       // Rotazione assiale proporzionale alla velocità di simulazione
       // (prima usava il tempo reale: a 0.25x girava troppo veloce,
       // a 10x troppo lento rispetto all'orbita).
       m.rotation.y += (dt * simRate * 360) / body.rotationHours;
-      // Le nubi terrestri derivano leggermente rispetto alla superficie.
+      // Le nubi (Terra/Venere) derivano leggermente rispetto alla superficie.
       const c = cloudRefs.current[name];
       if (c) c.rotation.y += (dt * simRate * 360) / (body.rotationHours * 0.92);
     }
@@ -182,6 +212,8 @@ export function Bodies({
                 }}
                 geometry={geometries[name]}
                 material={mats[name]}
+                castShadow={eclipsesEnabled}
+                receiveShadow={eclipsesEnabled}
                 onClick={(e) => {
                   e.stopPropagation();
                   onSelectBody(name);
@@ -195,13 +227,13 @@ export function Bodies({
                 }}
                 scale={isSelected ? 1.15 : 1.0}
               />
-              {name === 'Earth' && (
+              {(CLOUD_PLANETS as readonly string[]).includes(name) && (
                 <mesh
                   ref={(el) => {
                     cloudRefs.current[name] = el;
                   }}
-                  geometry={cloudGeom}
-                  material={cloudMat}
+                  geometry={cloudGeoms[name as (typeof CLOUD_PLANETS)[number]]}
+                  material={cloudMats[name as (typeof CLOUD_PLANETS)[number]]}
                 />
               )}
               {ATMOSPHERE_PLANETS.includes(name) && (

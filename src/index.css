@@ -121,6 +121,14 @@ body,
     opacity: 1;
   }
 }
+@keyframes screenshot-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
 @keyframes panel-in {
   from {
     opacity: 0;
@@ -558,4 +566,247 @@ body,
 }
 button:focus:not(:focus-visible) {
   outline: none;
+}
+
+/* ---------- Onboarding tip (stili: prima mancanti, il tip arrivava "nudo") ---------- */
+.onboard-tip {
+  position: absolute;
+  z-index: 60;
+  max-width: 300px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  background: rgba(16, 16, 42, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.55),
+    0 0 18px rgba(168, 85, 247, 0.15);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.85);
+  animation: panel-in 0.3s ease-out;
+}
+.onboard-tip-close {
+  margin-top: 10px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(168, 85, 247, 0.45);
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(168, 85, 247, 0.15));
+  color: #e9d5ff;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.onboard-tip-close:hover {
+  background: rgba(168, 85, 247, 0.35);
+}
+
+/* ---------- Timeline scrubber (stili: prima mancanti) ---------- */
+.timeline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.timeline-track {
+  position: relative;
+  flex: 1;
+  height: 24px;
+  cursor: pointer;
+  touch-action: none;
+}
+/* Rail: binario sottile centrato verticalmente */
+.timeline-track::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 4px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+.timeline-fill {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: var(--tl-fill);
+  height: 4px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(168, 85, 247, 0.55), rgba(168, 85, 247, 0.9));
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.35);
+  pointer-events: none;
+}
+.timeline-thumb {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: #e9d5ff;
+  border: 2px solid #a855f7;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.6);
+  pointer-events: none;
+}
+.timeline-track:focus-visible {
+  outline: 2px solid #a855f7;
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+
+/* ---------- Pulsanti vista (pitch ±, reset) ---------- */
+.view-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  font-size: 15px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(16, 16, 42, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.15s ease;
+}
+.view-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+}
+.view-btn:active {
+  transform: scale(0.94);
+}
+
+/* ---------- Slider velocità ---------- */
+.speed-slider {
+  width: 100%;
+  height: 22px;
+  cursor: pointer;
+  accent-color: #a855f7;
+}
+
+/* ---------- Mobile / touch (S5) ---------- */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Safe-area (notch / barra home iOS): i controlli a filo bordo non finiscono
+   mai sotto le aree di sistema. */
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+.pt-safe {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+/* Bottom sheet controlli mobile: scorre dal basso, si chiude con l'handle.
+   Il contenuto resta montato (visibility, non display) così la lista pianeti
+   resta nell'albero di accessibilità quando la sheet è aperta. */
+.mobile-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  max-height: min(75dvh, 560px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 20px 20px 0 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 0;
+  background: rgba(10, 10, 32, 0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.6);
+  transform: translateY(calc(100% + 24px));
+  visibility: hidden;
+  transition:
+    transform 0.32s cubic-bezier(0.65, 0, 0.35, 1),
+    visibility 0s linear 0.32s;
+}
+.mobile-sheet.open {
+  transform: none;
+  visibility: visible;
+  transition: transform 0.32s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* Grab bar: barra di trascinamento verticale in alto nella sheet */
+.mobile-sheet-grip {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* FAB controlli mobile: aggancio fisso in basso a destra, sopra la sheet */
+.mobile-fab {
+  position: absolute;
+  z-index: 50;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #e9d5ff;
+  border: 1px solid rgba(168, 85, 247, 0.5);
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.35), rgba(30, 20, 60, 0.9));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.55),
+    0 0 18px rgba(168, 85, 247, 0.25);
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.2s ease;
+}
+.mobile-fab:active {
+  transform: scale(0.96);
+}
+
+/* Target touch: su pointer coarse (dita, non mouse) i controlli piccoli
+   crescono fino al minimo WCAG 2.5.5 (44px). */
+@media (pointer: coarse) {
+  .chip {
+    padding: 9px 14px;
+    font-size: 0.8rem;
+  }
+  .view-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .timeline-thumb {
+    width: 20px;
+    height: 20px;
+  }
+  .planet-row {
+    padding: 12px 14px;
+  }
+  .planet-label {
+    font-size: 11px;
+  }
+}
+
+/* Su schermi molto stretti la telemetria resta leggibile ma compatta */
+@media (max-width: 480px) {
+  .mobile-fab {
+    padding: 12px 14px;
+    font-size: 0.75rem;
+  }
 }
