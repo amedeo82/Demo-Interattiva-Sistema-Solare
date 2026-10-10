@@ -395,7 +395,6 @@ body,
   }
 }
 .panel-scanline {
-  position: relative;
   overflow: hidden;
 }
 .panel-scanline::after {
