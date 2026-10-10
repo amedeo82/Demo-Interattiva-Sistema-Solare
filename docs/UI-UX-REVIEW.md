@@ -715,3 +715,147 @@ src/scene/SolarScene.tsx       ← integra CameraTracker + HoverRaycaster
 src/components/PlanetInfoPanel.tsx ← Mission log + panel-scanline
 src/App.tsx                     ← refs telemetry + montaggio HUD/crosshair
 ```
+
+---
+
+## 13. Sprint S5 — Mobile responsive
+
+> Vedi `docs/MOBILE-UX.md` §2 per la versione completa (analisi dello
+> stato pre-redesign, soluzioni implementate, bug fix scoperti,
+> verifiche e modalità di prova). Di seguito solo un changelog
+> compatto per continuità storica.
+
+### Risultati finali
+
+- typecheck ✅ · lint ✅ (0 errori, 5 warning pre-esistenti) · test **163/163** ✅ · build ✅
+- Bundle main: 47.19 KB gzip 16.04; SolarScene (lazy): 25.66 KB gzip 8.22
+
+### Cosa è stato fatto
+- **S5.1** `src/hooks/useMedia.ts` (NUOVO): `useMediaQuery(query)` + `useIsMobile()` matchMedia-based, reattivo a rotazione/resize
+- **S5.2** `App.tsx`: header compatto con chip secondari (`hidden sm:block`) confluiti nel menu "⋯" su mobile (Etichette, Realismo, Scala reale, FX)
+- **S5.3** `App.tsx`: **bottom sheet controlli** su < 1024px (`.mobile-sheet` con transizione 320ms `cubic-bezier(0.65,0,0.35,1)`, max-h 75dvh), FAB `.mobile-fab` con safe-area, selezione pianeta chiude la sheet
+- **S5.4** `PlanetInfoPanel.tsx`: bottom sheet full-width (72dvh, grab bar) su mobile, drag disattivato
+- **S5.5** `SolarScene.tsx`: tier performance mobile — `dpr=[1,1.25]` vs `[1,1.75]`, `AsteroidBelt3D count={200}`, `KuiperBelt3D count={70}`, `postFxEnabled` default `false` al primo avvio
+- **S5.6** `index.css`: `.mobile-sheet`, `.mobile-sheet-grip`, `.mobile-fab`, `pb-safe`/`pt-safe` (env safe-area), `@media (pointer: coarse)` target ≥ 44px, `-webkit-tap-highlight-color: transparent`
+- **S5.7** `index.html`: `viewport-fit=cover, user-scalable=no, maximum-scale=1.0` (pinch del browser disattivato per non confliggere con OrbitControls)
+- **S5.8** `Timeline.tsx`: etichette `±2y` nascoste sotto 640px; thumb 20px su touch
+- **S5.9** `OnboardingTip.tsx`: prop `bottom` per ancoraggio mobile sopra la sheet
+- **S5.10** `index.css` (bug fix pre-esistenti): aggiunti stili per `.onboard-tip`/`.onboard-tip-close`, `.timeline-track`/`.fill`/`.thumb`, `.view-btn`, `.speed-slider` (erano mancanti in `index.css` — tip, scrubber e pulsanti vista erano renderizzati "nudi")
+- **Test** `src/hooks/useMedia.test.tsx`: 6 test hook (reattivo a matchMedia change) + 4 test App mobile (FAB, sheet open/close, pannello info bottom sheet, menu extra)
+
+### File creati
+```
+src/hooks/useMedia.ts            ← useMediaQuery + useIsMobile
+src/hooks/useMedia.test.tsx      ← 10 nuovi test
+```
+
+### File modificati
+```
+src/App.tsx                      ← useIsMobile, sheet + FAB, overflow menu mobile, OnboardingTip adattivo
+src/components/PlanetInfoPanel.tsx ← bottom sheet mobile
+src/components/OnboardingTip.tsx ← prop bottom + stili CSS
+src/components/Timeline.tsx      ← etichette compatte
+src/components/ControlsSidebar.tsx ← pb-safe, kbd nascosti su mobile
+src/scene/SolarScene.tsx         ← prop mobile (dpr + count)
+src/scene/AsteroidBelt3D.tsx     ← prop count (200 su mobile)
+src/scene/KuiperBelt3D.tsx       ← prop count (70 su mobile)
+src/index.css                    ← mobile sheet, FAB, safe-area, touch, fix .onboard-tip/.timeline/.view-btn/.speed-slider
+index.html                       ← viewport-fit=cover, user-scalable=no
+```
+
+---
+
+## 14. Sprint S6 — Realismo 3D
+
+### Risultati finali
+
+- typecheck ✅ · lint ✅ (0 errori, 8 warning pre-esistenti) · test **180/180** ✅ (17 nuovi: 9 Ω + 9 ω it.each + 1 lune) · build ✅
+- Bundle SolarScene: 30.18 KB gzip 10.35 (vs 25.66 KB di S5 — +5KB per lune/anelli/Ω)
+
+### Cosa è stato fatto
+- **S6.1** `src/data/planets.ts`: aggiunti `longitudeOfAscendingNode` e `argumentOfPerihelion` a tutti gli 8 pianeti (valori NASA J2000)
+- **S6.2** `src/scene/bodies3d.ts`: `Body3D` esteso con Ω/ω opzionali; `angleToOrbitPosition` accetta `ascendingNodeDeg`; `REAL_SCALE_FACTOR = 0.5` (1 AU = 0.5 unità); Ω/ω propagati a `Mercury…Neptune`
+- **S6.3** `src/scene/Moons.tsx` (NUOVO): 12 lune (Luna, Phobos+Deimos, Io+Europa+Ganimede+Callisto, Titano+Encelado, Titania, Tritone) come sfere illuminate dal pointLight; terminatore naturale; periodo in secondi di sim
+- **S6.4** `src/utils/proceduralTextures.ts` (NUOVO): `makeVenusCloudsTexture` (swirl giallastri procedurali), `makeUranusRingsTexture` (fascia sottile), `makeNeptuneRingsTexture` (5 archi)
+- **S6.5** `src/scene/Bodies.tsx`: nubi Venere + layer mesh separato (oltre a Terra); rotazione assiale proporzionale a `simRate` (esistente); atmosfera Fresnel (esistente)
+- **S6.6** `src/scene/PlanetRings.tsx` (NUOVO): anelli Urano (tilt 98° "rotolamento") e Nettuno (5 archi) procedurali; Saturno mantiene `SaturnRings.tsx` con texture NASA
+- **S6.7** `src/scene/AsteroidBelt3D.tsx`: colori spettrali C/S/M (75/15/5%) via shader `aColor` attribute (era uniform `uColor` fisso); Ω medio 75°; supporto `realScale`
+- **S6.8** `src/scene/KuiperBelt3D.tsx`: supporto `realScale`; Ω medio 100°
+- **S6.9** Wiring `realScale` in `Bodies`, `Orbits`, `SaturnRings`, `PlanetRings`, `AsteroidBelt3D`, `KuiperBelt3D`, `Moons` (toggle "📏 Scala reale" ora wirato)
+- **S6.10** `src/scene/Lighting.tsx`: supporto `eclipsesEnabled` → `gl.shadowMap.enabled = true` + `type = PCFSoftShadowMap` + `pointLight.castShadow = true`
+- **S6.11** Toggle "🌑 Eclissi" in App (header desktop + menu mobile); `castShadow + receiveShadow` su tutti i pianeti e le lune
+- **S6.12** `SolarScene.tsx`: `preserveDrawingBuffer: true` per screenshot mode
+- **S6.13** Screenshot mode in App: tasto `S` + bottone "📷 Foto"; `canvas.toDataURL` + Web Share API su mobile + flash 200ms (`@keyframes screenshot-flash`)
+- **Test** `planets.validate.test.ts`: 9 it.each per Ω + 9 per ω nel range [0, 360); 1 test "lune principali reali" (Earth, Mars×2, Jupiter×4, Saturn×2, Uranus, Neptune)
+- **Test** S5 (retro-compatibili): 10 nuovi test mobile in `useMedia.test.tsx`
+
+### File creati
+```
+src/scene/Moons.tsx                  ← 12 lune 3D orbitanti
+src/scene/PlanetRings.tsx            ← anelli Urano + Nettuno procedurali
+src/utils/proceduralTextures.ts      ← CanvasTexture per nubi Venere, anelli Urano/Nettuno
+```
+
+### File modificati
+```
+src/data/planets.ts                  ← Ω + ω per 8 pianeti
+src/scene/bodies3d.ts                ← REAL_SCALE_FACTOR, Ω/ω in BODIES_3D, angleToOrbitPosition
+src/scene/Bodies.tsx                 ← nubi Venere, realScale, eclipsesEnabled
+src/scene/SaturnRings.tsx            ← realScale, Ω
+src/scene/AsteroidBelt3D.tsx         ← colori spettrali, realScale, Ω 75°
+src/scene/KuiperBelt3D.tsx           ← realScale, Ω 100°
+src/scene/Orbits.tsx                 ← realScale, Ω
+src/scene/Lighting.tsx               ← eclipsesEnabled → castShadow + shadowMap
+src/scene/SolarScene.tsx             ← props realScale, eclipsesEnabled, preserveDrawingBuffer
+src/utils/prefs.ts                   ← PREFS_KEYS.eclipsesEnabled
+src/App.tsx                          ← toggle Eclissi, Foto, screenshot handler, flash overlay
+src/index.css                        ← @keyframes screenshot-flash
+```
+
+---
+
+## 15. Sprint S7 — Manutenzione e aggiornamento dipendenze
+
+> Aggiornamento delle dipendenze alle ultime versioni compatibili, senza
+> introdurre regressioni (vedi `package.json` aggiornato e changelog in
+> fondo al README).
+
+### Risultati finali
+
+- typecheck ✅ · lint ✅ (0 errori, 8 warning pre-esistenti) · test **180/180** ✅ · build ✅
+- Bundle: drei-vendor gzip 119.91 → 161.51 KB (R3F 9 / drei 10 aggiungono ~40KB)
+
+### Cosa è stato fatto
+- **S7.1** Patch/minor aggiornati: `@tailwindcss/vite` 4.1.7 → 4.3.3, `tailwindcss` 4.1.7 → 4.3.3, `@testing-library/jest-dom` 6.9.1 → 7.0.1, `eslint` 10.11 → 10.12, `globals` 17.12 → 17.13, `jsdom` 29.1.1 → 30.1.2, `prettier` 3.9.9 → 3.9.10, `typescript-eslint` 8.71.0 → 8.71.1
+- **S7.2** Blocco React 19 + R3F 9 + Drei 10 + Postprocessing 3 + Zustand 5 aggiornato insieme (R3F 9 richiede React 19, drei 10 richiede R3F 9, postprocessing 3 richiede R3F >=9.7)
+  - `react` 18.2.0 → 19.3.0, `react-dom` 18.2.0 → 19.3.0
+  - `@types/react` 18.2.0 → 19.0.0, `@types/react-dom` 18.2.0 → 19.0.0
+  - `@react-three/fiber` 8.18.0 → 9.8.1
+  - `@react-three/drei` 9.122.0 → 10.7.9
+  - `@react-three/postprocessing` 2.19.1 → 3.2.0
+  - `zustand` 4.5.7 → 5.0.15
+- **S7.3** `src/scene/AsteroidBelt3D.tsx` e `KuiperBelt3D.tsx`: typing dei `pointsRef` aggiornato per riflettere le nuove firme di r3f 9 (che hanno tipi più stretti sui `Points<BufferGeometry, ...>`); cast esplicito sul ref callback per non rompere l'inferenza
+- **S7.4** README, FEATURES.md, MOBILE-UX.md aggiornati con il nuovo stack, la galleria screenshot rigenerata (`docs/images/01-home.png` … `08-mobile-info.png`)
+
+### Rimandati
+- Vite 8 (rolldown): major significativo separato
+- Vitest 5: richiede Node 20+ e API cambiate
+- TypeScript 7: major separato
+- R3F 9 + Drei 10 breaking changes in alcuni hook (`useThree` internals): tutti mitigati
+- 4.6 Lens flare: prototipo rimosso (resa deludente con sfere 3D) — richiede integrazione `postprocessing` LensFlare (rimandato)
+- 4.10 Texture 4K-8K + normal map: richiede download asset addizionali CC-BY NASA
+- 4.12 WebXR: refactor sostanziale con `<XR>` di @react-three/xr
+
+### File modificati
+```
+package.json                  ← versioni bump Fase 1 + Fase 2
+package-lock.json             ← rigenerato
+src/scene/AsteroidBelt3D.tsx  ← typing Points<BufferGeometry, ShaderMaterial>
+src/scene/KuiperBelt3D.tsx    ← typing Points<BufferGeometry, ShaderMaterial>
+README.md                    ← stack + funzionalità aggiornate, galleria con 8 screenshot
+docs/FEATURES.md              ← appendici S5 + S6 + changelog
+docs/UI-UX-REVIEW.md          ← changelog S13–S15
+docs/MOBILE-UX.md             ← già aggiornato in S6
+docs/images/                  ← 8 screenshot PNG rigenerati
+scripts/screenshots.mjs       ← aggiornato per riflettere S5/S6 (chip Eclissi/Foto, mobile sheet)
+```

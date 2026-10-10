@@ -1,2 +1,5 @@
 # Dependencies
 node_modules/
+
+# Build artifacts (generati da `npm run build`, rigenerati in CI/deploy)
+dist/

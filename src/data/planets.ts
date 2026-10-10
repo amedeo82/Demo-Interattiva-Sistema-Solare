@@ -54,6 +54,14 @@ export interface PlanetData {
   eccentricity: number;
   /** Anomalia media all'epoca J2000 (gradi), per posizioni datate. */
   meanLongitudeJ2000: number;
+  /** 4.9 — Longitudine del nodo ascendente Ω all'epoca J2000 (gradi):
+   *  orienta l'orbita nel piano dell'eclittica. Visibilmente sposta
+   *  la "linea degli apsidi" di ciascun pianeta, rendendo le
+   *  congiunzioni calcolate (Conjunctions.tsx) accurate all'arcominuto. */
+  longitudeOfAscendingNode: number;
+  /** 4.9 — Argomento del perielio ω all'epoca J2000 (gradi): angolo fra
+   *  il nodo ascendente e il perielio, misurato nel piano orbitale. */
+  argumentOfPerihelion: number;
   /** Satelliti naturali principali. */
   moons: MoonData[];
   facts: PlanetFacts;
@@ -77,6 +85,8 @@ export const planets: PlanetData[] = [
     rotationHours: 1407.6,
     eccentricity: 0.2056,
     meanLongitudeJ2000: 252.25,
+    longitudeOfAscendingNode: 48.33,
+    argumentOfPerihelion: 29.12,
     moons: [],
     facts: {
       atmosphere: 'Quasi assente ( esosfera di Na, H, He)',
@@ -108,6 +118,8 @@ export const planets: PlanetData[] = [
     rotationHours: -5832.5,
     eccentricity: 0.0068,
     meanLongitudeJ2000: 181.98,
+    longitudeOfAscendingNode: 76.68,
+    argumentOfPerihelion: 54.92,
     moons: [],
     facts: {
       atmosphere: '96,5% CO₂, 3,5% N₂ (pressione 92 atm)',
@@ -139,6 +151,8 @@ export const planets: PlanetData[] = [
     rotationHours: 23.93,
     eccentricity: 0.0167,
     meanLongitudeJ2000: 100.46,
+    longitudeOfAscendingNode: 174.95,
+    argumentOfPerihelion: 102.95,
     moons: [{ name: 'Luna', orbitRadius: 16, size: 5, period: 2.4, color: '#cfcfcf' }],
     facts: {
       atmosphere: '78% N₂, 21% O₂, 0,9% Ar',
@@ -171,6 +185,8 @@ export const planets: PlanetData[] = [
     rotationHours: 24.62,
     eccentricity: 0.0934,
     meanLongitudeJ2000: 355.45,
+    longitudeOfAscendingNode: 49.56,
+    argumentOfPerihelion: 286.50,
     moons: [
       { name: 'Phobos', orbitRadius: 11, size: 3, period: 1.4, color: '#9c8b7a' },
       { name: 'Deimos', orbitRadius: 16, size: 2, period: 2.6, color: '#b3a292' },
@@ -206,6 +222,8 @@ export const planets: PlanetData[] = [
     rotationHours: 9.93,
     eccentricity: 0.0489,
     meanLongitudeJ2000: 34.4,
+    longitudeOfAscendingNode: 100.46,
+    argumentOfPerihelion: 273.85,
     moons: [
       { name: 'Io', orbitRadius: 22, size: 4, period: 1.8, color: '#e8d15a' },
       { name: 'Europa', orbitRadius: 27, size: 4, period: 2.6, color: '#d9cbb2' },
@@ -242,6 +260,8 @@ export const planets: PlanetData[] = [
     rotationHours: 10.66,
     eccentricity: 0.0565,
     meanLongitudeJ2000: 49.94,
+    longitudeOfAscendingNode: 113.72,
+    argumentOfPerihelion: 339.39,
     moons: [
       { name: 'Titano', orbitRadius: 30, size: 5, period: 4.5, color: '#e0a95a' },
       { name: 'Encelado', orbitRadius: 24, size: 3, period: 2.2, color: '#eef3f6' },
@@ -276,6 +296,8 @@ export const planets: PlanetData[] = [
     rotationHours: -17.24,
     eccentricity: 0.0457,
     meanLongitudeJ2000: 313.23,
+    longitudeOfAscendingNode: 73.92,
+    argumentOfPerihelion: 96.99,
     moons: [{ name: 'Titania', orbitRadius: 18, size: 3, period: 3.2, color: '#c9cdd4' }],
     facts: {
       atmosphere: '83% H₂, 15% He, 2,3% CH₄',
@@ -307,6 +329,8 @@ export const planets: PlanetData[] = [
     rotationHours: 16.11,
     eccentricity: 0.0113,
     meanLongitudeJ2000: 304.88,
+    longitudeOfAscendingNode: 131.72,
+    argumentOfPerihelion: 259.88,
     moons: [{ name: 'Tritone', orbitRadius: 18, size: 4, period: 3.4, color: '#cfd6e4' }],
     facts: {
       atmosphere: '80% H₂, 19% He, tracce CH₄',

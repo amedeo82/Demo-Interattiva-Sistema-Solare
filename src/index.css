@@ -121,6 +121,14 @@ body,
     opacity: 1;
   }
 }
+@keyframes screenshot-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
 @keyframes panel-in {
   from {
     opacity: 0;

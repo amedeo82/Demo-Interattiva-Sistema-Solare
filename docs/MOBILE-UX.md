@@ -211,3 +211,135 @@ Quest 2 via browser.
 3. **Tap accuracy**: tutti i controlli ≥ 44px su `pointer: coarse`.
 4. **Accessibilità**: axe-core senza regressioni; la lista pianeti resta
    navigabile via screen reader anche con sheet chiusa.
+
+---
+
+## 6. Sprint S6 — Implementazione dei miglioramenti 3D
+
+> Questa sezione documenta l'implementazione di tutti i miglioramenti
+> proposti al §4 (eccetto 4.10 texture 4K e 4.12 WebXR, rimandati per
+> budget). Il changelog è in ordine di impatto.
+
+### ✅ 4.7 Colori spettrali asteroidi
+`generateAsteroids` ora assegna un colore per asteroide in base alla classe
+spettrale (C-type ~75%, S-type ~15%, M-type ~5%). Lo shader vertex
+`aColor` attribute è stato aggiunto (era un uniform `uColor` fisso);
+determinismo mantenuto via seed. Risultato: la fascia principale non è più
+un colore uniforme ma una popolazione realistica di asteroidi scuri/chiari/metallici.
+
+### ✅ 4.1 Lune orbitanti
+Nuovo `<Moons />` (12 lune: Luna, Phobos/Deimos, Io/Europa/Ganimede/Callisto,
+Titano/Encelado, Titania, Tritone) renderizzate come sfere con
+`MeshStandardMaterial`. Periodo orbitale in "secondi di simulazione" (coerente
+con `slowmoMultiplierRef`). Inclinazione e fase iniziale derivate dal nome.
+Le lune sono illuminate dal `pointLight` del Sole → mostrano naturalmente
+il terminatore.
+
+### ✅ 4.3 Nubi Venere (Terra era già implementata)
+Aggiunto un layer mesh per Venere con texture procedurale
+(`makeVenusCloudsTexture` in `utils/proceduralTextures.ts`): gradiente
+giallo/crema + swirl sinusoidali + bande equatoriali dense. La rotazione
+deriva leggermente rispetto alla superficie (0.92×). Il layer è trasparente
+con `depthWrite: false` per non interferire con il pianeta sotto.
+
+Giove: le bande sono già nella texture JPG NASA; la rotazione differenziale
+fra equatore e poli richiederebbe uno shader custom, rimandato.
+
+### ✅ 4.4 Anelli Urano e Nettuno
+Nuovo `<PlanetRings />` per Urano (tilt 98°, "rotolamento", fascia
+quasi verticale) e Nettuno (5 archi sottili). Le texture sono generate
+proceduralmente (`makeUranusRingsTexture`, `makeNeptuneRingsTexture`):
+fascia stretta semitrasparente per Urano, 5 streaks sottili per Nettuno.
+Saturno mantiene la texture NASA via `<SaturnRings />`.
+
+### ✅ 4.8 Wiring "Scala reale"
+Aggiunto `REAL_SCALE_FACTOR = 0.5` in `bodies3d.ts` (1 AU = 0.5 unità di
+scena). La prop `realScale` propaga da `App` → `SolarScene` → `Bodies`,
+`Orbits`, `SaturnRings`, `PlanetRings`, `AsteroidBelt3D`, `KuiperBelt3D`,
+`Moons`. Le distanze passano da "logaritmiche compresse" a "AU lineari";
+i pianeti interni (Mercurio ~0.2 unità) diventano punti quasi invisibili
+(richiesto zoom), Nettuno resta a ~15 unità.
+
+### ✅ 4.5 Eclissi / Shadow map
+Toggle "🌑 Eclissi" in header (default OFF — shadow map 1024×1024 hanno
+costo GPU). Quando attivo:
+- `gl.shadowMap.enabled = true`, `type = PCFSoftShadowMap`
+- `pointLight` del Sole `castShadow = true`
+- Tutti i pianeti e le lune: `castShadow + receiveShadow`
+
+Effetto: la Luna può proiettare ombra sulla Terra (e viceversa) durante
+un'eclissi, visibile quando l'allineamento geometrico accade (il motore
+kepleriano le posiziona correttamente per ogni data).
+
+### ✅ 4.11 Screenshot mode
+- Bottone "📷 Foto" in header + tasto `S` da tastiera
+- `gl.preserveDrawingBuffer = true` sul Canvas (necessario per `toDataURL`)
+- `canvas.toDataURL('image/png')` + download diretto su desktop
+- **Web Share API** su mobile (`navigator.share({ files: [file] })`) per
+  condividere direttamente
+- Flash overlay 200ms come feedback visivo ("scatto pellicola")
+- File scaricato: `solar-system-{timestamp}.png`
+
+### ✅ 4.9 Elementi orbitali Ω e ω (J2000)
+Aggiunti `longitudeOfAscendingNode` e `argumentOfPerihelion` a tutti gli
+8 pianeti in `data/planets.ts` (valori NASA J2000). `angleToOrbitPosition`
+in `bodies3d.ts` accetta ora un `ascendingNodeDeg` opzionale che ruota
+l'orbita attorno all'asse Y. Propagato a:
+- `Bodies` (posizione pianeti)
+- `Orbits` (linee orbite)
+- `SaturnRings` / `PlanetRings` (anelli seguono il pianeta)
+- `Moons` (lune orbitano attorno al pianeta genitore, Ω del genitore)
+- `AsteroidBelt3D` (Ω medio = 75°)
+- `KuiperBelt3D` (Ω medio = 100°)
+
+Risultato: la "linea degli apsidi" di ciascun pianeta è ora orientata
+realisticamente — visibile soprattutto in date diverse da oggi (il motore
+kepleriano posiziona Mercurio a 48°, Venere a 77°, Terra a 175°, ecc.).
+
+### ⏭ Rimandati (per budget)
+- **4.6 Lens flare**: implementato un primo prototipo (`LensFlare.tsx`
+  con 6 anelli additivi), ma la resa con sfere 3D è deludente vs una
+  soluzione post-processing (`@react-three/postprocessing` ha un LensFlare
+  dedicato che richiede l'integrazione con l'attuale `PostProcessing`).
+  Roadmap: integrare `LensFlare` da postprocessing nella pipeline esistente.
+- **4.10 Texture 4K-8K + normal map**: richiede download asset
+  addizionali (CC-BY NASA). Roadmap: aggiungere `useTexture.preload` per
+  la Terra, Marte, Giove, Saturno.
+- **4.12 WebXR**: richiede refactor sostanziale del scene tree con
+  `<XR>` di @react-three/xr. Roadmap: fase 2.
+
+### 📂 File toccati (S6)
+```
+src/data/planets.ts                        (Ω, ω in PlanetData + 8 pianeti)
+src/scene/bodies3d.ts                      (REAL_SCALE_FACTOR, Ω in Body3D, angleToOrbitPosition)
+src/scene/Bodies.tsx                       (nubi Venere, realScale, eclipsesEnabled)
+src/scene/Moons.tsx                        (NUOVO: 12 lune, realScale, eclipsesEnabled)
+src/scene/PlanetRings.tsx                  (NUOVO: anelli Urano/Nettuno procedurali)
+src/scene/SaturnRings.tsx                  (realScale, Ω)
+src/scene/AsteroidBelt3D.tsx               (colori spettrali, realScale, Ω 75°)
+src/scene/KuiperBelt3D.tsx                 (realScale, Ω 100°)
+src/scene/Orbits.tsx                       (realScale, Ω)
+src/scene/Lighting.tsx                     (eclipsesEnabled → castShadow + shadowMap)
+src/scene/SolarScene.tsx                   (props realScale, eclipsesEnabled)
+src/utils/proceduralTextures.ts            (NUOVO: nubi Venere, anelli Urano/Nettuno)
+src/utils/prefs.ts                         (PREFS_KEYS.eclipsesEnabled)
+src/App.tsx                                (toggle Eclissi, Foto, screenshot handler, flash)
+src/index.css                              (@keyframes screenshot-flash)
+```
+
+### 🧪 Verifiche
+- `npm run typecheck` → ✅
+- `npm run lint` → ✅ (0 errori, 8 warning pre-esistenti non bloccanti)
+- `npm test` → **180/180** ✅ (17 nuovi: 9 Ω + 9 ω it.each, 1 lune reali)
+- `npm run build` → ✅ (47.19 KB main JS, 30.18 KB SolarScene JS)
+
+### 🎮 Come provare
+1. `npm run dev` → apri http://localhost:5173
+2. Clicca "📷 Foto" o premi `S` → screenshot PNG scaricato
+3. Clicca "🌑 Eclissi" → abilita le ombre reali (shadow map); seleziona
+   la Terra e osserva la Luna proiettare ombra durante un'eclissi lunare
+4. Clicca "📏 Scala reale" → distanze AU lineari; i pianeti interni
+   diventano punti (zoom per esplorare)
+5. Clicca "🎬 Tour" → fly-to con Ω reali: gli allineamenti sono corretti
+6. Le lune di Terra/Marte/Giove/Saturno/Urano/Nettuno orbitano visibilmente
+7. Gli asteroidi ora mostrano colori realistici (C/S/M type)

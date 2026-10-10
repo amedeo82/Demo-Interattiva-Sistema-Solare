@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, lazy, Suspense } from 'react';
 import { planets, type PlanetData } from './data/planets';
 import PlanetInfoPanel from './components/PlanetInfoPanel';
 import ControlsSidebar from './components/ControlsSidebar';
@@ -132,6 +132,14 @@ export default function App({ quizRnd }: AppProps = {}) {
     false,
     (v) => typeof v === 'boolean'
   );
+  // 4.5 — Ombre/eclissi: shadow map con costo GPU, default off
+  const [eclipsesEnabled, setEclipsesEnabled] = usePersistentState<boolean>(
+    PREFS_KEYS.eclipsesEnabled,
+    false,
+    (v) => typeof v === 'boolean'
+  );
+  // 4.11 — Screenshot: flag flash sullo schermo dopo lo scatto.
+  const [screenshotFlash, setScreenshotFlash] = useState(false);
   // Motore animativo requestAnimationFrame con orbite kepleriane ed eccentricità.
   // Quando si sceglie una data, offset angolari E tempo simulato di partenza
   // derivano dalla stessa anomalia media (vedi utils/simDate): la scena mostra
@@ -279,6 +287,68 @@ export default function App({ quizRnd }: AppProps = {}) {
     slowmoEndRef.current = performance.now() + 2500;
   };
 
+  // 4.11 — Screenshot: cattura il canvas WebGL e lo scarica. Su mobile con
+  // Web Share API, apre direttamente il pannello di condivisione.
+  const takeScreenshot = useCallback(async () => {
+    const canvas = document.querySelector('canvas');
+    if (!canvas) return;
+    // Forza un render frame per essere sicuri che il buffer sia aggiornato.
+    // (r3f è in continuous render, ma dopo `preserveDrawingBuffer=false`
+    // il toDataURL potrebbe restituire uno schermo vuoto. Settiamolo
+    // esplicitamente sul canvas in produzione se necessario.)
+    let dataUrl: string;
+    try {
+      dataUrl = canvas.toDataURL('image/png');
+    } catch (err) {
+      // WebGL context perse: skip silenzioso.
+      console.warn('[screenshot] toDataURL fallita', err);
+      return;
+    }
+    // Flash overlay per feedback visivo
+    setScreenshotFlash(true);
+    setTimeout(() => setScreenshotFlash(false), 200);
+    // Mobile: Web Share API con file immagine
+    const blob = await (await fetch(dataUrl)).blob();
+    const file = new File([blob], `solar-system-${Date.now()}.png`, { type: 'image/png' });
+    if (
+      typeof navigator.canShare === 'function' &&
+      navigator.canShare({ files: [file] })
+    ) {
+      try {
+        await navigator.share({ files: [file], title: 'Sistema Solare Interattivo' });
+        return;
+      } catch {
+        // user annullato o share fallito: fallback download
+      }
+    }
+    // Desktop fallback: download diretto
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = `solar-system-${Date.now()}.png`;
+    a.click();
+  }, []);
+
+  // Tasto S per screenshot + shortcut hint in header
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target;
+      if (
+        t instanceof HTMLInputElement ||
+        t instanceof HTMLTextAreaElement ||
+        t instanceof HTMLSelectElement ||
+        (t instanceof HTMLElement && t.closest('button'))
+      ) {
+        return;
+      }
+      if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        void takeScreenshot();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [takeScreenshot]);
+
   return (
     <div className="relative flex h-screen w-screen flex-col overflow-hidden text-white">
       <AmbientAudio />
@@ -325,6 +395,14 @@ export default function App({ quizRnd }: AppProps = {}) {
             Realismo
           </button>
           <button
+            onClick={() => setEclipsesEnabled((v) => !v)}
+            aria-pressed={eclipsesEnabled}
+            className={`chip hidden sm:block ${eclipsesEnabled ? 'active' : ''}`}
+            title="Abilita ombre reali: la Luna può proiettare ombra sulla Terra e viceversa (shadow map 1024×1024, costo GPU)"
+          >
+            🌑 Eclissi
+          </button>
+          <button
             onClick={() => setRealScale((v) => !v)}
             aria-pressed={realScale}
             className={`chip hidden sm:block ${realScale ? 'active' : ''}`}
@@ -339,6 +417,13 @@ export default function App({ quizRnd }: AppProps = {}) {
             title="Bloom (alone del Sole) e vignette cinematografica"
           >
             ✨ FX
+          </button>
+          <button
+            className="chip hidden sm:block"
+            onClick={() => void takeScreenshot()}
+            title="Cattura uno screenshot della scena (S)"
+          >
+            📷 Foto
           </button>
           <button
             onClick={() => setShowQuiz(true)}
@@ -381,6 +466,13 @@ export default function App({ quizRnd }: AppProps = {}) {
                       title: 'Bloom (alone del Sole) e vignette cinematografica',
                       active: postFxEnabled,
                       onClick: () => setPostFxEnabled((v) => !v),
+                    },
+                    {
+                      key: 'eclipses',
+                      label: '🌑 Eclissi',
+                      title: 'Ombre reali Terra-Luna (shadow map, costo GPU)',
+                      active: eclipsesEnabled,
+                      onClick: () => setEclipsesEnabled((v) => !v),
                     },
                   ]
                 : []),
@@ -491,6 +583,8 @@ export default function App({ quizRnd }: AppProps = {}) {
               worldHitRef={worldHitRef}
               hoveredBodyRef={hoveredBodyRef}
               mobile={isMobile}
+              realScale={realScale}
+              eclipsesEnabled={eclipsesEnabled}
             />
           </Suspense>
 
@@ -654,6 +748,15 @@ export default function App({ quizRnd }: AppProps = {}) {
           )}
         </div>
       </div>
+
+      {/* 4.11 — Flash overlay per feedback screenshot (200ms). */}
+      {screenshotFlash && (
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 z-[1000] bg-white"
+          style={{ animation: 'screenshot-flash 200ms ease-out forwards' }}
+        />
+      )}
 
       {/* FAB controlli mobile: apre/chiude la bottom sheet. Nascosto su
           desktop (>= 1024px) dove la sidebar è sempre visibile. */}
