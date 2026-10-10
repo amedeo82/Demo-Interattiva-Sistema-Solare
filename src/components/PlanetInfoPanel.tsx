@@ -1,14 +1,24 @@
-import { useEffect, useRef, useReducer } from 'react';
+import { useEffect, useRef, useReducer, useState, useCallback } from 'react';
 import type { PlanetData } from '../data/planets';
 import { formatNumber, formatOrbitalPeriod } from '../utils/format';
 import { useOrbitCounters, type OrbitCountersRef } from '../hooks/useOrbitCounters';
 import type { SimPlanetState } from '../hooks/useOrbitEngine';
+import { PREFS_KEYS, loadJSON, saveJSON, type PanelPos } from '../utils/prefs';
 
 interface Props {
   planet: PlanetData;
   onClose: () => void;
   positionsRef: { current: Record<string, SimPlanetState> };
 }
+
+type Tab = 'data' | 'atmosphere' | 'missions' | 'trivia';
+
+const TABS: { id: Tab; label: string; icon: string }[] = [
+  { id: 'data', label: 'Dati', icon: '📊' },
+  { id: 'atmosphere', label: 'Atmosfera', icon: '🌫' },
+  { id: 'missions', label: 'Missioni', icon: '🚀' },
+  { id: 'trivia', label: 'Curiosità', icon: '💡' },
+];
 
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
@@ -19,23 +29,22 @@ function StatRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Sezione espandibile del pannello (details/summary nativi accessibili). */
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <details className="group border-t border-white/10 py-2" open>
-      <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-semibold uppercase tracking-wider text-white/60 hover:text-white">
-        {title}
-        <span className="transition-transform group-open:rotate-90 text-white/40">▸</span>
-      </summary>
-      <div className="mt-2 text-sm leading-relaxed text-white/75">{children}</div>
-    </details>
-  );
+function validatePos(v: unknown): v is PanelPos {
+  if (!v || typeof v !== 'object') return false;
+  const o = v as { x?: unknown; y?: unknown };
+  return typeof o.x === 'number' && typeof o.y === 'number' && isFinite(o.x) && isFinite(o.y);
 }
 
 export default function PlanetInfoPanel({ planet, onClose, positionsRef }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null);
-  // S4.4 — Contatore orbite: hook che traccia quante orbite ha completato
-  // ciascun pianeta nella sessione corrente.
+  const panelRef = useRef<HTMLDivElement>(null);
+  const dragStateRef = useRef<{
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+  } | null>(null);
+
   const orbitCountersRef: OrbitCountersRef = useOrbitCounters(positionsRef, [
     'Mercury',
     'Venus',
@@ -46,125 +55,254 @@ export default function PlanetInfoPanel({ planet, onClose, positionsRef }: Props
     'Uranus',
     'Neptune',
   ]);
-  // Force re-render ogni 2s per aggiornare il display del counter
-  // (leggendo sempre ref imperativo, mai state).
   const [, force] = useReducer((x: number) => x + 1, 0);
   useEffect(() => {
     const id = setInterval(() => force(), 2000);
     return () => clearInterval(id);
   }, []);
 
-  // Accessibilità: focus iniziale sul pulsante di chiusura del dialog
+  // Focus iniziale sul pulsante di chiusura del dialog
   useEffect(() => {
     closeRef.current?.focus();
   }, [planet.name]);
 
+  // Posizione trascinabile: persistita in localStorage (pixel relativi al
+  // contenitore <main>, dall'angolo top-right).
+  const [pos, setPos] = useState<PanelPos | null>(() =>
+    loadJSON(PREFS_KEYS.panelPos, null, validatePos)
+  );
+  useEffect(() => {
+    if (pos) saveJSON(PREFS_KEYS.panelPos, pos);
+  }, [pos]);
+
+  // Drag del pannello: handle in header (cursore grab).
+  const onDragStart = useCallback(
+    (e: React.PointerEvent) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      const current = pos ?? { x: 16, y: 16 };
+      dragStateRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        origX: current.x,
+        origY: current.y,
+      };
+    },
+    [pos]
+  );
+
+  const onDragMove = useCallback((e: React.PointerEvent) => {
+    const s = dragStateRef.current;
+    if (!s) return;
+    const dx = e.clientX - s.startX;
+    const dy = e.clientY - s.startY;
+    // Invertiamo la X: drag a destra = pannello va più a destra = x aumenta.
+    setPos({ x: s.origX - dx, y: s.origY - dy });
+  }, []);
+
+  const onDragEnd = useCallback((e: React.PointerEvent) => {
+    dragStateRef.current = null;
+    try {
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      /* già rilasciato */
+    }
+  }, []);
+
+  const resetPos = useCallback(() => {
+    setPos(null);
+    try {
+      localStorage.removeItem(PREFS_KEYS.panelPos);
+    } catch {
+      /* noop */
+    }
+  }, []);
+
+  // Tab attivo: default "Dati". Persistito in sessionStorage per la sessione
+  // corrente (non a lungo termine, così riaprendo un pianeta si riparte dai dati).
+  const [tab, setTab] = useState<Tab>('data');
+  useEffect(() => {
+    setTab('data');
+  }, [planet.name]);
+
+  // Escape chiude: lo gestiamo a livello di dialog (oltre a quello globale in App).
+  const onKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+      }
+    },
+    [onClose]
+  );
+
   const periodLabel = formatOrbitalPeriod(planet.orbitalPeriod);
+  const totalOrbits = Object.values(orbitCountersRef.current).reduce((a, b) => a + b, 0);
+  const thisOrbits = orbitCountersRef.current[planet.name] ?? 0;
 
   return (
-    <aside
-      // BUG FIX: il pannello era solo w-[300px] senza cap sull'altezza, e le
-      // sezioni interne avevano max-h-[42vh] che tagliava i contenuti più
-      // lunghi (esmissioni, trivia). Ora l'intero <aside> è scrollabile e
-      // limitato a viewport-4rem, così il contenuto completo è sempre
-      // raggiungibile via scroll. Inoltre z-[200] per stare sopra eventuali
-      // overlay hover.
-      className="panel-in panel-scanline absolute top-4 right-4 z-[200] flex max-h-[calc(100vh-2rem)] w-[320px] max-w-[calc(100vw-2rem)] flex-col rounded-2xl p-5"
+    <div
+      ref={panelRef}
       role="dialog"
       aria-label={`Informazioni su ${planet.nameIt}`}
+      onKeyDown={onKeyDown}
+      style={pos ? { top: pos.y, right: pos.x } : { top: '1rem', right: '1rem' }}
+      className="panel-in panel-scanline absolute z-[200] flex
+                 w-[min(360px,calc(100vw-2rem))] flex-col rounded-2xl p-0
+                 max-h-[calc(100%-2rem)] overflow-hidden"
     >
-      <div className="flex shrink-0 items-start justify-between gap-2">
-        <div>
-          <h2 className="text-xl font-bold leading-tight">{planet.nameIt}</h2>
-          <p className="text-white/40 text-xs mt-0.5 uppercase tracking-widest">{planet.name}</p>
+      {/* Handle + titolo compatto (orizzontale) */}
+      <div
+        onPointerDown={onDragStart}
+        onPointerMove={onDragMove}
+        onPointerUp={onDragEnd}
+        onPointerCancel={onDragEnd}
+        className="flex shrink-0 cursor-grab items-center gap-3 border-b border-white/10 px-4 py-3 active:cursor-grabbing select-none"
+        title="Trascina per riposizionare"
+        data-testid="panel-drag-handle"
+      >
+        <div
+          className="relative h-9 w-9 shrink-0 rounded-full"
+          aria-hidden
+          style={{
+            background: planet.gradient,
+            boxShadow: `0 0 16px ${planet.color}66, inset -4px -4px 8px rgba(0,0,0,0.45)`,
+          }}
+        >
+          {planet.name === 'Saturn' && (
+            <div
+              className="pointer-events-none absolute left-1/2 top-1/2 h-3 w-[130%] -translate-x-1/2 -translate-y-1/2 rotate-[-18deg] rounded-[50%] border"
+              style={{ borderColor: 'rgba(232, 208, 136, 0.55)' }}
+            />
+          )}
         </div>
-        {/* BUG FIX: hit area del close button era solo ~36px (mobile-unfriendly).
-            Portata a 44×44 con bordo visibile, contrasto alto, focus-visible. */}
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-base font-bold leading-tight">{planet.nameIt}</h2>
+          <p className="truncate text-[10px] uppercase tracking-widest text-white/40">
+            {planet.name} · {planet.symbol}
+          </p>
+        </div>
+        {pos && (
+          <button
+            onClick={resetPos}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[11px] text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+            aria-label="Ripristina posizione pannello"
+            title="Ripristina posizione predefinita"
+          >
+            ⤧
+          </button>
+        )}
         <button
           ref={closeRef}
           onClick={onClose}
           aria-label="Chiudi pannello"
-          className="-m-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-white/5 text-lg text-white/70 transition-colors hover:border-white/40 hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-white/5 text-sm text-white/70 transition-colors hover:border-white/40 hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400"
         >
           ✕
         </button>
       </div>
 
-      {/* Anteprima pianeta */}
-      <div className="my-5 flex justify-center">
-        <div
-          className="relative h-16 w-16 rounded-full"
-          style={{
-            background: planet.gradient,
-            boxShadow: `0 0 32px ${planet.color}55, inset -8px -8px 16px rgba(0,0,0,0.45)`,
-          }}
-        >
-          {planet.name === 'Saturn' && (
-            <div
-              className="absolute left-1/2 top-1/2 h-7 w-[130%] -translate-x-1/2 -translate-y-1/2 rotate-[-18deg] rounded-[50%] border-2 pointer-events-none"
-              style={{ borderColor: 'rgba(232, 208, 136, 0.55)' }}
-            />
-          )}
-        </div>
+      {/* Tab bar */}
+      <div
+        role="tablist"
+        aria-label="Sezioni informazioni pianeta"
+        className="flex shrink-0 gap-1 border-b border-white/10 bg-black/20 px-2 py-1.5"
+      >
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={tab === t.id}
+            onClick={() => setTab(t.id)}
+            className={`flex-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
+              tab === t.id
+                ? 'bg-white/15 text-white'
+                : 'text-white/55 hover:bg-white/5 hover:text-white/80'
+            }`}
+          >
+            <span aria-hidden className="mr-1">
+              {t.icon}
+            </span>
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      <p className="mb-4 text-sm italic leading-relaxed text-white/70">{planet.description}</p>
-
-      {/* BUG FIX: tutto il pannello è un'unica area scrollabile (overflow-y-auto
-          sul <aside>) invece di due sezioni annidate con max-h separati. */}
-      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-        <div className="flex flex-col">
-          <StatRow label="Diametro" value={`${formatNumber(planet.diameter)} km`} />
-          <StatRow
-            label="Distanza dal Sole"
-            value={`${formatNumber(planet.distanceFromSun)} mln km`}
-          />
-          <StatRow label="Periodo orbitale" value={periodLabel} />
-          <StatRow label="Rotazione (giorno)" value={planet.facts.dayLength} />
-          <StatRow label="Inclinazione assiale" value={`${planet.axialTilt}°`} />
-          <StatRow label="Eccentricità orbita" value={planet.eccentricity.toFixed(4)} />
-          {/* S4.4 — Mission log: orbite completate da inizio sessione */}
-          <StatRow
-            label="Orbite in questa sessione"
-            value={`${orbitCountersRef.current[planet.name] ?? 0}`}
-          />
-          <StatRow
-            label="Orbite totali (tutti i corpi)"
-            value={`${Object.values(orbitCountersRef.current).reduce((a, b) => a + b, 0)}`}
-          />
-          {planet.moons.length > 0 && (
+      {/* Contenuto scrollabile */}
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+        {tab === 'data' && (
+          <div className="flex flex-col">
+            <p className="mb-3 text-[13px] italic leading-relaxed text-white/70">
+              {planet.description}
+            </p>
+            <StatRow label="Diametro" value={`${formatNumber(planet.diameter)} km`} />
+            <StatRow
+              label="Distanza dal Sole"
+              value={`${formatNumber(planet.distanceFromSun)} mln km`}
+            />
+            <StatRow label="Periodo orbitale" value={periodLabel} />
+            <StatRow label="Rotazione (giorno)" value={planet.facts.dayLength} />
+            <StatRow label="Inclinazione assiale" value={`${planet.axialTilt}°`} />
+            <StatRow label="Eccentricità orbita" value={planet.eccentricity.toFixed(4)} />
             <StatRow
               label={`Satelliti mostrati (${planet.facts.moonsCount} totali)`}
-              value={planet.moons.map((m) => m.name).join(', ')}
+              value={
+                planet.moons.length > 0 ? planet.moons.map((m) => m.name).join(', ') : 'Nessuno'
+              }
             />
-          )}
-        </div>
+            <p className="mt-3 text-[10px] uppercase tracking-wider text-white/40">
+              Sessione corrente
+            </p>
+            <StatRow label={`Orbite di ${planet.nameIt}`} value={`${thisOrbits}`} />
+            <StatRow label="Orbite totali (tutti i corpi)" value={`${totalOrbits}`} />
+          </div>
+        )}
 
-        {/* Sezioni espandibili: atmosfera, missioni, curiosità */}
-        <div className="mt-3">
-          <Section title="Atmosfera e clima">
-            <p>{planet.facts.atmosphere}</p>
-            <p className="mt-1 text-white/60">🌡️ {planet.facts.temperature}</p>
-          </Section>
-          <Section title="Missioni spaziali">
-            <ul className="list-inside list-disc space-y-0.5">
-              {planet.facts.missions.map((m) => (
-                <li key={m}>{m}</li>
-              ))}
-            </ul>
-          </Section>
-          <Section title="Lo sapevi?">
-            <ul className="list-inside list-disc space-y-1">
+        {tab === 'atmosphere' && (
+          <div className="text-sm leading-relaxed text-white/80">
+            <p className="mb-2 text-[10px] uppercase tracking-wider text-white/40">Composizione</p>
+            <p className="mb-4">{planet.facts.atmosphere}</p>
+            <p className="mb-2 text-[10px] uppercase tracking-wider text-white/40">Clima</p>
+            <p className="rounded-lg bg-white/5 px-3 py-2 text-sm">🌡️ {planet.facts.temperature}</p>
+          </div>
+        )}
+
+        {tab === 'missions' && (
+          <ul className="space-y-1.5 text-sm text-white/80">
+            {planet.facts.missions.length === 0 ? (
+              <li className="text-white/50">Nessuna missione registrata.</li>
+            ) : (
+              planet.facts.missions.map((m) => (
+                <li key={m} className="flex items-start gap-2">
+                  <span aria-hidden className="text-white/40">
+                    ▸
+                  </span>
+                  <span>{m}</span>
+                </li>
+              ))
+            )}
+          </ul>
+        )}
+
+        {tab === 'trivia' && (
+          <div>
+            <ul className="mb-3 space-y-1.5 text-sm text-white/80">
               {planet.facts.trivia.map((t) => (
-                <li key={t}>{t}</li>
+                <li key={t} className="flex items-start gap-2">
+                  <span aria-hidden className="text-yellow-300/80">
+                    ★
+                  </span>
+                  <span>{t}</span>
+                </li>
               ))}
             </ul>
-            <p className="mt-2 rounded-lg bg-white/5 px-2 py-1.5 text-xs text-emerald-200/90">
+            <p className="rounded-lg bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-200/90">
               📏 {planet.facts.comparison}
             </p>
-          </Section>
-        </div>
+          </div>
+        )}
       </div>
-    </aside>
+    </div>
   );
 }

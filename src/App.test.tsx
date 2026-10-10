@@ -48,6 +48,42 @@ describe('App — interazioni', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('il pannello espone le tab Dati / Atmosfera / Missioni / Curiosità', () => {
+    render(<App />);
+    fireEvent.click(screen.getAllByRole('button', { name: /^Saturno$/i })[0]);
+    const dialog = screen.getByRole('dialog', { name: /Informazioni su Saturno/i });
+    // tablist ARIA: deve contenere tutte e 4 le sezioni
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.map((t) => t.textContent)).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/Dati/),
+        expect.stringMatching(/Atmosfera/),
+        expect.stringMatching(/Missioni/),
+        expect.stringMatching(/Curiosità/),
+      ])
+    );
+    // default: Dati è selezionata
+    expect(tabs.find((t) => t.textContent?.match(/Dati/))).toHaveAttribute('aria-selected', 'true');
+    // Cambio tab → Missioni: la lista missioni appare
+    fireEvent.click(tabs.find((t) => t.textContent?.match(/Missioni/))!);
+    expect(tabs.find((t) => t.textContent?.match(/Missioni/))).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+    expect(dialog).toHaveTextContent(/Cassini-Huygens/);
+  });
+
+  it('il pannello non sfora dal contenitore <main> (regression desktop overflow)', () => {
+    render(<App />);
+    fireEvent.click(screen.getAllByRole('button', { name: /^Marte$/i })[0]);
+    const dialog = screen.getByRole('dialog', { name: /Informazioni su Marte/i });
+    // Deve essere posizionato assolutamente dentro <main>, con max-h relativo
+    // al contenitore (non al viewport) per evitare lo sforamento sotto l'header.
+    const cls = dialog.className;
+    expect(cls).toMatch(/absolute/);
+    expect(cls).toMatch(/max-h-\[calc\(100%-2rem\)\]/);
+  });
+
   it('attiva/disattiva la riproduzione dal pulsante in sidebar', () => {
     render(<App />);
     const btn = screen.getByRole('button', { name: /Pausa/i });
@@ -95,5 +131,18 @@ describe('App — scorciatoie da tastiera', () => {
     fireEvent.keyDown(window, { key: ' ' });
     window.removeEventListener('keydown', handler);
     expect(handler).toHaveBeenCalled();
+  });
+});
+
+describe('App — menu overflow header', () => {
+  it('apre il menu "⋯" e mostra Confronto/Tour/Free Cam', () => {
+    render(<App />);
+    // Le voci secondarie dell'header non sono più bottoni sempre visibili:
+    // vivono dentro un menu a tendina (role=menu) attivato dal bottone "⋯".
+    expect(screen.queryByRole('menuitem', { name: /Confronto/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Altre opzioni/i }));
+    expect(screen.getByRole('menuitem', { name: /Confronto/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Tour/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Free Cam/i })).toBeInTheDocument();
   });
 });

@@ -6,7 +6,7 @@
  *   - texture esterne NASA (jpg): stale-while-revalidate
  *
  * Versione cache: bump in `CACHE_NAME` per invalidare tutto al deploy. */
-const CACHE_NAME = 'solarsys-v1';
+const CACHE_NAME = 'solarsys-v2';
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon-192.svg', '/icon-512.svg'];
 
 self.addEventListener('install', (event) => {
