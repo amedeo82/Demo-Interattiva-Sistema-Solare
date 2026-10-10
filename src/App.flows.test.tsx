@@ -35,7 +35,10 @@ describe('Flusso: modalità confronto pianeti', () => {
   it('apre il confronto, cambia i pianeti nei due select e verifica i valori', async () => {
     render(<App />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Confronto/i }));
+    // Il bottone "Confronto" è stato spostato in un menu overflow "⋯" per
+    // liberare spazio nell'header. Lo apriamo prima del click.
+    fireEvent.click(screen.getByRole('button', { name: /Altre opzioni/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Confronto/i }));
     const dialog = await screen.findByRole('dialog', { name: /Confronto pianeti/i });
     expect(dialog).toBeInTheDocument();
 

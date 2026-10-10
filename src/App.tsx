@@ -344,35 +344,38 @@ export default function App({ quizRnd }: AppProps = {}) {
             ✨ FX
           </button>
           <button
-            onClick={() => setShowCompare(true)}
-            className="chip hidden md:block"
-            title="Confronta due pianeti"
-          >
-            ⚖️ Confronto
-          </button>
-          <button
-            onClick={() => setTourActive((v) => !v)}
-            aria-pressed={tourActive}
-            className={`chip ${tourActive ? 'active' : ''}`}
-            title="Tour guidato: panoramica → Terra → Saturno"
-          >
-            🎬 Tour
-          </button>
-          <button
-            onClick={() => setFreeCamera((v) => !v)}
-            aria-pressed={freeCamera}
-            className={`chip ${freeCamera ? 'active' : ''}`}
-            title="Modalità camera libera: orbita illimitata, tilt sbloccato"
-          >
-            🛰 Free Cam
-          </button>
-          <button
             onClick={() => setShowQuiz(true)}
             className="chip"
             title="Metti alla prova le tue conoscenze"
           >
             🧠 Quiz
           </button>
+          {/* Menu overflow "⋯" — visibile solo quando i chip principali non
+              entrano nell'header. Mostriamo Confronto/Tour/Free Cam. */}
+          <OverflowMenu
+            items={[
+              {
+                key: 'compare',
+                label: '⚖️ Confronto',
+                title: 'Confronta due pianeti',
+                onClick: () => setShowCompare(true),
+              },
+              {
+                key: 'tour',
+                label: '🎬 Tour',
+                title: 'Tour guidato',
+                active: tourActive,
+                onClick: () => setTourActive((v) => !v),
+              },
+              {
+                key: 'freecam',
+                label: '🛰 Free Cam',
+                title: 'Camera libera',
+                active: freeCamera,
+                onClick: () => setFreeCamera((v) => !v),
+              },
+            ]}
+          />
           <button
             data-chip="ambient"
             onClick={() => {
@@ -575,6 +578,82 @@ export default function App({ quizRnd }: AppProps = {}) {
           <QuizModal planets={planets} onClose={() => setShowQuiz(false)} rnd={stableQuizRnd} />
         )}
       </Suspense>
+    </div>
+  );
+}
+
+interface OverflowItem {
+  key: string;
+  label: string;
+  title: string;
+  onClick: () => void;
+  active?: boolean;
+}
+
+/** Bottone "⋯" che apre un menu dropdown con le voci secondarie dell'header.
+ *  Pensato per header stretti: se i chip entrano, `flex-wrap` li tiene in linea
+ *  — il menu aggiunge solo uno shortcut cliccabile per le 3 voci più "nascoste". */
+function OverflowMenu({ items }: { items: OverflowItem[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Altre opzioni"
+        title="Altre opzioni"
+        className={`chip ${open ? 'active' : ''}`}
+      >
+        ⋯
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="panel-in absolute right-0 top-full z-50 mt-1.5 flex min-w-[180px] flex-col gap-0.5 rounded-lg border border-white/10 bg-[#0d0d2a]/95 p-1.5 shadow-2xl backdrop-blur-md"
+        >
+          {items.map((it) => (
+            <button
+              key={it.key}
+              role="menuitem"
+              onClick={() => {
+                it.onClick();
+                setOpen(false);
+              }}
+              className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-1.5 text-left text-[12px] transition-colors hover:bg-white/10 ${
+                it.active ? 'text-white' : 'text-white/75'
+              }`}
+              title={it.title}
+            >
+              <span>{it.label}</span>
+              {it.active && (
+                <span className="text-purple-300" aria-hidden>
+                  ●
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

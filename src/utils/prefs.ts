@@ -70,4 +70,12 @@ export const PREFS_KEYS = {
   realistic: 'solarsys.realistic',
   postFxEnabled: 'solarsys.postfx',
   realScale: 'solarsys.realscale',
+  panelPos: 'solarsys.panelpos',
 } as const;
+
+/** Posizione trascinabile del pannello pianeta, in pixel dall'angolo top-right
+ *  del contenitore. Valori null = posizione di default (top-4, right-4). */
+export interface PanelPos {
+  x: number;
+  y: number;
+}
