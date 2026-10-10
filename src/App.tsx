@@ -673,10 +673,14 @@ export default function App({ quizRnd }: AppProps = {}) {
             diventa una bottom sheet che copre la scena solo quando aperta
             (FAB "☰ Controlli" in basso a destra). Il contenuto resta sempre
             montato: la lista pianeti resta accessibile agli screen reader. */}
-        <div className={isMobile ? 'absolute inset-0' : 'relative'}>
+        <div className={isMobile ? 'pointer-events-none absolute inset-0' : 'relative'}>
           <div
             id="controls-sheet"
-            className={isMobile ? `mobile-sheet ${controlsSheetOpen ? 'open' : ''}` : 'relative'}
+            className={
+              isMobile
+                ? `mobile-sheet pointer-events-auto ${controlsSheetOpen ? 'open' : ''}`
+                : 'relative'
+            }
           >
             {isMobile && (
               <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-[#0d0d2a]/95 px-4 py-2">

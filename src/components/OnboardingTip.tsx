@@ -52,7 +52,7 @@ export function OnboardingTip({
 
   return (
     <div
-      className="onboard-tip"
+      className="onboard-tip pointer-events-auto"
       data-side={side}
       style={{ top, left, right, bottom }}
       role="status"
