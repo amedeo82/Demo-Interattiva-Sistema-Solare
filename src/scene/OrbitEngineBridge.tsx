@@ -9,8 +9,13 @@ import type { SimPlanetState } from '../hooks/useOrbitEngine';
 
 export type PositionsRef = MutableRefObject<Record<string, SimPlanetState>>;
 export type SimRateRef = MutableRefObject<number>;
+export type SimTimeRef = MutableRefObject<number>;
 
-const Ctx = createContext<{ positionsRef: PositionsRef; simRateRef: SimRateRef } | null>(null);
+const Ctx = createContext<{
+  positionsRef: PositionsRef;
+  simRateRef: SimRateRef;
+  simTimeRef: SimTimeRef;
+} | null>(null);
 
 export function useOrbitEngineContext() {
   const v = useContext(Ctx);
@@ -21,11 +26,13 @@ export function useOrbitEngineContext() {
 export function OrbitEngineBridge({
   positionsRef,
   simRateRef,
+  simTimeRef,
   children,
 }: {
   positionsRef: PositionsRef;
   simRateRef: SimRateRef;
+  simTimeRef: SimTimeRef;
   children: ReactNode;
 }) {
-  return <Ctx.Provider value={{ positionsRef, simRateRef }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ positionsRef, simRateRef, simTimeRef }}>{children}</Ctx.Provider>;
 }

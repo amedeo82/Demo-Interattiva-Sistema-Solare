@@ -241,7 +241,21 @@ export function useOrbitEngine(
 
   const useSimTime = () => simTime;
 
-  return { subscribeFrames, useSimTime, simTimeRef, positionsRef, simRateRef };
+  // Seek imperativo: sposta la simulazione a un tempo specifico senza
+  // passare dal reconciler React. Usato dalla timeline scrubber. Aggiorna
+  // posizioni + tempo e notifica subito tutti gli abbonati (compresi i
+  // consumatori throttled di simTime).
+  const seekTo = useCallback(
+    (t: number) => {
+      simTimeRef.current = t;
+      computeInto(t, positionsRef.current);
+      emitRef.current();
+      publishSimTimeRef.current(true);
+    },
+    [computeInto]
+  );
+
+  return { subscribeFrames, useSimTime, simTimeRef, positionsRef, simRateRef, seekTo };
 }
 
 /**

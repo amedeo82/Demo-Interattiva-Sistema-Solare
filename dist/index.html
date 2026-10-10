@@ -4,6 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sistema Solare Interattivo</title>
+    <meta name="description" content="Simulazione 3D interattiva del sistema solare con fisica kepleriana, texture procedurali, quiz e confronto." />
+    <meta name="theme-color" content="#0d0d2a" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/icon-192.svg" />
+    <link rel="apple-touch-icon" href="/icon-192.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -54,12 +59,22 @@
         });
       })();
     </script>
-    <script type="module" crossorigin src="/assets/index-B6-8f5cy.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/three-vendor-VPADYFFL.js">
-    <link rel="modulepreload" crossorigin href="/assets/drei-vendor-0IKf8KVU.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-B3fSCzNi.css">
+    <script type="module" crossorigin src="/assets/index-5opfPMht.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/three-vendor-qumOofDi.js">
+    <link rel="modulepreload" crossorigin href="/assets/drei-vendor-BPnMHKwv.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-D8LkzOce.css">
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Registra il service worker in produzione (evita HMR dev hiccups).
+      if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {
+            // Silente: la PWA è un enhancement, l'app funziona anche senza.
+          });
+        });
+      }
+    </script>
   </body>
 </html>

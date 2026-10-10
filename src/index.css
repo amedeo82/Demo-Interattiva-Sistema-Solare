@@ -284,6 +284,34 @@ body,
   pointer-events: none;
 }
 
+/* Ombra del pianeta sugli anelli: layer ellittico riempito con radial
+ * gradient il cui "centro luce" è scritto imperativamente in Planet.tsx
+ * (lato opposto al Sole = lato in ombra). */
+.planet-shadow-on-rings {
+  top: 50%;
+  left: 50%;
+  width: 190%;
+  height: 60%;
+  transform: translate(-50%, -50%) rotate(-20deg);
+  border-radius: 50%;
+  /* background impostato imperativamente */
+  mix-blend-mode: multiply;
+}
+
+/* Ombra degli anelli sul disco: sottile banda orizzontale scura che si
+ * sposta sopra/sotto il centro disco a seconda della fase. */
+.ring-shadow-on-planet {
+  position: absolute;
+  left: -45%;
+  right: -45%;
+  top: 47%;
+  height: 6%;
+  background: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.55) 50%, transparent 100%);
+  mix-blend-mode: multiply;
+  border-radius: 50%;
+  will-change: opacity, transform;
+}
+
 /* Atmosfera (S2.3): non più alone piatto, ma scattering a doppio anello
  * con mix-blend-mode screen per non sporcare il nero dello sfondo. La
  * larghezza dell'anello è tarata in modo che sia visibile anche sui pianeti
@@ -305,6 +333,13 @@ body,
   border-radius: 50%;
   mix-blend-mode: screen;
   will-change: background;
+}
+
+/* Bump map layer: in scala di grigi, mix-blend-mode overlay per modulare
+ * la luce in base al rilievo. pointer-events:none per non interferire con
+ * la selezione del pianeta. */
+.planet-bump {
+  pointer-events: none;
 }
 
 /* Terminatore (S2.1): strato scuro radiale il cui "centro luce" è scritto
@@ -420,9 +455,18 @@ body,
   color: rgba(255, 255, 255, 0.85);
 }
 .chip.active {
-  background: rgba(168, 85, 247, 0.35);
-  border-color: var(--accent-purple);
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.32), rgba(168, 85, 247, 0.18));
+  border-color: var(--accent-purple-strong);
   color: #e9d5ff;
+  box-shadow: 0 0 14px rgba(168, 85, 247, 0.25);
+}
+
+/* Chip "Audio" riflette lo stato via aria-pressed gestito da AmbientAudio. */
+.chip[aria-pressed='true'] {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(56, 189, 248, 0.1));
+  border-color: rgba(56, 189, 248, 0.55);
+  color: #bae6fd;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.22);
 }
 
 .planet-row {

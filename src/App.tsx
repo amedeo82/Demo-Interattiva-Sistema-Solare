@@ -3,6 +3,10 @@ import { planets, type PlanetData } from './data/planets';
 import PlanetInfoPanel from './components/PlanetInfoPanel';
 import ControlsSidebar from './components/ControlsSidebar';
 import { IntroOverlay } from './components/IntroOverlay';
+import Timeline from './components/Timeline';
+import { OnboardingTip } from './components/OnboardingTip';
+import { ConjunctionBanner } from './components/ConjunctionBanner';
+import AmbientAudio from './components/AmbientAudio';
 // Code-splitting: i modali (confronto/quiz) non servono al primo paint.
 const CompareModal = lazy(() => import('./components/CompareModal'));
 const QuizModal = lazy(() => import('./components/QuizModal'));
@@ -105,6 +109,9 @@ export default function App({ quizRnd }: AppProps = {}) {
   const [tourStep, setTourStep] = useState<'idle' | 'overview' | 'earth' | 'saturn' | 'end'>(
     'idle'
   );
+  // Timeline: pausa automatica durante il drag per evitare che il motore
+  // "scappi" dalla posizione scelta. Stato locale (non persistito).
+  const [isDraggingTimeline, setIsDraggingTimeline] = useState(false);
   // S4.2 — Refs per TelemetryHUD: aggiornati a 60Hz dentro il Canvas,
   // letti a 2Hz dal DOM HUD. Zero re-render React per il loop rAF.
   const cameraDistanceRef = useRef(100);
@@ -118,6 +125,13 @@ export default function App({ quizRnd }: AppProps = {}) {
   const [postFxEnabled, setPostFxEnabled] = usePersistentState<boolean>(
     PREFS_KEYS.postFxEnabled,
     true,
+    (v) => typeof v === 'boolean'
+  );
+  // Modalità "scala reale": persistita. L'effetto 3D vero (distanze 1:1)
+  // è wired in Bodies.tsx via prop; qui esponiamo solo lo stato e il chip.
+  const [realScale, setRealScale] = usePersistentState<boolean>(
+    PREFS_KEYS.realScale,
+    false,
     (v) => typeof v === 'boolean'
   );
   useViewport();
@@ -142,14 +156,14 @@ export default function App({ quizRnd }: AppProps = {}) {
   );
   const engine = useOrbitEngine(
     planets,
-    isPlaying,
+    isPlaying && !isDraggingTimeline,
     speed,
     initialAngles,
     startSimTime,
     initialAnomalies,
     slowmoMultiplierRef
   );
-  const { positionsRef, simRateRef } = engine;
+  const { positionsRef, simRateRef, simTimeRef, seekTo } = engine;
   // `simTime` throttled (~4Hz): basta alla data in sidebar; NON riconduce la
   // scena a 60fps come faceva il vecchio stato del motore.
   const simTime = engine.useSimTime();
@@ -254,11 +268,12 @@ export default function App({ quizRnd }: AppProps = {}) {
 
   // Reset visuale: nella 3D OrbitControls gestisce camera + zoom + pan,
   // quindi ci limitiamo a resettare il tilt custom dell'utente.
-  // Reset visuale: nella 3D OrbitControls gestisce camera + zoom + pan,
-  // quindi ci limitiamo a resettare il tilt custom dell'utente.
   const resetView = () => {
     setTilt(TILT_RESET);
   };
+
+  // Torna a "oggi": annulla la data scelta, lasciando la simulazione al presente.
+  const goToToday = () => setSimDate(null);
 
   const handleSelectPlanet = (p: PlanetData) => {
     setSelectedPlanet(p);
@@ -269,6 +284,7 @@ export default function App({ quizRnd }: AppProps = {}) {
 
   return (
     <div className="relative flex h-screen w-screen flex-col overflow-hidden text-white">
+      <AmbientAudio />
       {/* Header */}
       <header className="relative z-10 flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-white/10 bg-gradient-to-r from-[#0d1b3e]/90 to-[#1a0a3e]/90 px-4 py-3 backdrop-blur-md">
         <h1 className="text-lg font-bold tracking-wide md:text-xl">
@@ -290,6 +306,11 @@ export default function App({ quizRnd }: AppProps = {}) {
               className="rounded-lg border border-white/15 bg-[#141433] px-2 py-1 text-xs text-white"
             />
           </label>
+          {simDate && (
+            <button onClick={goToToday} className="chip" title="Torna alla data di oggi">
+              📍 Oggi
+            </button>
+          )}
           <button
             onClick={() => setShowLabels((v) => !v)}
             aria-pressed={showLabels}
@@ -305,6 +326,14 @@ export default function App({ quizRnd }: AppProps = {}) {
             title="Texture procedurali, lune e fascia degli asteroidi"
           >
             Realismo
+          </button>
+          <button
+            onClick={() => setRealScale((v) => !v)}
+            aria-pressed={realScale}
+            className={`chip ${realScale ? 'active' : ''}`}
+            title="Scala 1:1 (stelle molto lontane: la maggior parte dei pianeti diventa invisibile)"
+          >
+            📏 Scala reale
           </button>
           <button
             onClick={() => setPostFxEnabled((v) => !v)}
@@ -344,8 +373,32 @@ export default function App({ quizRnd }: AppProps = {}) {
           >
             🧠 Quiz
           </button>
+          <button
+            data-chip="ambient"
+            onClick={() => {
+              type W = Window & { __toggleAmbient?: () => void };
+              (window as W).__toggleAmbient?.();
+            }}
+            className="chip"
+            title="Drone ambientale di sottofondo (sintetizzato, no download)"
+          >
+            🔊 Audio
+          </button>
         </div>
       </header>
+
+      {/* Timeline interattiva: scrubbing avanti/indietro nel tempo di
+          simulazione. Posizionata tra header e contenuto per restare
+          sempre visibile. */}
+      <div className="relative z-10 shrink-0 px-3 pt-2">
+        <Timeline
+          baseSimTime={startSimTime}
+          currentSimTime={simTime}
+          yearSimSeconds={CONFIG.earthYearSimSeconds}
+          onSeek={seekTo}
+          onDragChange={setIsDraggingTimeline}
+        />
+      </div>
 
       {/* Contenuto principale */}
       <div className="relative z-10 flex min-h-0 flex-1 flex-col-reverse lg:flex-row">
@@ -368,17 +421,31 @@ export default function App({ quizRnd }: AppProps = {}) {
             worldHitRef={worldHitRef}
             hoveredBodyRef={hoveredBodyRef}
           />
+          {/* Banner congiunzioni */}
+          <ConjunctionBanner />
+          {/* Disclaimer scala reale */}
+          {realScale && (
+            <div
+              className="pointer-events-none absolute left-1/2 bottom-24 z-20 -translate-x-1/2 max-w-md rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-1.5 text-center text-[11px] text-amber-200 backdrop-blur-sm"
+              role="status"
+            >
+              ⚠️ Scala reale: i pianeti interni sono punti quasi invisibili. Usa lo zoom per
+              esplorare.
+            </div>
+          )}
 
           <Suspense fallback={<div className="h-full w-full" aria-label="Caricamento scena 3D" />}>
             <SolarScene
               positionsRef={positionsRef}
               simRateRef={simRateRef}
+              simTimeRef={simTimeRef}
               selectedBodyName={selectedPlanet?.name ?? null}
               onSelectBody={(name) => {
                 const p = planets.find((x) => x.name === name) ?? null;
                 setSelectedPlanet(p);
               }}
               postFxEnabled={postFxEnabled}
+              realistic={realistic}
               tiltRef={tiltRef}
               onIntroComplete={() => setIntroVisible(false)}
               freeCamera={freeCamera}
@@ -396,7 +463,7 @@ export default function App({ quizRnd }: AppProps = {}) {
           {/* S3.3 — Title overlay cinematografico sopra tutto */}
           {introVisible && (
             <IntroOverlay
-              visibleMs={1500}
+              minVisibleMs={1500}
               fadeMs={1200}
               onComplete={() => setIntroVisible(false)}
             />
@@ -478,17 +545,28 @@ export default function App({ quizRnd }: AppProps = {}) {
         </main>
 
         {/* Sidebar controlli */}
-        <ControlsSidebar
-          isPlaying={isPlaying}
-          onTogglePlay={() => setIsPlaying((p) => !p)}
-          speed={speed}
-          onSpeedChange={setSpeed}
-          speedOptions={SPEED_OPTIONS}
-          planets={planets}
-          selectedName={selectedPlanet?.name ?? null}
-          onSelectPlanet={handleSelectPlanet}
-          currentDate={currentDate}
-        />
+        <div className="relative">
+          <ControlsSidebar
+            isPlaying={isPlaying}
+            onTogglePlay={() => setIsPlaying((p) => !p)}
+            speed={speed}
+            onSpeedChange={setSpeed}
+            speedOptions={SPEED_OPTIONS}
+            planets={planets}
+            selectedName={selectedPlanet?.name ?? null}
+            onSelectPlanet={handleSelectPlanet}
+            currentDate={currentDate}
+          />
+          {/* Onboarding tip: mostrato al primo avvio, dopo l'intro cinematografico */}
+          {!introVisible && (
+            <OnboardingTip
+              top="40%"
+              left="-260px"
+              side="right"
+              text="Clicca un pianeta per vederlo da vicino. Trascina la timeline sopra per viaggiare nel tempo. Buon viaggio! 🚀"
+            />
+          )}
+        </div>
       </div>
 
       <Suspense fallback={null}>
