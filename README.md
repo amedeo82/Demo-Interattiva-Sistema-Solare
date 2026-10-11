@@ -132,7 +132,7 @@ Scomposizione dei componenti visivi: Sole (limb darkening + corona), Pianeti (al
 - **Design system** centralizzato (`src/index.css`): token CSS, superficie `glass` condivisa, slider/chip/timeline coerenti
 - Onboarding tip al primo avvio (persistito, posizionato adattivamente mobile/desktop)
 - Cinematic transitions: fly-to 1.2s, intro flythrough 3s, slow-mo 0.25× automatico su select
-- Bloom + Vignette post-processing (toggle "FX")
+- Bloom + Vignette post-processing (toggle "FX"; composer con `multisampling={0}`: con MSAA > 0 il canvas presenta frame neri a intermittenza — sfarfallio, intro e orbite invisibili — vedi `src/scene/PostProcessing.tsx`)
 
 ## 🛠️ Stack tecnologico
 
@@ -238,7 +238,7 @@ vercel --prod   # produzione
 │   │   ├── CameraTracker.tsx  # Distanza/FPS ref live dentro Canvas
 │   │   ├── TourController.tsx # Tour guidato
 │   │   ├── HoverRaycaster.tsx # Raycast mouse per hover/selezione
-│   │   ├── PostProcessing.tsx # Bloom + Vignette
+│   │   ├── PostProcessing.tsx # Bloom + Vignette (composer multisampling=0, vedi nota nel file)
 │   │   ├── Lighting.tsx       # Ambient + pointLight + shadow map (eclissi)
 │   │   ├── LoadingProvider.tsx# Ponte Canvas↔DOM per useProgress
 │   │   ├── TelemetryHUD.tsx   # SPD / DATE / DIST / FPS

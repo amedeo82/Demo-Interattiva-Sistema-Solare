@@ -300,6 +300,22 @@ menu overflow "⋯" con stato `active` (pallino viola).
 - `postFxEnabled` default `false` su mobile al primo avvio (bloom è il
   pass più costoso su GPU integrate)
 
+### Post-processing (FX) e vincolo sul multisampling
+
+**File**: `src/scene/PostProcessing.tsx`
+
+- Il toggle "FX" monta `<EffectComposer>` con Bloom (alone del Sole) e
+  Vignette; attivo di default su desktop, OFF su mobile
+- **Il composer usa `multisampling={0}` e deve restare così**: con
+  `multisampling={4}` (MSAA sui render target del composer) il canvas
+  presenta frame neri a intermittenza. Sintomi: scena che sfarfalla,
+  intro flythrough e orbite praticamente invisibili, FPS crollati
+- Verifica (drawing buffer campionato a 64×64 sul centro canvas):
+  55/60 frame neri con `multisampling={4}`, 0/60 con `multisampling={0}`,
+  con FPS passati da ~17 a ~46 in ambiente software-rendered
+- Non ri-alzare il valore senza un test cross-GPU; se serve antialiasing
+  valutare un pass SMAA invece dell'MSAA del composer
+
 ### Viewport & touch
 
 **File**: `index.html`, `src/index.css`
