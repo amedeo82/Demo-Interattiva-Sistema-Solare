@@ -9,6 +9,19 @@
 :root {
   --bg-deep: #060614;
   --accent-purple: rgba(168, 85, 247, 0.5);
+  /* S8 · M8 — token semantici per accessibilità WCAG AA.
+   * --text-secondary è il testo di supporto "standard"; --text-muted è per
+   * label piccole/uppercase decorative. Entrambi ≥ 0.62 alpha per restare
+   * sopra il rapporto 4.5:1 sul vetro scuro (--bg-deep + glass blur). */
+  --text-secondary: rgba(255, 255, 255, 0.78);
+  --text-muted: rgba(255, 255, 255, 0.62);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+.text-muted {
+  color: var(--text-muted);
 }
 
 html,

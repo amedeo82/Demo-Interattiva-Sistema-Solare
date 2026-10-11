@@ -57,7 +57,8 @@ export function SaturnRings({ realScale = false }: { realScale?: boolean } = {})
       pos.angle,
       dist,
       groupRef.current.position,
-      SATURN.longitudeOfAscendingNode
+      SATURN.longitudeOfAscendingNode,
+      SATURN.orbitalInclination
     );
   });
 

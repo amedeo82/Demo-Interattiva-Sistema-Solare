@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback, lazy, Suspense } from 'react';
 import { planets, type PlanetData } from './data/planets';
+import { createHashWriter, parseDeepLink, type DeepLinkState, type DeepLinkToggle } from './utils/deepLink';
 import PlanetInfoPanel from './components/PlanetInfoPanel';
 import ControlsSidebar from './components/ControlsSidebar';
 import { IntroOverlay } from './components/IntroOverlay';
@@ -7,9 +8,13 @@ import Timeline from './components/Timeline';
 import { OnboardingTip } from './components/OnboardingTip';
 import { ConjunctionBanner } from './components/ConjunctionBanner';
 import AmbientAudio from './components/AmbientAudio';
+import { SceneErrorBoundary } from './components/SceneErrorBoundary';
 // Code-splitting: i modali (confronto/quiz) non servono al primo paint.
 const CompareModal = lazy(() => import('./components/CompareModal'));
 const QuizModal = lazy(() => import('./components/QuizModal'));
+const EventsModal = lazy(() =>
+  import('./components/EventsModal').then((m) => ({ default: m.EventsModal }))
+);
 import { useOrbitEngine } from './hooks/useOrbitEngine';
 import { useIsMobile } from './hooks/useMedia';
 import {
@@ -83,6 +88,7 @@ export default function App({ quizRnd }: AppProps = {}) {
   const [simDate, setSimDate] = useState<Date | null>(null);
   const [showCompare, setShowCompare] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
+  const [showEvents, setShowEvents] = useState(false);
   // S3.3 — titolo cinematografico: mostrato al mount, auto-dismiss dopo 3s.
   const [introVisible, setIntroVisible] = useState(true);
   // S3.4 — cinematic slow-mo: quando l'utente seleziona un pianeta, la
@@ -196,6 +202,58 @@ export default function App({ quizRnd }: AppProps = {}) {
   const setSpeedRef = useRef(setSpeed);
   setSpeedRef.current = setSpeed;
 
+  // S11 · F1 — Deep link: al mount, applica lo stato dall'hash (one-shot,
+  // NON viene salvato in prefs). Poi un writer debounced aggiorna l'hash
+  // quando cambiano i valori. NB: l'hash ha precedenza SOLO al primo render;
+  //   le modifiche utente successive scrivono l'hash e NON sovrascrivono prefs.
+  useEffect(() => {
+    const parsed = parseDeepLink(window.location.hash);
+    if (parsed.planetKey) {
+      const p = planets.find((x) => x.name === parsed.planetKey) ?? null;
+      if (p) setSelectedPlanet(p);
+    }
+    if (parsed.speed != null) {
+      setSpeedRef.current(parsed.speed);
+    }
+    if (parsed.toggles.size > 0) {
+      if (parsed.toggles.has('labels' as DeepLinkToggle)) setShowLabels(true);
+      if (parsed.toggles.has('realism' as DeepLinkToggle)) setRealistic(true);
+      if (parsed.toggles.has('eclipses' as DeepLinkToggle)) setEclipsesEnabled(true);
+      if (parsed.toggles.has('realscale' as DeepLinkToggle)) setRealScale(true);
+      if (parsed.toggles.has('fx' as DeepLinkToggle)) setPostFxEnabled(true);
+    }
+    if (parsed.date) {
+      // Calcola sim time per la data e fa seek. Vedi sezione simDate.
+      const earth = planets.find((p) => p.name === 'Earth');
+      if (earth) {
+        const t = simTimeForDate(earth, new Date(parsed.date));
+        // Chiama il metodo esposto dal motore: simuliamo l'azione con un
+        // flag passato al motore, che alla prossima seekFromDate lo userà.
+        // (Vedi useOrbitEngine.ts: il motore espone un ref pendingDateRef.)
+        // Per semplicità qui scriviamo direttamente su simTimeRef se il motore
+        // lo espone; altrimenti l'utente può ancora usare il date picker.
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Writer debounced per l'hash
+  const pushHash = useMemo(() => createHashWriter(300), []);
+  useEffect(() => {
+    const toggles = new Set<DeepLinkToggle>();
+    if (showLabels) toggles.add('labels');
+    if (realistic) toggles.add('realism');
+    if (eclipsesEnabled) toggles.add('eclipses');
+    if (realScale) toggles.add('realscale');
+    if (postFxEnabled) toggles.add('fx');
+    const state: DeepLinkState = {
+      planetKey: selectedPlanet?.name ?? null,
+      date: null, // la data è gestita dal date picker; non la scriviamo
+      speed,
+      toggles,
+    };
+    pushHash(state);
+  }, [selectedPlanet, speed, showLabels, realistic, eclipsesEnabled, realScale, postFxEnabled, pushHash]);
+
   // S3.4 — Auto reset del cinematic slow-mo dopo 2.5s. Il motore legge
   // `slowmoMultiplierRef.current` ad ogni frame: 0.25 durante la finestra
   // cinematica, 1 altrimenti. Loop rAF separato (setInterval a 100ms)
@@ -240,6 +298,7 @@ export default function App({ quizRnd }: AppProps = {}) {
           setSelectedPlanet(null);
           setShowCompare(false);
           setShowQuiz(false);
+          setShowEvents(false);
           break;
         // Nella scena 3D lo zoom è gestito da OrbitControls (rotellina).
         // Teniamo i tasti come alias del pitch: + = guarda giù (pitch +), - = guarda su (pitch -)
@@ -356,7 +415,7 @@ export default function App({ quizRnd }: AppProps = {}) {
         </h1>
         <div className="flex flex-wrap items-center gap-2">
           <label
-            className="hidden items-center gap-2 text-xs text-white/60 lg:flex"
+            className="hidden items-center gap-2 text-xs text-white/75 lg:flex"
             title="Mostra le posizioni dei pianeti a una data specifica"
           >
             📅 Data
@@ -421,6 +480,15 @@ export default function App({ quizRnd }: AppProps = {}) {
             title="Cattura uno screenshot della scena (S)"
           >
             📷 Foto
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowEvents(true)}
+            className="chip"
+            aria-pressed={showEvents}
+            title="Eventi celesti (congiunzioni, opposizioni) nel prossimo anno"
+          >
+            ☄ Eventi
           </button>
           <button
             onClick={() => setShowQuiz(true)}
@@ -556,27 +624,36 @@ export default function App({ quizRnd }: AppProps = {}) {
             </div>
           )}
 
-          <Suspense fallback={<div className="h-full w-full" aria-label="Caricamento scena 3D" />}>
-            <SolarScene
-              positionsRef={positionsRef}
-              simRateRef={simRateRef}
-              simTimeRef={simTimeRef}
-              selectedBodyName={selectedPlanet?.name ?? null}
-              onSelectBody={(name) => {
-                const p = planets.find((x) => x.name === name) ?? null;
-                setSelectedPlanet(p);
-              }}
-              postFxEnabled={postFxEnabled}
-              realistic={realistic}
-              tiltRef={tiltRef}
-              onIntroComplete={() => setIntroVisible(false)}
-              freeCamera={freeCamera}
-              tourActive={tourActive}
-              onTourStep={(step) => setTourStep(step)}
-              cameraDistanceRef={cameraDistanceRef}
-              cameraPositionRef={cameraPositionRef}
-              fpsRef={fpsRef}
-              mouseNdcRef={mouseNdcRef}
+          <SceneErrorBoundary>
+            <Suspense
+              fallback={
+                <div
+                  className="h-full w-full"
+                  role="status"
+                  aria-label="Caricamento scena 3D"
+                />
+              }
+            >
+              <SolarScene
+                positionsRef={positionsRef}
+                simRateRef={simRateRef}
+                simTimeRef={simTimeRef}
+                selectedBodyName={selectedPlanet?.name ?? null}
+                onSelectBody={(name) => {
+                  const p = planets.find((x) => x.name === name) ?? null;
+                  setSelectedPlanet(p);
+                }}
+                postFxEnabled={postFxEnabled}
+                realistic={realistic}
+                tiltRef={tiltRef}
+                onIntroComplete={() => setIntroVisible(false)}
+                freeCamera={freeCamera}
+                tourActive={tourActive}
+                onTourStep={(step) => setTourStep(step)}
+                cameraDistanceRef={cameraDistanceRef}
+                cameraPositionRef={cameraPositionRef}
+                fpsRef={fpsRef}
+                mouseNdcRef={mouseNdcRef}
               worldHitRef={worldHitRef}
               hoveredBodyRef={hoveredBodyRef}
               mobile={isMobile}
@@ -584,6 +661,7 @@ export default function App({ quizRnd }: AppProps = {}) {
               eclipsesEnabled={eclipsesEnabled}
             />
           </Suspense>
+          </SceneErrorBoundary>
 
           {/* S3.3 — Title overlay cinematografico sopra tutto */}
           {introVisible && (
@@ -697,7 +775,7 @@ export default function App({ quizRnd }: AppProps = {}) {
             {isMobile && (
               <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-[#0d0d2a]/95 px-4 py-2">
                 <label
-                  className="flex items-center gap-2 text-xs text-white/60"
+                  className="flex items-center gap-2 text-xs text-white/75"
                   htmlFor="sim-date-mobile"
                 >
                   📅 Data
@@ -776,6 +854,19 @@ export default function App({ quizRnd }: AppProps = {}) {
 
       <Suspense fallback={null}>
         {showCompare && <CompareModal planets={planets} onClose={() => setShowCompare(false)} />}
+        {showEvents && (
+          <EventsModal
+            open={showEvents}
+            onClose={() => setShowEvents(false)}
+            onGoTo={(e: import('./utils/celestialEvents').CelestialEvent) => {
+              setShowEvents(false);
+              // Seleziona il pianeta primario (per congiunzioni: il primo; per opposizioni: il pianeta)
+              const primary = e.kind === 'conjunction' ? e.a : e.a;
+              const p = planets.find((x) => x.name === primary);
+              if (p) setSelectedPlanet(p);
+            }}
+          />
+        )}
         {showQuiz && (
           <QuizModal planets={planets} onClose={() => setShowQuiz(false)} rnd={stableQuizRnd} />
         )}

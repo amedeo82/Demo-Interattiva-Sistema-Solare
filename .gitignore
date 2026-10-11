@@ -3,3 +3,9 @@ node_modules/
 
 # Build artifacts (generati da `npm run build`, rigenerati in CI/deploy)
 dist/
+
+# Playwright (S10a · M6c — output locale di `npx playwright test`)
+playwright-report/
+test-results/
+/blob-report/
+.playwright/

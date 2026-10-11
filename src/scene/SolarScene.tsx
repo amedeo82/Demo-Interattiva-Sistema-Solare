@@ -25,9 +25,12 @@ import { HoverRaycaster } from './HoverRaycaster';
 import { LoadingProvider } from './LoadingProvider';
 import { AsteroidBelt3D } from './AsteroidBelt3D';
 import { KuiperBelt3D } from './KuiperBelt3D';
+import { TrojanSwarmL4, TrojanSwarmL5 } from './TrojanSwarm';
+import { DwarfBodies } from './DwarfBodies';
 import { Comet3D } from './Comet3D';
 import { OrbitTrails } from './OrbitTrails';
 import { Conjunctions } from './Conjunctions';
+import { ContextLostGuard } from './ContextLostGuard';
 import { planets } from '../data/planets';
 import type { SimPlanetState } from '../hooks/useOrbitEngine';
 
@@ -99,6 +102,8 @@ export function SolarScene({
   // su GPU integrate di smartphone è il collo di bottiglia reale.
   const asteroidCount = mobile ? 200 : 350;
   const kuiperCount = mobile ? 70 : 120;
+  // S12 · F5 — Troiani: 40 per cluster su mobile, 80 desktop.
+  const trojanCount = mobile ? 40 : 80;
   // Ref al OrbitControls per consentire a CameraAnimator di pilotare la camera.
   // IMPORTANTE: deve essere un oggetto STABILE (no getter inline), altrimenti
   // ogni render di App crea un nuovo oggetto → useEffect [controlsRef]
@@ -132,6 +137,8 @@ export function SolarScene({
       style={{ width: '100%', height: '100%' }}
     >
       <Suspense fallback={null}>
+        {/* S8 · M1 — gestione WebGL context loss/restore (overlay portale). */}
+        <ContextLostGuard />
         <LoadingProvider>
           <Lighting eclipsesEnabled={eclipsesEnabled} />
           <StarsBackground />
@@ -150,6 +157,9 @@ export function SolarScene({
             <SaturnRings realScale={realScale} />
             {realistic && <PlanetRings realScale={realScale} />}
             {realistic && <AsteroidBelt3D count={asteroidCount} realScale={realScale} />}
+            {realistic && <DwarfBodies realScale={realScale} />}
+            {realistic && <TrojanSwarmL4 count={trojanCount} realScale={realScale} />}
+            {realistic && <TrojanSwarmL5 count={trojanCount} realScale={realScale} />}
             {realistic && <KuiperBelt3D count={kuiperCount} realScale={realScale} />}
             {realistic && <Moons realScale={realScale} eclipsesEnabled={eclipsesEnabled} />}
             <Comet3D />

@@ -110,7 +110,13 @@ export function Moons({
         ? (parentBody?.distanceAu ?? 0) * REAL_SCALE_FACTOR
         : parent.radius;
       const angle = m.initialAngle + (simTime / m.period) * 360;
-      angleToOrbitPosition(parent.angle, parentDist, tmpVec, parentBody?.longitudeOfAscendingNode);
+      angleToOrbitPosition(
+        parent.angle,
+        parentDist,
+        tmpVec,
+        parentBody?.longitudeOfAscendingNode,
+        parentBody?.orbitalInclination
+      );
       grp.position.copy(tmpVec);
       // Posiziona la luna attorno al pianeta genitore (offset angolare).
       // Anche il raggio orbitale della luna scala con la modalità corrente.

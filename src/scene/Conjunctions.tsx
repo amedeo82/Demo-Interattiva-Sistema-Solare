@@ -15,10 +15,11 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { AdditiveBlending, Color, Group, Mesh, MeshBasicMaterial, RingGeometry } from 'three';
+import { AdditiveBlending, Color, Group, Mesh, MeshBasicMaterial, RingGeometry, Vector3 } from 'three';
 import { keplerPosition } from '../hooks/useOrbitEngine';
 import { planets as PLANETS_DATA } from '../data/planets';
 import { useOrbitEngineContext } from './OrbitEngineBridge';
+import { BODIES_3D, angularSeparation3D, heliocentricVector3D, REAL_SCALE_FACTOR } from './bodies3d';
 
 const ENTRY_THRESHOLD_DEG = 5; // soglia per entrare in "in congiunzione"
 const EXIT_THRESHOLD_DEG = 3; // soglia per uscirne (isteresi)
@@ -33,6 +34,8 @@ interface Conjunction {
 }
 
 function angDiff(a: number, b: number): number {
+  // Helper legacy (non più usato dopo S9 · M9: la separazione è ora 3D).
+  // Mantenuto per retro-compatibilità interna.
   const d = Math.abs(a - b) % 360;
   return d > 180 ? 360 - d : d;
 }
@@ -75,7 +78,10 @@ export function Conjunctions({ onChange }: ConjunctionsProps) {
 
   useFrame(() => {
     const t = simTimeRef.current;
-    // Calcola la coppia più stretta
+    // S9 · M9 — Calcola la coppia più stretta usando la separazione
+    // angolare 3D (inclusiva di i e Ω). I vettori sono ricalcolati ad
+    // ogni frame via `heliocentricVector3D`; il costo è trascurabile
+    // (28 coppie × 2 vettori = 56 calcoli trigonometrici per frame).
     let best: { a: string; b: string; sep: number; mid: number } | null = null;
     for (let i = 0; i < PLANETS_DATA.length; i++) {
       for (let j = i + 1; j < PLANETS_DATA.length; j++) {
@@ -83,7 +89,14 @@ export function Conjunctions({ onChange }: ConjunctionsProps) {
         const pb = PLANETS_DATA[j];
         const sa = keplerPosition(pa, t);
         const sb = keplerPosition(pb, t);
-        const sep = angDiff(sa.angle, sb.angle);
+        // Vettori 3D (log scale; per la separazione angolare la scala
+        // è ininfluente, conta solo la direzione)
+        const ba = BODIES_3D[pa.name];
+        const bb = BODIES_3D[pb.name];
+        if (!ba || !bb) continue;
+        const va = heliocentricVector3D(sa.angle, sa.radius, ba.longitudeOfAscendingNode, ba.orbitalInclination);
+        const vb = heliocentricVector3D(sb.angle, sb.radius, bb.longitudeOfAscendingNode, bb.orbitalInclination);
+        const sep = angularSeparation3D(va, vb);
         if (!best || sep < best.sep) {
           // posizione "media" sulla congiunzione (a metà strada)
           const mid = (sa.radius + sb.radius) / 2;
@@ -112,7 +125,7 @@ export function Conjunctions({ onChange }: ConjunctionsProps) {
     }
 
     // Aggiorna marker 3D: mostra l'anello solo se c'è una congiunzione
-    // attiva. Posizione: a metà strada fra i due pianeti (in mondo).
+    // attiva. Posizione: a metà strada fra i due pianeti (in 3D, con i e Ω).
     if (groupRef.current) {
       const c = currentRef.current;
       groupRef.current.visible = !!c;
@@ -121,16 +134,16 @@ export function Conjunctions({ onChange }: ConjunctionsProps) {
         const pb = PLANETS_DATA.find((p) => p.name === c.b)!;
         const sa = keplerPosition(pa, t);
         const sb = keplerPosition(pb, t);
-        const ra = (sa.angle * Math.PI) / 180;
-        const rb = (sb.angle * Math.PI) / 180;
-        const ax = sa.radius * Math.sin(ra);
-        const az = sa.radius * Math.cos(ra);
-        const bx = sb.radius * Math.sin(rb);
-        const bz = sb.radius * Math.cos(rb);
-        const mx = (ax + bx) / 2;
-        const mz = (az + bz) / 2;
+        const ba = BODIES_3D[pa.name];
+        const bb = BODIES_3D[pb.name];
+        if (!ba || !bb) return;
+        const va = heliocentricVector3D(sa.angle, sa.radius, ba.longitudeOfAscendingNode, ba.orbitalInclination);
+        const vb = heliocentricVector3D(sb.angle, sb.radius, bb.longitudeOfAscendingNode, bb.orbitalInclination);
+        const mx = (va.x + vb.x) / 2;
+        const my = (va.y + vb.y) / 2;
+        const mz = (va.z + vb.z) / 2;
         const scale = Math.max(sa.radius, sb.radius) * 0.6;
-        groupRef.current.position.set(mx, 0, mz);
+        groupRef.current.position.set(mx, my, mz);
         if (ringRef.current) {
           ringRef.current.scale.set(scale, scale, 1);
           // Lampeggio leggero

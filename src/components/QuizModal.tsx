@@ -130,7 +130,7 @@ export default function QuizModal({ planets, onClose, rnd = Math.random }: Props
           <button
             onClick={onClose}
             aria-label="Chiudi quiz"
-            className="rounded-lg p-1.5 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+            className="rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
           >
             ✕
           </button>
@@ -144,7 +144,7 @@ export default function QuizModal({ planets, onClose, rnd = Math.random }: Props
             <p className="mt-3 text-lg font-semibold">
               Punteggio: {score}/{questions.length}
             </p>
-            <p className="mt-1 text-sm text-white/50">
+            <p className="mt-1 text-sm text-white/70">
               {score === questions.length
                 ? 'Perfetto! Sei un astronauta navigato.'
                 : 'Continua a esplorare e riprova!'}
@@ -152,7 +152,7 @@ export default function QuizModal({ planets, onClose, rnd = Math.random }: Props
           </div>
         ) : (
           <>
-            <p className="mb-1 text-xs uppercase tracking-wider text-white/40">
+            <p className="mb-1 text-xs uppercase tracking-wider text-white/65">
               Domanda {index + 1} di {questions.length}
             </p>
             <p className="mb-4 text-sm font-medium leading-relaxed">{q.prompt}</p>

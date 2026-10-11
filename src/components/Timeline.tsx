@@ -102,7 +102,7 @@ export default function Timeline({
   return (
     <div className="timeline" role="group" aria-label="Timeline della simulazione">
       <span
-        className="font-mono text-[10px] text-white/50 tabular-nums hidden sm:inline"
+        className="font-mono text-[10px] text-white/70 tabular-nums hidden sm:inline"
         title="Inizio timeline"
       >
         −{(rangeSimSeconds / 2 / yearSimSeconds).toFixed(0)}y
@@ -118,6 +118,7 @@ export default function Timeline({
         }}
         role="slider"
         tabIndex={0}
+        aria-label="Tempo simulazione"
         aria-valuemin={min}
         aria-valuemax={max}
         aria-valuenow={value}
@@ -128,7 +129,7 @@ export default function Timeline({
         <div className="timeline-thumb" style={{ left: `${fillPct}%` }} />
       </div>
       <span
-        className="font-mono text-[10px] text-white/50 tabular-nums hidden sm:inline"
+        className="font-mono text-[10px] text-white/70 tabular-nums hidden sm:inline"
         title="Fine timeline"
       >
         +{(rangeSimSeconds / 2 / yearSimSeconds).toFixed(0)}y

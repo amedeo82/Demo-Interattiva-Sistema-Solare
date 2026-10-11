@@ -23,13 +23,20 @@ git add -A && git commit --amend --no-edit
 ```
 
 ### Mobile / responsive changes
-Any change that touches layout, the mobile sheet, `PlanetInfoPanel`, the sidebar, the service worker, or `index.css` mobile rules must be verified in a real browser at multiple viewports before opening the PR. Use the Playwright script in `/tmp/kilo/mobile-test.mjs` (or run an equivalent ad-hoc check) at:
+Any change that touches layout, the mobile sheet, `PlanetInfoPanel`, the sidebar, the service worker, or `index.css` mobile rules must be verified in a real browser at multiple viewports before opening the PR. **The E2E suite (`e2e/smoke.spec.ts`, lanciata da `npm run e2e` o dal workflow `.github/workflows/e2e.yml`) automatizza i 5 viewport richiesti**:
 - 393×852 (iPhone 15 Pro, DPR 3, touch)
 - 375×667 (iPhone SE)
 - 768×1024 (iPad)
 - 1280×800 and 1440×900 (desktop)
 
-Confirm: `elementFromPoint` at viewport center returns `CANVAS` (not a wrapper), the FAB opens the controls sheet, selecting a planet opens the info panel, the quiz modal opens, and there are no JS page errors.
+Gli assert chiave della smoke suite:
+- `elementFromPoint` al centro viewport ritorna `CANVAS` (non un wrapper)
+- il FAB apre la controls sheet (mobile)
+- selezionare un pianeta apre il pannello info
+- il quiz si apre
+- nessun errore JS in `pageerror` / `console.error`
+
+Per debug locale: `npm run e2e:install` (una volta) + `npm run build && npm run e2e`.
 
 ### PWA / service-worker changes
 Bump `CACHE_NAME` in `public/sw.js` whenever shipped assets change in a way that should invalidate returning PWA users.
@@ -38,4 +45,4 @@ Bump `CACHE_NAME` in `public/sw.js` whenever shipped assets change in a way that
 - One logical change per PR.
 - Title: `type(scope): summary` (e.g. `fix(mobile): restore responsive layout`).
 - Body: bug → root cause → fix → verification (with a table for cross-viewport checks when relevant).
-- Don't commit dev-only tooling (e.g. `playwright`) into `package.json`; it was a mistake in the first iteration of PR #27.
+- `@playwright/test` è ammesso come `devDependency` (introdotto in S10a · M6c, workflow `.github/workflows/e2e.yml`). I soli file di output locali da ignorare: `playwright-report/`, `test-results/`, `blob-report/`, `.playwright/` (vedi `.gitignore`).

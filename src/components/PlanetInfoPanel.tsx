@@ -24,7 +24,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3 py-1.5 border-b border-white/5 last:border-0">
-      <span className="text-white/50 text-xs">{label}</span>
+      <span className="text-white/70 text-xs">{label}</span>
       <span className="text-white text-sm font-medium text-right tabular-nums">{value}</span>
     </div>
   );
@@ -191,14 +191,14 @@ export default function PlanetInfoPanel({ planet, onClose, positionsRef }: Props
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-base font-bold leading-tight">{planet.nameIt}</h2>
-          <p className="truncate text-[10px] uppercase tracking-widest text-white/40">
+          <p className="truncate text-[10px] uppercase tracking-widest text-white/65">
             {planet.name} · {planet.symbol}
           </p>
         </div>
         {!isMobile && pos && (
           <button
             onClick={resetPos}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[11px] text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[11px] text-white/75 transition-colors hover:bg-white/10 hover:text-white"
             aria-label="Ripristina posizione pannello"
             title="Ripristina posizione predefinita"
           >
@@ -263,7 +263,7 @@ export default function PlanetInfoPanel({ planet, onClose, positionsRef }: Props
                 planet.moons.length > 0 ? planet.moons.map((m) => m.name).join(', ') : 'Nessuno'
               }
             />
-            <p className="mt-3 text-[10px] uppercase tracking-wider text-white/40">
+            <p className="mt-3 text-[10px] uppercase tracking-wider text-white/65">
               Sessione corrente
             </p>
             <StatRow label={`Orbite di ${planet.nameIt}`} value={`${thisOrbits}`} />
@@ -273,9 +273,9 @@ export default function PlanetInfoPanel({ planet, onClose, positionsRef }: Props
 
         {tab === 'atmosphere' && (
           <div className="text-sm leading-relaxed text-white/80">
-            <p className="mb-2 text-[10px] uppercase tracking-wider text-white/40">Composizione</p>
+            <p className="mb-2 text-[10px] uppercase tracking-wider text-white/65">Composizione</p>
             <p className="mb-4">{planet.facts.atmosphere}</p>
-            <p className="mb-2 text-[10px] uppercase tracking-wider text-white/40">Clima</p>
+            <p className="mb-2 text-[10px] uppercase tracking-wider text-white/65">Clima</p>
             <p className="rounded-lg bg-white/5 px-3 py-2 text-sm">🌡️ {planet.facts.temperature}</p>
           </div>
         )}
@@ -283,11 +283,11 @@ export default function PlanetInfoPanel({ planet, onClose, positionsRef }: Props
         {tab === 'missions' && (
           <ul className="space-y-1.5 text-sm text-white/80">
             {planet.facts.missions.length === 0 ? (
-              <li className="text-white/50">Nessuna missione registrata.</li>
+              <li className="text-white/70">Nessuna missione registrata.</li>
             ) : (
               planet.facts.missions.map((m) => (
                 <li key={m} className="flex items-start gap-2">
-                  <span aria-hidden className="text-white/40">
+                  <span aria-hidden className="text-white/65">
                     ▸
                   </span>
                   <span>{m}</span>

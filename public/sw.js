@@ -5,8 +5,12 @@
  *   - asset statici (JS/CSS/SVG/immagini): cache-first con revalidate
  *   - texture esterne NASA (jpg): stale-while-revalidate
  *
- * Versione cache: bump in `CACHE_NAME` per invalidare tutto al deploy. */
-const CACHE_NAME = 'solarsys-v3';
+ * Versione cache: `__BUILD_HASH__` viene sostituito a build-time da
+ * `scripts/inject-sw-version.mjs` con uno sha256 troncato dei file in
+ * dist/assets. Il service worker è compatibile anche se il placeholder
+ * resta (cade su cache 'dev' locale, ma invalida correttamente al
+ * deploy grazie al bump). */
+const CACHE_NAME = 'solarsys-__BUILD_HASH__';
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon-192.svg', '/icon-512.svg'];
 
 self.addEventListener('install', (event) => {

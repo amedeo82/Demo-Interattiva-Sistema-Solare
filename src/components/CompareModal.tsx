@@ -50,7 +50,7 @@ export default function CompareModal({ planets, onClose }: Props) {
   const b = planets.find((p) => p.name === bName) ?? planets[1];
 
   const selector = (label: string, value: string, onChange: (v: string) => void) => (
-    <label className="flex flex-col gap-1 text-xs text-white/60">
+    <label className="flex flex-col gap-1 text-xs text-white/75">
       {label}
       <select
         value={value}
@@ -83,7 +83,7 @@ export default function CompareModal({ planets, onClose }: Props) {
           <button
             onClick={onClose}
             aria-label="Chiudi confronto"
-            className="rounded-lg p-1.5 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+            className="rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
           >
             ✕
           </button>
@@ -96,7 +96,7 @@ export default function CompareModal({ planets, onClose }: Props) {
 
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-white/50">
+            <tr className="text-left text-white/70">
               <th className="py-1 font-medium"></th>
               {[a, b].map((p) => (
                 <th key={p.name} className="py-1 font-semibold text-white">
@@ -115,7 +115,7 @@ export default function CompareModal({ planets, onClose }: Props) {
               const bv = m.value(b);
               return (
                 <tr key={m.key} className="border-t border-white/10">
-                  <td className="py-2 text-xs text-white/50">{m.label}</td>
+                  <td className="py-2 text-xs text-white/70">{m.label}</td>
                   <td
                     className={`py-2 tabular-nums ${av >= bv ? 'text-emerald-300' : 'text-white/80'}`}
                   >
@@ -130,7 +130,7 @@ export default function CompareModal({ planets, onClose }: Props) {
               );
             })}
             <tr className="border-t border-white/10">
-              <td className="py-2 text-xs text-white/50">Rapporto dimensioni</td>
+              <td className="py-2 text-xs text-white/70">Rapporto dimensioni</td>
               <td colSpan={2} className="py-2 text-white/80">
                 {a.diameter === b.diameter
                   ? 'Uguali'

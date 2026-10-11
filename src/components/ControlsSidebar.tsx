@@ -88,7 +88,7 @@ export default function ControlsSidebar({
 
       {/* Data corrente della simulazione */}
       <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
-        <p className="text-[10px] uppercase tracking-wider text-white/40">Data simulazione</p>
+        <p className="text-[10px] uppercase tracking-wider text-white/65">Data simulazione</p>
         <p className="text-sm font-semibold tabular-nums text-white">
           {currentDate.toLocaleDateString('it-IT', {
             day: 'numeric',
@@ -130,7 +130,7 @@ export default function ControlsSidebar({
 
       {/* Nota didascalica */}
       <div className="border-t border-white/10 pt-3">
-        <p className="text-center text-xs leading-relaxed text-white/40">
+        <p className="text-center text-xs leading-relaxed text-white/65">
           Le orbite non sono in scala. Dimensioni e distanze sono rappresentate schematicamente.
         </p>
       </div>

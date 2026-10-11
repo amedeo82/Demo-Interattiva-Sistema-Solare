@@ -181,7 +181,13 @@ export function Bodies({
       // 1 AU = 0.5 unità, Nettuno ~15 unità). Fuori: scala logaritmica
       // compressa (Mercurio ~7, Nettuno ~75) — tutti visibili senza zoom.
       const dist = realScale ? body.distanceAu * 0.5 : body.orbitDistance;
-      angleToOrbitPosition(p.angle, dist, tmpVec, body.longitudeOfAscendingNode);
+      angleToOrbitPosition(
+        p.angle,
+        dist,
+        tmpVec,
+        body.longitudeOfAscendingNode,
+        body.orbitalInclination
+      );
       g.position.copy(tmpVec);
       // Rotazione assiale proporzionale alla velocità di simulazione
       // (prima usava il tempo reale: a 0.25x girava troppo veloce,

@@ -82,15 +82,17 @@ Ogni pianeta ha `atmosphereColor` e `atmosphereIntensity` configurati in `bodies
 
 ## Saturno: anelli e ombre
 
-**File**: `src/components/Planet.tsx`, `src/index.css`
+**File**: `src/scene/SaturnRings.tsx`, `src/scene/Bodies.tsx`
 
-Il rendering DOM 2D di Saturno (usato come fallback se la scena 3D non fosse disponibile) include:
+Gli anelli di Saturno sono renderizzati in 3D come `RingGeometry` con
+texture procedurale (in origine) o texture NASA 2K (in modalità Realismo).
+L'inclinazione dell'anello segue l'asse di rotazione del pianeta
+(`SaturnRings.tsx` legge `axialTilt` + `ascendingNodeDeg`).
 
-- **Anelli** via `border-radius: 50%` su un div ruotato di -20°
-- **Ombra anelli→pianeta**: layer lineare scuro che si sposta sopra/sotto il centro disco in base all'angolo eliocentrico
-- **Ombra pianeta→anelli**: layer `linear-gradient` con angolo che dipende dalla posizione del Sole (calcolata via `keplerPosition`)
-
-Nella versione 3D (`src/scene/SaturnRings.tsx`) gli anelli sono `RingGeometry` con texture procedurale.
+Nota storica: in una versione precedente del progetto esisteva un
+fallback DOM 2D di Saturno (`src/components/Planet.tsx`), rimosso in
+S8 perché non più referenziato dal runtime dopo la migrazione a Three.js
+(F15).
 
 ## Fascia asteroidi e Kuiper
 
@@ -139,19 +141,10 @@ Auto-dismiss 4s dopo la fine della congiunzione.
 
 ## Bump map procedurali
 
-**File**: `src/utils/textures.ts`, `src/components/Planet.tsx`
-
-Oltre all'albedo, ogni pianeta ha una **bump map in scala di grigi** generata proceduralmente:
-
-| Pianeta | Pattern |
-|---------|---------|
-| Mercurio/Luna | crateri con bordi rialzati e ombra interna |
-| Terra | continenti emergenti con gradient morbidi |
-| Marte | polvere + canyon + calotte polari rilevate |
-| Giove/Saturno | ondulazioni di nubi + depressione Grande Macchia Rossa |
-| Venere/Urano/Nettuno | micro-velature |
-
-Applicata come layer `mix-blend-mode: overlay` con `filter: contrast(1.8)`, ruota in sync con la texture albedo.
+> Sezione storica. Le bump map procedurali del renderer DOM 2D vivevano
+> in `src/utils/textures.ts` e `src/components/Planet.tsx`, rimossi in S8
+> (la scena 3D usa direttamente le texture NASA 2K come albedo e, da S15
+> opzionale, normal map per i pianeti "protagonisti").
 
 ## HUD e Telemetria
 

@@ -74,7 +74,13 @@ function SinglePlanetRings({ planet, realScale }: { planet: RingPlanet; realScal
     const pos = positionsRef.current[planet];
     if (!pos) return;
     const dist = realScale ? body.distanceAu * REAL_SCALE_FACTOR : body.orbitDistance;
-    angleToOrbitPosition(pos.angle, dist, grp.position, body.longitudeOfAscendingNode);
+    angleToOrbitPosition(
+      pos.angle,
+      dist,
+      grp.position,
+      body.longitudeOfAscendingNode,
+      body.orbitalInclination
+    );
   });
 
   if (!mat) return null;

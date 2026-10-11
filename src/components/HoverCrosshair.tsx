@@ -82,14 +82,14 @@ export function HoverCrosshair({ mouseNdcRef, worldHitRef, hoveredBodyRef }: Hov
         >
           {bodyName ? (
             <>
-              <span className="text-white/50">Target · </span>
+              <span className="text-white/70">Target · </span>
               <span className="text-purple-300">{bodyName}</span>
             </>
           ) : hit ? (
             <>
-              <span className="text-white/50">X </span>
+              <span className="text-white/70">X </span>
               <span>{hit.x.toFixed(1)}</span>
-              <span className="ml-3 text-white/50">Z </span>
+              <span className="ml-3 text-white/70">Z </span>
               <span>{hit.z.toFixed(1)}</span>
             </>
           ) : null}

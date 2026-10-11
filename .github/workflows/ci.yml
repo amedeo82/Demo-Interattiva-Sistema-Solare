@@ -36,6 +36,9 @@ jobs:
       - name: Production build
         run: npm run build
 
+      - name: Check bundle budget (S10a · M6b)
+        run: npm run check:bundle
+
       - name: Upload dist artifact
         uses: actions/upload-artifact@v5
         with:

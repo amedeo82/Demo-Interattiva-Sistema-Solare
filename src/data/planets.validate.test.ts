@@ -4,7 +4,7 @@
  * componenti (InfoPanel, CompareModal, Quiz, motore orbitale, texture).
  */
 import { describe, it, expect } from 'vitest';
-import { planets, type PlanetData } from './planets';
+import { planets, dwarfPlanets, type PlanetData } from './planets';
 
 // Valori fisici di riferimento (diametro km, distanza mln km, periodo giorni)
 const REAL_VALUES: Record<string, [number, number, number]> = {
@@ -151,6 +151,40 @@ describe('dataset pianeti — completezza per i componenti UI', () => {
     for (const [name, count] of Object.entries(expectedMoons)) {
       const p = planets.find((x) => x.name === name)!;
       expect(p.moons.length).toBeGreaterThanOrEqual(count);
+    }
+  });
+});
+
+describe('dataset pianeti nani (S12 · F4)', () => {
+  it('Plutone e Cerere sono presenti con valori fisici plausibili', () => {
+    expect(dwarfPlanets.length).toBeGreaterThanOrEqual(2);
+    const pluto = dwarfPlanets.find((d) => d.name === 'Pluto')!;
+    const ceres = dwarfPlanets.find((d) => d.name === 'Ceres')!;
+    expect(pluto.diameter).toBeGreaterThan(2000); // ~2376 km
+    expect(pluto.diameter).toBeLessThan(3000);
+    expect(pluto.distanceFromSun).toBeGreaterThan(5000); // ~5906 mln km
+    expect(pluto.orbitalPeriod).toBeGreaterThan(80000); // ~90560 d
+    expect(ceres.diameter).toBeGreaterThan(800); // ~940 km
+    expect(ceres.diameter).toBeLessThan(1100);
+    expect(ceres.orbitalPeriod).toBeGreaterThan(1500); // ~1682 d
+  });
+
+  it('i pianeti nani NON sono inclusi in simDate (PPCM invariato)', () => {
+    // Verifica indiretta: l'array `planets` (usato da simDate) non deve
+    // contenere Plutone o Cerere.
+    const names = planets.map((p) => p.name);
+    expect(names).not.toContain('Pluto');
+    expect(names).not.toContain('Ceres');
+  });
+
+  it('pianeti nani hanno Ω, ω, i in range realistico', () => {
+    for (const d of dwarfPlanets) {
+      expect(d.longitudeOfAscendingNode).toBeGreaterThanOrEqual(0);
+      expect(d.longitudeOfAscendingNode).toBeLessThan(360);
+      expect(d.argumentOfPerihelion).toBeGreaterThanOrEqual(0);
+      expect(d.argumentOfPerihelion).toBeLessThan(360);
+      expect(d.orbitalInclination).toBeGreaterThanOrEqual(0);
+      expect(d.orbitalInclination).toBeLessThan(45); // max Plutone 17°
     }
   });
 });

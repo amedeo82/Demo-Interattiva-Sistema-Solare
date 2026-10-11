@@ -1,0 +1,44 @@
+name: Lighthouse
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Settimanale (lunedì mattina) — report archiviato, non blocca PR.
+    - cron: '0 6 * * 1'
+
+jobs:
+  lighthouse:
+    name: Lighthouse CI (a11y · perf · best-practices)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Start preview server
+        run: npm run preview &
+
+      - name: Wait for server
+        run: npx wait-on http://localhost:4173 --timeout 30000
+
+      - name: Run Lighthouse CI
+        run: npx -y @lhci/cli@0.14.x autorun
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+      - name: Upload Lighthouse report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: lighthouse-report
+          path: .lighthouseci/
+          retention-days: 14

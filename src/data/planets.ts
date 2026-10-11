@@ -67,6 +67,78 @@ export interface PlanetData {
   facts: PlanetFacts;
 }
 
+/**
+ * S12 · F4 — Pianeti nani (Plutone, Cerere).
+ *
+ * Array SEPARATO da `planets` (i pianeti "classici"). Motivo critico:
+ * `utils/simDate.ts` calcola il PPCM (periodo comune multiplo) delle
+ * durate animative degli 8 pianeti per garantire la coerenza esatta
+ * data → sim time. Aggiungere Plutone (90 560 giorni) al PPCM
+ * esploderebbe il periodo comune a numeri a molte cifre, perdendo
+ * la precisione in virgola mobile. I pianeti nani sono decorativi:
+ * non entrano nel motore kepleriano, solo nella scena 3D.
+ */
+export interface DwarfPlanetData {
+  name: string;
+  nameIt: string;
+  symbol: string;
+  diameter: number;
+  distanceFromSun: number;
+  orbitalPeriod: number;
+  color: string;
+  size: number;
+  orbitRadius: number;
+  description: string;
+  eccentricity: number;
+  meanLongitudeJ2000: number;
+  longitudeOfAscendingNode: number;
+  argumentOfPerihelion: number;
+  orbitalInclination: number;
+  axialTilt: number;
+  rotationHours: number;
+}
+
+export const dwarfPlanets: DwarfPlanetData[] = [
+  {
+    name: 'Pluto',
+    nameIt: 'Plutone',
+    symbol: '♇',
+    diameter: 2376,
+    distanceFromSun: 5906.4,
+    orbitalPeriod: 90560,
+    color: '#d9c7a8',
+    size: 0.4,
+    orbitRadius: 70,
+    description: "Il pianeta nano più famoso, classificato come tale dal 2006.",
+    eccentricity: 0.2488,
+    meanLongitudeJ2000: 14.53,
+    longitudeOfAscendingNode: 110.3,
+    argumentOfPerihelion: 113.77,
+    orbitalInclination: 17.16,
+    axialTilt: 119.6,
+    rotationHours: -153.3,
+  },
+  {
+    name: 'Ceres',
+    nameIt: 'Cerere',
+    symbol: '⚸',
+    diameter: 940,
+    distanceFromSun: 413.7,
+    orbitalPeriod: 1682,
+    color: '#a89e8c',
+    size: 0.25,
+    orbitRadius: 22,
+    description: 'Il più grande oggetto della fascia principale degli asteroidi.',
+    eccentricity: 0.0758,
+    meanLongitudeJ2000: 291.27,
+    longitudeOfAscendingNode: 80.33,
+    argumentOfPerihelion: 72.52,
+    orbitalInclination: 10.59,
+    axialTilt: 4,
+    rotationHours: 9.07,
+  },
+];
+
 export const planets: PlanetData[] = [
   {
     name: 'Mercury',

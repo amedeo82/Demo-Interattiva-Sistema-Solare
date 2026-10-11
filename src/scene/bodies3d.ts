@@ -84,6 +84,11 @@ export interface Body3D {
    *  futuro (per ora le orbite sono cerchi perfetti; con eccentricità
    *  elevata diventa rilevante). */
   argumentOfPerihelion?: number;
+  /** S9 · M3 — Inclinazione dell'orbita rispetto all'eclittica (gradi
+   *  J2000). Trasforma l'orbita da cerchio piatto a ellisse 3D leggermente
+   *  inclinata. Mercurio 7°, resto ≤ 3.5°. Combinato con Ω e ω
+   *  produce orbite davvero 3D. */
+  orbitalInclination?: number;
   map?: string;
   rings?: string;
   /** Raggio interno degli anelli in unità del raggio del pianeta. */
@@ -121,6 +126,7 @@ export const BODIES_3D: Record<string, Body3D> = {
     degPerDay: 360 / 87.97,
     longitudeOfAscendingNode: 48.33,
     argumentOfPerihelion: 29.12,
+    orbitalInclination: 7.005,
     map: `${TEX}/mercury.jpg`,
   },
   Venus: {
@@ -135,6 +141,7 @@ export const BODIES_3D: Record<string, Body3D> = {
     degPerDay: 360 / 224.7,
     longitudeOfAscendingNode: 76.68,
     argumentOfPerihelion: 54.92,
+    orbitalInclination: 3.395,
     map: `${TEX}/venus.jpg`,
     atmosphereColor: '#f7d59a',
     atmosphereIntensity: 0.9,
@@ -151,6 +158,7 @@ export const BODIES_3D: Record<string, Body3D> = {
     degPerDay: 360 / 365.25,
     longitudeOfAscendingNode: 174.95,
     argumentOfPerihelion: 102.95,
+    orbitalInclination: 0.0,
     map: `${TEX}/earth.jpg`,
     atmosphereColor: '#7eb6ff',
     atmosphereIntensity: 0.7,
@@ -167,6 +175,7 @@ export const BODIES_3D: Record<string, Body3D> = {
     degPerDay: 360 / 686.97,
     longitudeOfAscendingNode: 49.56,
     argumentOfPerihelion: 286.5,
+    orbitalInclination: 1.85,
     map: `${TEX}/mars.jpg`,
   },
   Jupiter: {
@@ -181,6 +190,7 @@ export const BODIES_3D: Record<string, Body3D> = {
     degPerDay: 360 / 4332.59,
     longitudeOfAscendingNode: 100.46,
     argumentOfPerihelion: 273.85,
+    orbitalInclination: 1.303,
     map: `${TEX}/jupiter.jpg`,
     atmosphereColor: '#e8c896',
     atmosphereIntensity: 0.45,
@@ -197,6 +207,7 @@ export const BODIES_3D: Record<string, Body3D> = {
     degPerDay: 360 / 10759,
     longitudeOfAscendingNode: 113.72,
     argumentOfPerihelion: 339.39,
+    orbitalInclination: 2.489,
     map: `${TEX}/saturn.jpg`,
     rings: `${TEX}/saturn_rings.png`,
     atmosphereColor: '#f0d8a0',
@@ -214,6 +225,7 @@ export const BODIES_3D: Record<string, Body3D> = {
     degPerDay: 360 / 30688.5,
     longitudeOfAscendingNode: 73.92,
     argumentOfPerihelion: 96.99,
+    orbitalInclination: 0.773,
     map: `${TEX}/uranus.jpg`,
     // Anelli sottili e quasi verticali (l'asse 98° "rotola"): palette
     // ghiacciata per riflettere le componenti polverose degli ε ring.
@@ -235,6 +247,7 @@ export const BODIES_3D: Record<string, Body3D> = {
     degPerDay: 360 / 60195,
     longitudeOfAscendingNode: 131.72,
     argumentOfPerihelion: 259.88,
+    orbitalInclination: 1.77,
     map: `${TEX}/neptune.jpg`,
     // 5 archi sottilissimi (Adams, Le Verrier, Galle, Arago, Lassell):
     // qui resi come una singola fascia bassa in scala.
@@ -265,18 +278,69 @@ export function angleToOrbitPosition(
   /** 4.9 — Longitudine del nodo ascendente Ω in gradi. Quando > 0
    *  l'orbita è ruotata attorno all'asse Y (asse polare del sistema),
    *  dando a ciascun pianeta un orientamento realistico. */
-  ascendingNodeDeg?: number
+  ascendingNodeDeg?: number,
+  /** S9 · M3 — Inclinazione dell'orbita i in gradi rispetto all'eclittica.
+   *  Inclina il piano orbitale attorno alla linea dei nodi, dando un
+   *  vettore y ≠ 0 al pianeta. Combinato con Ω e ω produce orbite 3D. */
+  inclinationDeg?: number
 ): THREE.Vector3 {
   const rad = (angleDeg * Math.PI) / 180;
   const v = target ?? new THREE.Vector3();
+  // 1) Posizione nel piano dell'orbita (eclittica locale)
   v.set(Math.sin(rad) * orbitDistance, 0, -Math.cos(rad) * orbitDistance);
+  // 2) Inclinazione i: attorno alla linea dei nodi (asse X locale prima di Ω)
+  if (inclinationDeg && Math.abs(inclinationDeg) > 0.01) {
+    const iRad = (inclinationDeg * Math.PI) / 180;
+    const cosI = Math.cos(iRad);
+    const sinI = Math.sin(iRad);
+    const y = v.y * cosI - v.z * sinI;
+    const z = v.y * sinI + v.z * cosI;
+    v.set(v.x, y, z);
+  }
+  // 3) Longitudine del nodo ascendente Ω: rotazione attorno all'asse Y
   if (ascendingNodeDeg && Math.abs(ascendingNodeDeg) > 0.01) {
     const omegaRad = (ascendingNodeDeg * Math.PI) / 180;
     const cosO = Math.cos(omegaRad);
     const sinO = Math.sin(omegaRad);
     const x = v.x * cosO - v.z * sinO;
     const z = v.x * sinO + v.z * cosO;
-    v.set(x, 0, z);
+    v.set(x, v.y, z);
   }
   return v;
+}
+
+/**
+ * S9 · M9 — Vettore eliocentrico 3D di un pianeta, applicando Ω e i.
+ * Usato per il calcolo della separazione angolare 3D fra due pianeti
+ * (Congiunzioni). La magnitudine del vettore è la distanza in unità
+ * di scena (logaritmica o reale, vedi `realScale`).
+ */
+export function heliocentricVector3D(
+  angleDeg: number,
+  orbitDistance: number,
+  ascendingNodeDeg: number | undefined,
+  inclinationDeg: number | undefined,
+  target?: THREE.Vector3
+): THREE.Vector3 {
+  return angleToOrbitPosition(
+    angleDeg,
+    orbitDistance,
+    target,
+    ascendingNodeDeg,
+    inclinationDeg
+  );
+}
+
+/**
+ * S9 · M9 — Separazione angolare 3D (gradi) fra due vettori eliocentrici.
+ * Usa `acos(dot(a,b) / (|a|·|b|))` — naturalmente inclusiva di i e ω
+ * perché i vettori sono in 3D.
+ */
+export function angularSeparation3D(a: THREE.Vector3, b: THREE.Vector3): number {
+  const aLen = a.length();
+  const bLen = b.length();
+  if (aLen === 0 || bLen === 0) return 180;
+  const dot = a.x * b.x + a.y * b.y + a.z * b.z;
+  const cosTheta = Math.max(-1, Math.min(1, dot / (aLen * bLen)));
+  return (Math.acos(cosTheta) * 180) / Math.PI;
 }

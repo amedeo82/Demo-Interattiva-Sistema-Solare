@@ -53,11 +53,11 @@ export function ConjunctionBanner() {
       <span>
         {SYMBOL[info.a]} {a}
       </span>
-      <span className="mx-1 text-white/40">↔</span>
+      <span className="mx-1 text-white/65">↔</span>
       <span>
         {SYMBOL[info.b]} {b}
       </span>
-      <span className="ml-2 text-white/60">({info.bestSep.toFixed(1)}°)</span>
+      <span className="ml-2 text-white/75">({info.bestSep.toFixed(1)}°)</span>
     </div>
   );
 }

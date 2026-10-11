@@ -294,7 +294,8 @@ I dati completi (composizione atmosferica, temperature, missioni spaziali, curio
 - [`docs/FEATURES.md`](docs/FEATURES.md) — descrizione tecnica di ogni feature con riferimenti al codice
 - [`docs/MOCKUPS.md`](docs/MOCKUPS.md) — galleria dei mockup SVG e note tecniche
 - [`docs/UI-UX-REVIEW.md`](docs/UI-UX-REVIEW.md) — review UI/UX del progetto (Sprint S1–S4)
-- [`docs/MOBILE-UX.md`](docs/MOBILE-UX.md) — Sprint S5 (mobile responsive) + Sprint S6 (realismo 3D) + roadmap
+- [`docs/MOBILE-UX.md`](docs/MOBILE-UX.md) — Sprint S5 (mobile responsive) + Sprint S6 (realismo 3D)
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — Roadmap S8–S15: miglioramenti e nuove funzionalità con piano di implementazione dettagliato
 
 ## 📄 Licenza
 
