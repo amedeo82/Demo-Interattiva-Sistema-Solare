@@ -1,10 +1,29 @@
 # AGENTS.md — instructions for AI agents working on this repo
 
-## Pre-commit & pre-PR checklist
+## ⚠️ Pre-commit & pre-Push gate (OBBLIGATORIO)
 
-The CI pipeline (`.github/workflows/ci.yml`) runs the following checks on every PR. **Run them locally before committing or opening a PR** to avoid the kind of failure that cost PR #27 its first run (a Prettier formatting diff in `src/App.tsx`).
+La pipeline CI (`.github/workflows/ci.yml`) esegue 5 check su ogni PR.
+**L'equivalente locale è un gate obbligatorio prima di `git commit` e `git
+push`**: tutti i 5 devono passare, senza eccezioni. Saltare un check ha già
+causato un push che ha rotto la CI (riformattazione Prettier sfuggita in
+PR #27 e di nuovo in batch S9–S15). La procedura di recovery
+(`amend + force-push`) non è un fix — è un sintomo.
 
-Run them in this order — each step is the exact command CI uses:
+**One-liner di gate** (eseguire nella shell dal working tree, PRIMA di
+`git add` / `git commit`):
+
+```bash
+npm ci && \
+  npx prettier --check "src/**/*.{ts,tsx,css}" "*.json" && \
+  npm run lint && npm run typecheck && npm test && npm run build
+```
+
+Se uno qualsiasi dei check fallisce: **NON fare commit**, correggi
+subito. Se l'unico fallimento è Prettier: `npm run format` (scrive su
+`src/**/*.{ts,tsx,css}` **e `*.json`** — allineato al check CI),
+poi `git add -A && git commit --amend --no-edit && git push --force-with-lease`.
+
+### I 5 check nel dettaglio (ordine = ordine CI)
 
 ```bash
 npm ci                                   # clean install (matches CI)
@@ -12,8 +31,19 @@ npx prettier --check "src/**/*.{ts,tsx,css}" "*.json"   # format gate
 npm run lint                             # eslint
 npm run typecheck                        # tsc --noEmit
 npm test                                 # vitest run
-npm run build                            # tsc --noEmit && vite build
+npm run build                            # tsc --noEmit && vite build (+ postbuild)
 ```
+
+Note operative:
+- `npm run build` invoca anche `prebuild` (genera il manifest texture)
+  e `postbuild` (inietta `CACHE_NAME` in `sw.js`): se lo salti, `sw.js`
+  finisce con il placeholder `__BUILD_HASH__` letterale e la PWA non si
+  invalida correttamente al deploy
+- `npm run format` ora include `*.json` (allineato al check CI):
+  un'eventuale dimenticanza di `*.json` viene fixata con un solo comando
+- `prettier --check` deve passare su **tutti** i file elencati
+  (`src/**` **e `*.json`): se resta almeno un file fuori formato il
+  check ritorna exit code ≠ 0 e il commit/push successivo rompe CI
 
 ### If `prettier --check` fails
 Fix formatting (do NOT bypass the check):

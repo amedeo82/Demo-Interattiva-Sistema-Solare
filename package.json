@@ -15,7 +15,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "build:no-sw": "tsc --noEmit && vite build",
-    "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"*.json\"",
     "check:bundle": "node scripts/check-bundle.mjs",
     "e2e": "playwright test",
     "e2e:install": "playwright install chromium --with-deps",
