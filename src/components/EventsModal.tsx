@@ -72,66 +72,75 @@ export function EventsModal({ open, onClose, onGoTo, from, rangeMonths = 12 }: E
   if (!open) return null;
 
   return (
+    // Overlay a schermo intero con backdrop: la lista eventi non copre più
+    // l'intera UI (header/sidebar/timeline) ma è un dialog centrato.
+    // Click sul backdrop → chiudi (pattern condiviso con Quiz/CompareModal).
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('events.title')}
-      className="surface glass absolute inset-0 z-40 flex flex-col p-6"
-      data-testid="events-modal"
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      onClick={onClose}
     >
-      <div className="flex items-center justify-between">
-        <h2 className="font-display text-lg text-white">{t('events.title')}</h2>
-        <button
-          type="button"
-          aria-label={t('events.close')}
-          onClick={onClose}
-          className="rounded-md p-1.5 text-white/70 hover:bg-white/10 hover:text-white"
-        >
-          ✕
-        </button>
-      </div>
-      <p className="mt-1 text-xs text-white/65">
-        {t('events.range', {
-          from: fmtDate(from ?? new Date()),
-          to: fmtDate(
-            (() => {
-              const d = new Date(from ?? new Date());
-              d.setMonth(d.getMonth() + rangeMonths);
-              return d;
-            })()
-          ),
-        })}
-        {t('events.disclaimer')}
-      </p>
-      <div className="mt-4 flex-1 overflow-y-auto">
-        {busy ? (
-          <p className="text-sm text-white/70">{t('events.computing')}</p>
-        ) : events.length === 0 ? (
-          <p className="text-sm text-white/70">{t('events.none')}</p>
-        ) : (
-          <ul className="space-y-1">
-            {events.map((e, i) => (
-              <li
-                key={i}
-                className="flex items-center justify-between gap-3 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm"
-              >
-                <div className="flex flex-col">
-                  <span className="text-white">{eventLabel(e, t)}</span>
-                  <span className="text-xs text-white/65">
-                    {fmtDate(e.date)} · {t('events.sep', { deg: e.separationDeg.toFixed(2) })}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onGoTo(e)}
-                  className="rounded-md bg-purple-500/20 px-2 py-1 text-xs text-white hover:bg-purple-500/30"
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('events.title')}
+        className="panel-in surface glass flex max-h-[85vh] w-full max-w-lg flex-col rounded-2xl p-5"
+        data-testid="events-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg text-white">{t('events.title')}</h2>
+          <button
+            type="button"
+            aria-label={t('events.close')}
+            onClick={onClose}
+            className="rounded-md p-1.5 text-white/70 hover:bg-white/10 hover:text-white"
+          >
+            ✕
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-white/65">
+          {t('events.range', {
+            from: fmtDate(from ?? new Date()),
+            to: fmtDate(
+              (() => {
+                const d = new Date(from ?? new Date());
+                d.setMonth(d.getMonth() + rangeMonths);
+                return d;
+              })()
+            ),
+          })}
+          {t('events.disclaimer')}
+        </p>
+        <div className="mt-4 flex-1 overflow-y-auto">
+          {busy ? (
+            <p className="text-sm text-white/70">{t('events.computing')}</p>
+          ) : events.length === 0 ? (
+            <p className="text-sm text-white/70">{t('events.none')}</p>
+          ) : (
+            <ul className="space-y-1">
+              {events.map((e, i) => (
+                <li
+                  key={i}
+                  className="flex items-center justify-between gap-3 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm"
                 >
-                  {t('events.go')}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+                  <div className="flex flex-col">
+                    <span className="text-white">{eventLabel(e, t)}</span>
+                    <span className="text-xs text-white/65">
+                      {fmtDate(e.date)} · {t('events.sep', { deg: e.separationDeg.toFixed(2) })}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onGoTo(e)}
+                    className="rounded-md bg-purple-500/20 px-2 py-1 text-xs text-white hover:bg-purple-500/30"
+                  >
+                    {t('events.go')}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </div>
   );

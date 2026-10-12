@@ -77,144 +77,158 @@ export function SkyViewModal({ open, onClose }: SkyViewModalProps) {
   const visible = sky.filter((s) => s.altDeg > 0);
 
   return (
+    // Overlay a schermo intero con backdrop + dialog centrato
+    // (pattern condiviso con Quiz/CompareModal, vedi EventsModal).
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('sky.title')}
-      className="surface glass absolute inset-0 z-40 flex flex-col p-6"
-      data-testid="skyview-modal"
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      onClick={onClose}
     >
-      <div className="flex items-center justify-between">
-        <h2 className="font-display text-lg text-white">{t('sky.title')}</h2>
-        <button
-          type="button"
-          aria-label={t('sky.close')}
-          onClick={onClose}
-          className="rounded-md p-1.5 text-white/70 hover:bg-white/10 hover:text-white"
-        >
-          ✕
-        </button>
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-xs text-white/75">
-          {t('sky.observer')}
-          <select
-            value={manual ? 'manual' : String(presetIdx)}
-            onChange={(e) => {
-              if (e.target.value === 'manual')
-                setManual({ lat: String(observer.latDeg), lon: String(observer.lonDeg) });
-              else {
-                setManual(null);
-                setPresetIdx(Number(e.target.value));
-              }
-            }}
-            className="rounded-lg border border-white/15 bg-[#141433] px-2 py-1.5 text-sm text-white"
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('sky.title')}
+        className="panel-in surface glass flex max-h-[85vh] w-full max-w-2xl flex-col overflow-y-auto rounded-2xl p-5"
+        data-testid="skyview-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg text-white">{t('sky.title')}</h2>
+          <button
+            type="button"
+            aria-label={t('sky.close')}
+            onClick={onClose}
+            className="rounded-md p-1.5 text-white/70 hover:bg-white/10 hover:text-white"
           >
-            {PRESETS.map((p, i) => (
-              <option key={p.name} value={i}>
-                {p.name}
-              </option>
-            ))}
-            <option value="manual">{t('sky.manual')}</option>
-          </select>
-        </label>
-        {manual && (
-          <>
-            <label className="flex flex-col gap-1 text-xs text-white/75">
-              {t('sky.lat')}
-              <input
-                type="number"
-                value={manual.lat}
-                onChange={(e) => setManual({ ...manual, lat: e.target.value })}
-                className="w-24 rounded-lg border border-white/15 bg-[#141433] px-2 py-1.5 text-sm text-white"
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-xs text-white/75">
-              {t('sky.lon')}
-              <input
-                type="number"
-                value={manual.lon}
-                onChange={(e) => setManual({ ...manual, lon: e.target.value })}
-                className="w-24 rounded-lg border border-white/15 bg-[#141433] px-2 py-1.5 text-sm text-white"
-              />
-            </label>
-          </>
-        )}
-      </div>
+            ✕
+          </button>
+        </div>
 
-      <div className="mt-4 flex flex-1 items-center justify-center overflow-auto">
-        <svg
-          width={SIZE}
-          height={SIZE}
-          viewBox={`0 0 ${SIZE} ${SIZE}`}
-          role="img"
-          aria-label={t('sky.ariaSvg', { lat: observer.latDeg, lon: observer.lonDeg })}
-        >
-          {/* Disco del cielo (sopra l'orizzonte) */}
-          <circle cx={C} cy={C} r={R} fill="rgba(20,20,60,0.55)" stroke="rgba(255,255,255,0.25)" />
-          {/* Cerchi di quota (30°, 60°) */}
-          <circle cx={C} cy={C} r={(R * 2) / 3} fill="none" stroke="rgba(255,255,255,0.08)" />
-          <circle cx={C} cy={C} r={R / 3} fill="none" stroke="rgba(255,255,255,0.08)" />
-          {/* Croce dei cardinali */}
-          <line x1={C} y1={C - R} x2={C} y2={C + R} stroke="rgba(255,255,255,0.08)" />
-          <line x1={C - R} y1={C} x2={C + R} y2={C} stroke="rgba(255,255,255,0.08)" />
-          {/* Cardinali: N in alto, E a destra, S in basso, O a sinistra */}
-          {[
-            [t('sky.n'), C, C - R - 8],
-            [t('sky.e'), C + R + 10, C + 4],
-            [t('sky.s'), C, C + R + 16],
-            [t('sky.w'), C - R - 12, C + 4],
-          ].map(([label, x, y]) => (
-            <text
-              key={label as string}
-              x={x as number}
-              y={y as number}
-              fill="rgba(255,255,255,0.6)"
-              fontSize="12"
-              textAnchor="middle"
-              className="font-mono"
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1 text-xs text-white/75">
+            {t('sky.observer')}
+            <select
+              value={manual ? 'manual' : String(presetIdx)}
+              onChange={(e) => {
+                if (e.target.value === 'manual')
+                  setManual({ lat: String(observer.latDeg), lon: String(observer.lonDeg) });
+                else {
+                  setManual(null);
+                  setPresetIdx(Number(e.target.value));
+                }
+              }}
+              className="rounded-lg border border-white/15 bg-[#141433] px-2 py-1.5 text-sm text-white"
             >
-              {label}
-            </text>
-          ))}
-          {/* Corpi visibili */}
-          {visible.map((s) => {
-            // Proiezione azimutale: raggio ∝ zenit distance (90 − alt)
-            const rr = ((90 - s.altDeg) / 90) * R;
-            const rad = (s.azDeg * Math.PI) / 180;
-            // az 0 = Nord (alto), senso orario: x = C + rr·sin(az), y = C − rr·cos(az)
-            const x = C + rr * Math.sin(rad);
-            const y = C - rr * Math.cos(rad);
-            const color = BODY_COLORS[s.body] ?? '#ffffff';
-            const isSun = s.body === 'Sun';
-            return (
-              <g key={s.body}>
-                {isSun && <circle cx={x} cy={y} r={10} fill={color} opacity={0.25} />}
-                <circle cx={x} cy={y} r={isSun ? 6 : 4.5} fill={color} />
-                <text
-                  x={x}
-                  y={y - 9}
-                  fill="rgba(255,255,255,0.85)"
-                  fontSize="10"
-                  textAnchor="middle"
-                >
-                  {BODY_LABELS[s.body] ?? s.body}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
-      </div>
+              {PRESETS.map((p, i) => (
+                <option key={p.name} value={i}>
+                  {p.name}
+                </option>
+              ))}
+              <option value="manual">{t('sky.manual')}</option>
+            </select>
+          </label>
+          {manual && (
+            <>
+              <label className="flex flex-col gap-1 text-xs text-white/75">
+                {t('sky.lat')}
+                <input
+                  type="number"
+                  value={manual.lat}
+                  onChange={(e) => setManual({ ...manual, lat: e.target.value })}
+                  className="w-24 rounded-lg border border-white/15 bg-[#141433] px-2 py-1.5 text-sm text-white"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-xs text-white/75">
+                {t('sky.lon')}
+                <input
+                  type="number"
+                  value={manual.lon}
+                  onChange={(e) => setManual({ ...manual, lon: e.target.value })}
+                  className="w-24 rounded-lg border border-white/15 bg-[#141433] px-2 py-1.5 text-sm text-white"
+                />
+              </label>
+            </>
+          )}
+        </div>
 
-      <p className="mt-2 text-[11px] text-white/55">
-        {visible.length === 0
-          ? t('sky.none')
-          : t('sky.above', {
-              list: visible.map((s) => BODY_LABELS[s.body] ?? s.body).join(', '),
+        <div className="mt-4 flex flex-1 items-center justify-center overflow-auto">
+          <svg
+            width={SIZE}
+            height={SIZE}
+            viewBox={`0 0 ${SIZE} ${SIZE}`}
+            role="img"
+            aria-label={t('sky.ariaSvg', { lat: observer.latDeg, lon: observer.lonDeg })}
+          >
+            {/* Disco del cielo (sopra l'orizzonte) */}
+            <circle
+              cx={C}
+              cy={C}
+              r={R}
+              fill="rgba(20,20,60,0.55)"
+              stroke="rgba(255,255,255,0.25)"
+            />
+            {/* Cerchi di quota (30°, 60°) */}
+            <circle cx={C} cy={C} r={(R * 2) / 3} fill="none" stroke="rgba(255,255,255,0.08)" />
+            <circle cx={C} cy={C} r={R / 3} fill="none" stroke="rgba(255,255,255,0.08)" />
+            {/* Croce dei cardinali */}
+            <line x1={C} y1={C - R} x2={C} y2={C + R} stroke="rgba(255,255,255,0.08)" />
+            <line x1={C - R} y1={C} x2={C + R} y2={C} stroke="rgba(255,255,255,0.08)" />
+            {/* Cardinali: N in alto, E a destra, S in basso, O a sinistra */}
+            {[
+              [t('sky.n'), C, C - R - 8],
+              [t('sky.e'), C + R + 10, C + 4],
+              [t('sky.s'), C, C + R + 16],
+              [t('sky.w'), C - R - 12, C + 4],
+            ].map(([label, x, y]) => (
+              <text
+                key={label as string}
+                x={x as number}
+                y={y as number}
+                fill="rgba(255,255,255,0.6)"
+                fontSize="12"
+                textAnchor="middle"
+                className="font-mono"
+              >
+                {label}
+              </text>
+            ))}
+            {/* Corpi visibili */}
+            {visible.map((s) => {
+              // Proiezione azimutale: raggio ∝ zenit distance (90 − alt)
+              const rr = ((90 - s.altDeg) / 90) * R;
+              const rad = (s.azDeg * Math.PI) / 180;
+              // az 0 = Nord (alto), senso orario: x = C + rr·sin(az), y = C − rr·cos(az)
+              const x = C + rr * Math.sin(rad);
+              const y = C - rr * Math.cos(rad);
+              const color = BODY_COLORS[s.body] ?? '#ffffff';
+              const isSun = s.body === 'Sun';
+              return (
+                <g key={s.body}>
+                  {isSun && <circle cx={x} cy={y} r={10} fill={color} opacity={0.25} />}
+                  <circle cx={x} cy={y} r={isSun ? 6 : 4.5} fill={color} />
+                  <text
+                    x={x}
+                    y={y - 9}
+                    fill="rgba(255,255,255,0.85)"
+                    fontSize="10"
+                    textAnchor="middle"
+                  >
+                    {BODY_LABELS[s.body] ?? s.body}
+                  </text>
+                </g>
+              );
             })}
-        {t('sky.disclaimer')}
-      </p>
+          </svg>
+        </div>
+
+        <p className="mt-2 text-[11px] text-white/55">
+          {visible.length === 0
+            ? t('sky.none')
+            : t('sky.above', {
+                list: visible.map((s) => BODY_LABELS[s.body] ?? s.body).join(', '),
+              })}
+          {t('sky.disclaimer')}
+        </p>
+      </div>
     </div>
   );
 }
