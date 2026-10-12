@@ -297,8 +297,9 @@ menu overflow "⋯" con stato `active` (pallino viola).
 
 **File**: `src/scene/PostProcessing.tsx`
 
-- Il toggle "FX" monta `<EffectComposer>` con Bloom (alone del Sole) e
-  Vignette; attivo di default su desktop, OFF su mobile
+- Il toggle "FX" monta `<EffectComposer>` con Bloom (alone del Sole),
+  **LensFlare** (S15 · R1, vedi sotto) e Vignette; attivo di default su
+  desktop, OFF su mobile
 - **Il composer usa `multisampling={0}` e deve restare così**: con
   `multisampling={4}` (MSAA sui render target del composer) il canvas
   presenta frame neri a intermittenza. Sintomi: scena che sfarfalla,
@@ -308,6 +309,73 @@ menu overflow "⋯" con stato `active` (pallino viola).
   con FPS passati da ~17 a ~46 in ambiente software-rendered
 - Non ri-alzare il valore senza un test cross-GPU; se serve antialiasing
   valutare un pass SMAA invece dell'MSAA del composer
+
+### i18n it/en (S15 · M7)
+
+**File**: `src/i18n/dict.ts`, `src/i18n/index.ts`, `src/i18n/dict.test.ts`
+
+- **Layer leggero** (`~120` chiavi, zero dipendenze nuove): dizionari
+  `it` e `en` + `t(key, vars?)` (imperativo) + `useT()` (hook reattivo con
+  `useCallback` per memo) + `toggleLocale()` + `localeTag()` per
+  `toLocaleDateString`
+- **Store zustand** con persistenza in `localStorage`
+  (`PREFS_KEYS.lang`, default `'it'`). Default italiano = la suite di test
+  preesistente continua a passare invariata (le stringhe `it` sono
+  identiche a quelle hardcoded prima della migrazione)
+- **Interpolazione** `{var}` con `split/join` (compatibile lib ES2020);
+  warning in dev per chiavi mancanti + fallback a `it` (mai crash runtime)
+- **Chip lingua `🌐 EN` / `🌐 IT`** in header, toggle one-click
+- **Migrazione V1** (shell UI): header chips + tooltip, FAB mobile,
+  `ControlsSidebar` (incluso `toLocaleDateString(localeTag())`),
+  `PlanetInfoPanel` tab + narration labels + "Mettimi alla prova",
+  `ConjunctionBanner`, `CompareModal`, `QuizModal` (livelli/focus/best),
+  `EventsModal` (con `eventLabel` parametrico), `SkyViewModal` (inclusi
+  cardinali N/E/S/W), `CommandPalette`, `OnboardingTip`
+- **Non migrato** (V2): facts dataset, domande quiz generate, `nameIt`
+  pianeti — restano italiani per coerenza con il dataset
+- **Verifica end-to-end** in browser: click chip → header passa
+  `Labels/Realism/Eclipses`, click di nuovo → `Etichette/Realismo/Eclissi`,
+  0 errori console, persistenza confermata
+
+### Texture hi-res e normal map (S15 · R2)
+
+**File**: `src/scene/bodies3d.ts` (`textureUrl`, `NORMAL_MAPS`), `src/scene/Bodies.tsx`,
+`scripts/generate-texture-manifest.mjs`, `src/generated/hiResTextures.json`
+
+- **Pipeline tier-based**: su desktop (`hiRes={!mobile}`) gli albedo dei corpi
+  "hero" usano la variante 4K **se presente nel manifest** generato a build
+  dall'hook `prebuild` scandendo `public/textures/planets/4k/`; altrimenti
+  fallback automatico sulla 2K — mai URL inesistenti, mai 404 in scena
+- **Asset attuali**: Terra 4K (4096×2048, NASA Blue Marble via three.js) +
+  normal map 2K applicata solo alla Terra (`normalScale` 0.6, colorSpace
+  lineare preservato, anisotropy max)
+- **Aggiungere Marte/Giove/Saturno 4K**: scaricare da
+  <https://www.solarsystemscope.com/textures/> (CC-BY 4.0), rinominare
+  `mars.jpg`/`jupiter.jpg`/`saturn.jpg`, depositare in `4k/` e rebuildare —
+  zero tocchi di codice (credit: `public/textures/README.md`)
+- Mobile: sempre 2K (fill-rate saturo, dpr tier mobile)
+- **PWA**: le 4K NON sono nell'`APP_SHELL` di `sw.js` — cache on-demand
+  runtime (cache-first per gli asset statici)
+- Contratto testato (`bodies3d.textureUrl.test.ts`): fallback 2K per i corpi
+  assenti dal manifest, case-insensitive, nessuna chiave orfana
+
+### Lens flare (S15 · R1)
+
+**File**: `src/scene/PostProcessing.tsx`
+
+- `<LensFlare>` da `@react-three/postprocessing@3.2.0` nel composer,
+  FX-gated (monta/smonta col toggle "FX")
+- Config: `lensPosition=[0,0,0]` (Sole all'origine), `opacity=0.45`
+  (non "blow out" col Bloom), `glareSize=0.3`, `starBurst=false`
+  (costo/perf), ghost secondari e streaks ON
+- **Occlusione**: il wrapper proietta la posizione del Sole in screen
+  space e fa un raycast per frame verso di essa — un pianeta che passa
+  davanti al Sole attenua il flare in base alla trasparenza del suo
+  materiale (il costo del raycast è accettato perché il default mobile
+  è FX OFF)
+- Verifica regressione frame neri (procedura §multisampling): 0/60 frame
+  neri a 64×64 con flare attivo, 0 errori console, banner/simboli
+  corretti (verifica headless Chromium su build di preview)
 
 ### Viewport & touch
 

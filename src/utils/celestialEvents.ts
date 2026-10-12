@@ -1,4 +1,4 @@
-/**
+﻿/**
  * S11 · F2 — Calcolo eventi celesti (congiunzioni, opposizioni, transiti).
  *
  * Funzioni pure che, dato un range di date e il dataset pianeti, restituiscono
@@ -9,7 +9,7 @@
  * anomalie medie J2000 diverge da JPL Horizons di ~0.5° su date recenti.
  * Le tolleranze dei test sono generose per riflettere questo limite.
  */
-import { planets, type PlanetData } from '../data/planets';
+import { planets } from '../data/planets';
 import { angularSeparation3D, BODIES_3D, heliocentricVector3D } from '../scene/bodies3d';
 import { keplerPosition } from '../hooks/useOrbitEngine';
 import { meanLongitudeAt } from './kepler';
@@ -34,12 +34,7 @@ export interface CelestialEvent {
  * con passo `step` (giorni). Per ogni minimo candidato, esegue un
  * raffinamento con sezione aurea fino a tolleranza 0.01°.
  */
-function findMinima(
-  a: Date,
-  b: Date,
-  stepDays: number,
-  f: (date: Date) => number
-): Date[] {
+function findMinima(a: Date, b: Date, stepDays: number, f: (date: Date) => number): Date[] {
   const ms = stepDays * 86_400_000;
   const candidates: { date: Date; f: number }[] = [];
   let t = a.getTime();
@@ -83,11 +78,6 @@ function findMinima(
   return minima.map((m) => m.date);
 }
 
-/** Date → numero di giorni Giuliani da J2000.0 (per simDate.simTimeForDate). */
-function daysFromJ2000(date: Date): number {
-  return (date.getTime() - Date.UTC(2000, 0, 1, 12, 0, 0)) / 86_400_000;
-}
-
 /**
  * S11 · F2 — Trova le congiunzioni planetarie nel range indicato.
  *
@@ -118,8 +108,20 @@ export function findConjunctions(
         const ba = BODIES_3D[pa.name];
         const bb = BODIES_3D[pb.name];
         if (!ba || !bb) return 180;
-        const va = heliocentricVector3D(sa.angle, sa.radius, ba.longitudeOfAscendingNode, ba.orbitalInclination, new Vector3());
-        const vb = heliocentricVector3D(sb.angle, sb.radius, bb.longitudeOfAscendingNode, bb.orbitalInclination, new Vector3());
+        const va = heliocentricVector3D(
+          sa.angle,
+          sa.radius,
+          ba.longitudeOfAscendingNode,
+          ba.orbitalInclination,
+          new Vector3()
+        );
+        const vb = heliocentricVector3D(
+          sb.angle,
+          sb.radius,
+          bb.longitudeOfAscendingNode,
+          bb.orbitalInclination,
+          new Vector3()
+        );
         return angularSeparation3D(va, vb);
       };
       const minima = findMinima(from, to, 1, sepAt);
@@ -149,7 +151,6 @@ export function findOppositions(from: Date, to: Date): CelestialEvent[] {
   for (const planet of planets) {
     if (planet.name === 'Earth' || planet.name === 'Sun') continue;
     const elongAt = (date: Date): number => {
-      const d = daysFromJ2000(date);
       const lamEarth = meanLongitudeAt(earth.meanLongitudeJ2000, earth.orbitalPeriod, date);
       const lamPlanet = meanLongitudeAt(planet.meanLongitudeJ2000, planet.orbitalPeriod, date);
       // Elongazione vista dal Sole = differenza di longitudine

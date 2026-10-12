@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { PlanetData } from '../data/planets';
+import { useT, localeTag } from '../i18n';
 
 interface Props {
   isPlaying: boolean;
@@ -32,9 +33,10 @@ export default function ControlsSidebar({
   onSelectPlanet,
   currentDate,
 }: Props) {
+  const t = useT();
   return (
     <div className="flex w-full shrink-0 flex-col gap-4 overflow-y-auto bg-[#0d0d2a]/85 p-4 pb-safe backdrop-blur-md md:w-64 lg:border-l lg:border-white/10">
-      <h3 style={sectionTitle}>Controlli</h3>
+      <h3 style={sectionTitle}>{t('sidebar.controls')}</h3>
 
       {/* Play/Pausa + scorciatoia tastiera */}
       <div>
@@ -44,23 +46,24 @@ export default function ControlsSidebar({
           aria-pressed={!isPlaying}
         >
           <span aria-hidden>{isPlaying ? '⏸' : '▶'}</span>
-          {isPlaying ? 'Pausa' : 'Riproduci'}
+          {isPlaying ? t('sidebar.pause') : t('sidebar.play')}
         </button>
         {/* Scorciatoie tastiera: sensate solo con una tastiera fisica */}
         <p className="mt-1.5 hidden text-center text-[11px] text-white/35 md:block">
-          Scorciatoie: <kbd className="kbd">Spazio</kbd> pausa · <kbd className="kbd">←</kbd>{' '}
-          <kbd className="kbd">→</kbd> velocità · <kbd className="kbd">↑</kbd>
-          <kbd className="kbd">↓</kbd> tilt · <kbd className="kbd">R</kbd> reset ·{' '}
-          <kbd className="kbd">Esc</kbd> chiudi
+          {t('sidebar.shortcutsPrefix')} <kbd className="kbd">Spazio</kbd> {t('sidebar.kbdPause')} ·{' '}
+          <kbd className="kbd">←</kbd> <kbd className="kbd">→</kbd> {t('sidebar.kbdSpeed')} ·{' '}
+          <kbd className="kbd">↑</kbd>
+          <kbd className="kbd">↓</kbd> {t('sidebar.kbdTilt')} · <kbd className="kbd">R</kbd>{' '}
+          {t('sidebar.kbdReset')} · <kbd className="kbd">Esc</kbd> {t('sidebar.kbdClose')}
         </p>
       </div>
 
       {/* Velocità: preset + slider continuo */}
       <div className="flex flex-col gap-2">
         <label className="text-xs uppercase tracking-wider text-white/70" htmlFor="speed-slider">
-          Velocità: <strong className="text-white">{speed}x</strong>
+          {t('sidebar.speed')} <strong className="text-white">{speed}x</strong>
         </label>
-        <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Velocità simulazione">
+        <div className="grid grid-cols-3 gap-1.5" role="group" aria-label={t('sidebar.speedGroup')}>
           {speedOptions.map((s) => (
             <button
               key={s}
@@ -81,16 +84,16 @@ export default function ControlsSidebar({
           value={speed}
           onChange={(e) => onSpeedChange(Number(e.target.value))}
           className="speed-slider"
-          aria-label="Regolazione continua della velocità di simulazione"
-          title="Trascina per una velocità personalizzata (0,1x – 20x)"
+          aria-label={t('sidebar.speedSlider')}
+          title={t('sidebar.speedSliderTitle')}
         />
       </div>
 
       {/* Data corrente della simulazione */}
       <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
-        <p className="text-[10px] uppercase tracking-wider text-white/65">Data simulazione</p>
+        <p className="text-[10px] uppercase tracking-wider text-white/65">{t('sidebar.simDate')}</p>
         <p className="text-sm font-semibold tabular-nums text-white">
-          {currentDate.toLocaleDateString('it-IT', {
+          {currentDate.toLocaleDateString(localeTag(), {
             day: 'numeric',
             month: 'long',
             year: 'numeric',
@@ -101,7 +104,7 @@ export default function ControlsSidebar({
       {/* Lista pianeti */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         <h4 className="mb-2" style={sectionTitle}>
-          Pianeti
+          {t('sidebar.planets')}
         </h4>
         {planets.map((planet) => {
           const active = selectedName === planet.name;
@@ -130,9 +133,7 @@ export default function ControlsSidebar({
 
       {/* Nota didascalica */}
       <div className="border-t border-white/10 pt-3">
-        <p className="text-center text-xs leading-relaxed text-white/65">
-          Le orbite non sono in scala. Dimensioni e distanze sono rappresentate schematicamente.
-        </p>
+        <p className="text-center text-xs leading-relaxed text-white/65">{t('sidebar.note')}</p>
       </div>
     </div>
   );

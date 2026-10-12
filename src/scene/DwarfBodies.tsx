@@ -9,7 +9,7 @@
  */
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Mesh, MeshStandardMaterial, SphereGeometry, Vector3 } from 'three';
+import { Mesh, Vector3 } from 'three';
 import { dwarfPlanets } from '../data/planets';
 import { useOrbitEngineContext } from './OrbitEngineBridge';
 import { heliocentricVector3D, REAL_SCALE_FACTOR } from './bodies3d';

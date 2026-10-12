@@ -4,6 +4,7 @@
  * Si auto-dismissa 4 secondi dopo la fine della congiunzione.
  */
 import { useEffect, useRef, useState } from 'react';
+import { useT } from '../i18n';
 import { subscribeConjunction, type ConjunctionInfo } from '../scene/Conjunctions';
 import { planets as PLANETS_DATA } from '../data/planets';
 
@@ -17,6 +18,7 @@ const SYMBOL: Record<string, string> = Object.fromEntries(
 const HIDE_DELAY_MS = 4000;
 
 export function ConjunctionBanner() {
+  const t = useT();
   const [info, setInfo] = useState<ConjunctionInfo | null>(null);
   const lastSeenRef = useRef<number | null>(null);
   const hideTimerRef = useRef<number | null>(null);
@@ -49,7 +51,7 @@ export function ConjunctionBanner() {
       role="status"
       aria-live="polite"
     >
-      <span className="font-semibold">🌟 Congiunzione</span>{' '}
+      <span className="font-semibold">🌟 {t('banner.conjunction')}</span>{' '}
       <span>
         {SYMBOL[info.a]} {a}
       </span>

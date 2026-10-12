@@ -2,11 +2,11 @@
  * S13 · F3 — Calcolo alt/az di un corpo celeste visto da un osservatore.
  *
  * Trasformazione semplificata (precisione ~±2°):
- *  1. vettore eliocentrico del pianeta (3D, con i e Ω) tramite
- *     `heliocentricVector3D`
+ *  1. longitudine eliocentrica media alla data (`meanLongitudeAt`, J2000 +
+ *     moto medio) in AU lineari — NON la scala logaritmica della scena 3D
  *  2. vettore geocentrico = pianeta − Terra
  *  3. eclittica → equatoriale: rotazione ε=23.4393° (obliquità J2000)
- *  4. equatoriale → orizzonte: dipende da latitudine e tempo siderale locale
+ *  4. equatoriale → orizzonte via triangolo astronomico (RA/dec + LST)
  *  5. → altitudine e azimut
  *
  * L'accuratezza è limitata dal modello kepleriano semplificato (~0.5°-1°
@@ -14,10 +14,8 @@
  * Documentato in docs/ROADMAP.md §3.2 e §6.1.
  */
 import { Vector3 } from 'three';
-import { planets, type PlanetData } from '../data/planets';
-import { BODIES_3D, heliocentricVector3D } from '../scene/bodies3d';
-import { keplerPosition } from '../hooks/useOrbitEngine';
-import { simTimeForDate } from './simDate';
+import { planets } from '../data/planets';
+import { BODIES_3D } from '../scene/bodies3d';
 import { meanLongitudeAt } from './kepler';
 
 const DEG = Math.PI / 180;
@@ -49,10 +47,7 @@ export function gmstDegreesRaw(date: Date): number {
   const jd = date.getTime() / 86_400_000 + 2440587.5;
   const T = (jd - 2451545.0) / 36525;
   return (
-    280.46061837 +
-    360.98564736629 * (jd - 2451545.0) +
-    0.000387933 * T * T -
-    (T * T * T) / 38710000
+    280.46061837 + 360.98564736629 * (jd - 2451545.0) + 0.000387933 * T * T - (T * T * T) / 38710000
   );
 }
 
@@ -64,44 +59,53 @@ export function gmstHours(date: Date): number {
   return gmst / 15;
 }
 
-/** Calcola alt/az di un corpo geocentrico all'istante indicato. */
+/**
+ * Calcola alt/az di un corpo geocentrico all'istante indicato.
+ *
+ * Implementazione via triangolo astronomico (Meeus §13), verificata su
+ * casi noti in skyView.test.ts:
+ *  - Sole all'equinozio a mezzogiorno locale a Roma → alt = 90°−φ, az = 180° (Sud)
+ *  - Sole all'equinozio all'alba → az = 90° (Est)
+ */
 export function altitudeAzimuth(
   geo: Vector3, // vettore geocentrico in frame eclittico (AU)
   date: Date,
   observer: Observer
 ): { altDeg: number; azDeg: number } {
   // 1) Eclittica → equatoriale: rotazione di -ε attorno a X
-  // Frame: x verso vernal equinox, z verso polo nord eclittico.
-  // Dopo rotazione: x_eq = x_ec, y_eq = y_ec·cos(ε) - z_ec·sin(ε), z_eq = y_ec·sin(ε) + z_ec·cos(ε)
+  //    (x_eq = x_ec, y_eq = y_ec·cos ε − z_ec·sin ε, z_eq = y_ec·sin ε + z_ec·cos ε;
+  //     z_eq = componente verso il polo nord celeste)
   const cosE = Math.cos(OBLIQUITY_J2000);
   const sinE = Math.sin(OBLIQUITY_J2000);
   const xEq = geo.x;
   const yEq = geo.y * cosE - geo.z * sinE;
   const zEq = geo.y * sinE + geo.z * cosE;
-  // 2) LST (Local Sidereal Time) in radianti
+  const rEq = Math.sqrt(xEq * xEq + yEq * yEq + zEq * zEq);
+  if (rEq === 0) return { altDeg: 0, azDeg: 0 };
+  // RA (α) e declinazione (δ)
+  const raRad = Math.atan2(yEq, xEq);
+  const decRad = Math.asin(Math.max(-1, Math.min(1, zEq / rEq)));
+  // 2) LST in gradi → radianti
   const lstHours = gmstHours(date) + observer.lonDeg / 15;
-  const lst = (lstHours * 15) * DEG;
-  // 3) Equatoriale → orizzonte: rotazione attorno a Y di -lst
-  //    Poi rotazione attorno a X di -(90° - lat) = lat - 90°
-  const cosLst = Math.cos(lst);
-  const sinLst = Math.sin(lst);
-  const xH = xEq * cosLst + zEq * sinLst;
-  const yH = -xEq * sinLst + zEq * cosLst;
-  const zH = yEq;
-  const latRad = observer.latDeg * DEG;
-  // Rotazione attorno a X di (lat - 90°): porta il polo nord in zenith.
-  // y' = y·cos(90-lat) - z·sin(90-lat) = y·sin(lat) - z·cos(lat)
-  // z' = y·sin(90-lat) + z·cos(90-lat) = y·cos(lat) + z·sin(lat)
-  const sinLat = Math.sin(latRad);
-  const cosLat = Math.cos(latRad);
-  const yAlt = yH * sinLat - zH * cosLat;
-  const zAlt = yH * cosLat + zH * sinLat;
-  // alt = atan2(yAlt, hypot(xH, zAlt))
-  // az = atan2(xH, zAlt) (azimut misurato da Sud, in aumento verso Ovest)
-  const altRad = Math.atan2(yAlt, Math.sqrt(xH * xH + zAlt * zAlt));
-  let azRad = Math.atan2(xH, zAlt);
-  if (azRad < 0) azRad += 2 * Math.PI;
-  return { altDeg: altRad / DEG, azDeg: azRad / DEG };
+  const lstRad = (lstHours * 15 * DEG) % (2 * Math.PI);
+  // 3) Angolo orario H = LST − α, normalizzato in (−π, π]
+  let h = lstRad - raRad;
+  h = (((h % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI)) - Math.PI;
+  const sinDec = Math.sin(decRad);
+  const cosDec = Math.cos(decRad);
+  const sinLat = Math.sin(observer.latDeg * DEG);
+  const cosLat = Math.cos(observer.latDeg * DEG);
+  const sinH = Math.sin(h);
+  const cosH = Math.cos(h);
+  // Azimut da Nord in senso orario = atan2(E, N) con N = −S, E = −W:
+  //   az = atan2(−cosδ·sinH, sinδ·cosφ − cosδ·sinφ·cosH)
+  //   Mezzogiorno equinozio → 180° (Sud) ✓ · Alba equinozio → 90° (Est) ✓
+  const sinAlt = sinDec * sinLat + cosDec * cosLat * cosH;
+  const altRad = Math.asin(Math.max(-1, Math.min(1, sinAlt)));
+  const azN = Math.atan2(-cosDec * sinH, sinDec * cosLat - cosDec * sinLat * cosH);
+  let azDeg = azN / DEG;
+  azDeg = ((azDeg % 360) + 360) % 360;
+  return { altDeg: altRad / DEG, azDeg };
 }
 
 /**
@@ -152,13 +156,17 @@ export function computeSkyView(date: Date, observer: Observer): SkyViewResult[] 
   // J2000 + moto medio).
   const lamEarth = meanLongitudeAt(earth.meanLongitudeJ2000, earth.orbitalPeriod, date);
   const earthBody = BODIES_3D['Earth']!;
-  const vE = heliocentricAU(lamEarth, 1, earthBody.longitudeOfAscendingNode, earthBody.orbitalInclination, new Vector3());
+  const vE = heliocentricAU(
+    lamEarth,
+    1,
+    earthBody.longitudeOfAscendingNode,
+    earthBody.orbitalInclination,
+    new Vector3()
+  );
   // Sole: opposto a vE, distanza 1 AU
   const vSun = vE.clone().negate();
   const { altDeg: sunAlt, azDeg: sunAz } = altitudeAzimuth(vSun, date, observer);
-  const out: SkyViewResult[] = [
-    { body: 'Sun', altDeg: sunAlt, azDeg: sunAz, distanceAU: 1 },
-  ];
+  const out: SkyViewResult[] = [{ body: 'Sun', altDeg: sunAlt, azDeg: sunAz, distanceAU: 1 }];
   for (const p of planets) {
     if (p.name === 'Earth') continue;
     const lamP = meanLongitudeAt(p.meanLongitudeJ2000, p.orbitalPeriod, date);

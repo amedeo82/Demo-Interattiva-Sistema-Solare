@@ -153,6 +153,7 @@ export function SolarScene({
               selectedBodyName={selectedBodyName}
               onSelectBody={onSelectBody}
               realScale={realScale}
+              hiRes={!mobile}
             />
             <SaturnRings realScale={realScale} />
             {realistic && <PlanetRings realScale={realScale} />}

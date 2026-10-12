@@ -1,6 +1,11 @@
-import { useEffect, useMemo, useRef, useState, useCallback, lazy, Suspense } from 'react';
+﻿import { useEffect, useMemo, useRef, useState, useCallback, lazy, Suspense } from 'react';
 import { planets, type PlanetData } from './data/planets';
-import { createHashWriter, parseDeepLink, type DeepLinkState, type DeepLinkToggle } from './utils/deepLink';
+import {
+  createHashWriter,
+  parseDeepLink,
+  type DeepLinkState,
+  type DeepLinkToggle,
+} from './utils/deepLink';
 import PlanetInfoPanel from './components/PlanetInfoPanel';
 import ControlsSidebar from './components/ControlsSidebar';
 import { IntroOverlay } from './components/IntroOverlay';
@@ -15,6 +20,13 @@ const QuizModal = lazy(() => import('./components/QuizModal'));
 const EventsModal = lazy(() =>
   import('./components/EventsModal').then((m) => ({ default: m.EventsModal }))
 );
+const SkyViewModal = lazy(() =>
+  import('./components/SkyViewModal').then((m) => ({ default: m.SkyViewModal }))
+);
+// S14 · F9 — palette sincrona: è keyboard-first (Ctrl+K deve aprirla
+// immediatamente) e piccola (~5KB); il lazy complicherebbe i test fake-timer.
+import { CommandPalette, type PaletteCommand } from './components/CommandPalette';
+import { useT, toggleLocale } from './i18n';
 import { useOrbitEngine } from './hooks/useOrbitEngine';
 import { useIsMobile } from './hooks/useMedia';
 import {
@@ -86,9 +98,15 @@ export default function App({ quizRnd }: AppProps = {}) {
   // profondità immediata ("guardiamo il sistema da sopra-davanti").
   const [tilt, setTilt] = useState({ pitch: -10, yaw: 0 });
   const [simDate, setSimDate] = useState<Date | null>(null);
+  // S15 · M7 — traduttore reattivo: i componenti che lo usano si
+  // ri-renderizzano al cambio lingua (chip 🌐 in header).
+  const t = useT();
   const [showCompare, setShowCompare] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [showEvents, setShowEvents] = useState(false);
+  const [showSky, setShowSky] = useState(false);
+  // S14 · F8 — quiz in modalità focus su un pianeta (dal pannello info)
+  const [quizFocus, setQuizFocus] = useState<string | null>(null);
   // S3.3 — titolo cinematografico: mostrato al mount, auto-dismiss dopo 3s.
   const [introVisible, setIntroVisible] = useState(true);
   // S3.4 — cinematic slow-mo: quando l'utente seleziona un pianeta, la
@@ -223,18 +241,12 @@ export default function App({ quizRnd }: AppProps = {}) {
       if (parsed.toggles.has('fx' as DeepLinkToggle)) setPostFxEnabled(true);
     }
     if (parsed.date) {
-      // Calcola sim time per la data e fa seek. Vedi sezione simDate.
-      const earth = planets.find((p) => p.name === 'Earth');
-      if (earth) {
-        const t = simTimeForDate(earth, new Date(parsed.date));
-        // Chiama il metodo esposto dal motore: simuliamo l'azione con un
-        // flag passato al motore, che alla prossima seekFromDate lo userà.
-        // (Vedi useOrbitEngine.ts: il motore espone un ref pendingDateRef.)
-        // Per semplicità qui scriviamo direttamente su simTimeRef se il motore
-        // lo espone; altrimenti l'utente può ancora usare il date picker.
-      }
+      // S11 · F1 — la data viene applicata via stato `simDate`: i memo
+      // anglesForDate/anomaliesForDate/simTimeForDate (righe ~160-175) già
+      // guidano il motore in modo dichiarativo, come il date picker.
+      setSimDate(new Date(parsed.date));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // Writer debounced per l'hash
   const pushHash = useMemo(() => createHashWriter(300), []);
@@ -252,7 +264,16 @@ export default function App({ quizRnd }: AppProps = {}) {
       toggles,
     };
     pushHash(state);
-  }, [selectedPlanet, speed, showLabels, realistic, eclipsesEnabled, realScale, postFxEnabled, pushHash]);
+  }, [
+    selectedPlanet,
+    speed,
+    showLabels,
+    realistic,
+    eclipsesEnabled,
+    realScale,
+    postFxEnabled,
+    pushHash,
+  ]);
 
   // S3.4 — Auto reset del cinematic slow-mo dopo 2.5s. Il motore legge
   // `slowmoMultiplierRef.current` ad ogni frame: 0.25 durante la finestra
@@ -299,6 +320,7 @@ export default function App({ quizRnd }: AppProps = {}) {
           setShowCompare(false);
           setShowQuiz(false);
           setShowEvents(false);
+          setShowSky(false);
           break;
         // Nella scena 3D lo zoom è gestito da OrbitControls (rotellina).
         // Teniamo i tasti come alias del pitch: + = guarda giù (pitch +), - = guarda su (pitch -)
@@ -324,6 +346,21 @@ export default function App({ quizRnd }: AppProps = {}) {
         case 'ArrowDown':
           setTilt((t) => ({ ...t, pitch: clampPitch(t.pitch - 3) }));
           break;
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // S14 · F9 — Command palette: Ctrl/Cmd+K apre/chiude. Effect separato con
+  // setter funzionale (nessuna closure stale); gli input di testo non
+  // declenchano le scorciatoie globali (il gestore sopra ignora input/textarea).
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -384,6 +421,147 @@ export default function App({ quizRnd }: AppProps = {}) {
     a.click();
   }, []);
 
+  // S14 · F9 — comandi della palette (pianeti, viste, toggle, azioni).
+  // S15 · M7 — label via t(): il memo dipende da `t` (cambia col locale).
+  const paletteCommands = useMemo(() => {
+    type W = Window & { __toggleAmbient?: () => void };
+    const cmds: PaletteCommand[] = [
+      ...planets.map((p) => ({
+        id: `planet-${p.name}`,
+        label: p.nameIt,
+        hint: t('palette.hintPlanet'),
+        icon: '🪐',
+        run: () => handleSelectPlanet(p),
+      })),
+      {
+        id: 'today',
+        label: t('cmd.today'),
+        hint: t('palette.hintTime'),
+        icon: '📍',
+        run: () => goToToday(),
+      },
+      {
+        id: 'play',
+        label: isPlaying ? t('cmd.pause') : t('cmd.play'),
+        hint: t('palette.hintTime'),
+        icon: isPlaying ? '⏸' : '▶',
+        run: () => setIsPlaying((v) => !v),
+      },
+      {
+        id: 'compare',
+        label: t('cmd.compare'),
+        hint: t('palette.hintView'),
+        icon: '⚖️',
+        run: () => setShowCompare(true),
+      },
+      {
+        id: 'quiz',
+        label: t('cmd.quiz'),
+        hint: t('palette.hintView'),
+        icon: '🧠',
+        run: () => setShowQuiz(true),
+      },
+      {
+        id: 'events',
+        label: t('cmd.events'),
+        hint: t('palette.hintView'),
+        icon: '☄️',
+        run: () => setShowEvents(true),
+      },
+      {
+        id: 'sky',
+        label: t('cmd.sky'),
+        hint: t('palette.hintView'),
+        icon: '🌍',
+        run: () => setShowSky(true),
+      },
+      {
+        id: 'screenshot',
+        label: t('cmd.screenshot'),
+        hint: t('palette.hintAction'),
+        icon: '📷',
+        run: () => void takeScreenshot(),
+      },
+      {
+        id: 'tour',
+        label: tourActive ? t('cmd.tourStop') : t('cmd.tourStart'),
+        hint: t('palette.hintAction'),
+        icon: '🎬',
+        run: () => setTourActive((v) => !v),
+      },
+      {
+        id: 'freecam',
+        label: freeCamera ? t('cmd.freecamOff') : t('cmd.freecamOn'),
+        hint: t('palette.hintCamera'),
+        icon: '🎥',
+        run: () => setFreeCamera((v) => !v),
+      },
+      {
+        id: 'labels',
+        label: showLabels ? t('cmd.labelsHide') : t('cmd.labelsShow'),
+        hint: t('palette.hintToggle'),
+        icon: '🏷️',
+        run: () => setShowLabels((v) => !v),
+      },
+      {
+        id: 'realism',
+        label: realistic ? t('cmd.realismOff') : t('cmd.realismOn'),
+        hint: t('palette.hintToggle'),
+        icon: '🪐',
+        run: () => setRealistic((v) => !v),
+      },
+      {
+        id: 'eclipses',
+        label: eclipsesEnabled ? t('cmd.eclipsesOff') : t('cmd.eclipsesOn'),
+        hint: t('palette.hintToggle'),
+        icon: '🌑',
+        run: () => setEclipsesEnabled((v) => !v),
+      },
+      {
+        id: 'realscale',
+        label: realScale ? t('cmd.logscale') : t('cmd.realscale'),
+        hint: t('palette.hintToggle'),
+        icon: '📏',
+        run: () => setRealScale((v) => !v),
+      },
+      {
+        id: 'fx',
+        label: postFxEnabled ? t('cmd.fxOff') : t('cmd.fxOn'),
+        hint: t('palette.hintToggle'),
+        icon: '✨',
+        run: () => setPostFxEnabled((v) => !v),
+      },
+      {
+        id: 'ambient',
+        label: t('cmd.ambient'),
+        hint: t('palette.hintToggle'),
+        icon: '🎵',
+        run: () => (window as W).__toggleAmbient?.(),
+      },
+      // palette stessa: chiude (Ctrl+K toggle)
+      {
+        id: 'palette',
+        label: t('cmd.paletteClose'),
+        hint: t('palette.hintAction'),
+        icon: '⌘',
+        run: () => setPaletteOpen(false),
+      },
+    ];
+    return cmds;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    t,
+    isPlaying,
+    tourActive,
+    freeCamera,
+    showLabels,
+    realistic,
+    eclipsesEnabled,
+    realScale,
+    postFxEnabled,
+    takeScreenshot,
+  ]);
+
   // Tasto S per screenshot + shortcut hint in header
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -416,7 +594,7 @@ export default function App({ quizRnd }: AppProps = {}) {
         <div className="flex flex-wrap items-center gap-2">
           <label
             className="hidden items-center gap-2 text-xs text-white/75 lg:flex"
-            title="Mostra le posizioni dei pianeti a una data specifica"
+            title={t('tip.date')}
           >
             📅 Data
             <input
@@ -430,72 +608,87 @@ export default function App({ quizRnd }: AppProps = {}) {
             />
           </label>
           {simDate && (
-            <button onClick={goToToday} className="chip" title="Torna alla data di oggi">
-              📍 Oggi
+            <button onClick={goToToday} className="chip" title={t('tip.today')}>
+              {t('chip.today')}
             </button>
           )}
           <button
             onClick={() => setShowLabels((v) => !v)}
             aria-pressed={showLabels}
             className={`chip hidden sm:block ${showLabels ? 'active' : ''}`}
-            title="Mostra o nascondi i nomi dei pianeti"
+            title={t('tip.labels')}
           >
-            Etichette
+            {t('chip.labels')}
           </button>
           <button
             onClick={() => setRealistic((v) => !v)}
             aria-pressed={realistic}
             className={`chip hidden sm:block ${realistic ? 'active' : ''}`}
-            title="Texture procedurali, lune e fascia degli asteroidi"
+            title={t('tip.realism')}
           >
-            Realismo
+            {t('chip.realism')}
           </button>
           <button
             onClick={() => setEclipsesEnabled((v) => !v)}
             aria-pressed={eclipsesEnabled}
             className={`chip hidden sm:block ${eclipsesEnabled ? 'active' : ''}`}
-            title="Abilita ombre reali: la Luna può proiettare ombra sulla Terra e viceversa (shadow map 1024×1024, costo GPU)"
+            title={t('tip.eclipses')}
           >
-            🌑 Eclissi
+            🌑 {t('chip.eclipses')}
           </button>
           <button
             onClick={() => setRealScale((v) => !v)}
             aria-pressed={realScale}
             className={`chip hidden sm:block ${realScale ? 'active' : ''}`}
-            title="Scala 1:1 (stelle molto lontane: la maggior parte dei pianeti diventa invisibile)"
+            title={t('tip.realscale')}
           >
-            📏 Scala reale
+            📏 {t('chip.realscale')}
           </button>
           <button
             onClick={() => setPostFxEnabled((v) => !v)}
             aria-pressed={postFxEnabled}
             className={`chip hidden sm:block ${postFxEnabled ? 'active' : ''}`}
-            title="Bloom (alone del Sole) e vignette cinematografica"
+            title={t('tip.fx')}
           >
-            ✨ FX
+            ✨ {t('chip.fx')}
           </button>
           <button
             className="chip hidden sm:block"
             onClick={() => void takeScreenshot()}
-            title="Cattura uno screenshot della scena (S)"
+            title={t('tip.photo')}
           >
-            📷 Foto
+            {t('chip.photo')}
           </button>
           <button
             type="button"
             onClick={() => setShowEvents(true)}
             className="chip"
             aria-pressed={showEvents}
-            title="Eventi celesti (congiunzioni, opposizioni) nel prossimo anno"
+            title={t('tip.events')}
           >
-            ☄ Eventi
+            {t('chip.events')}
           </button>
           <button
-            onClick={() => setShowQuiz(true)}
+            type="button"
+            onClick={() => setShowSky(true)}
             className="chip"
-            title="Metti alla prova le tue conoscenze"
+            aria-pressed={showSky}
+            title={t('tip.sky')}
           >
-            🧠 Quiz
+            {t('chip.sky')}
+          </button>
+          <button onClick={() => setShowQuiz(true)} className="chip" title={t('tip.quiz')}>
+            {t('chip.quiz')}
+          </button>
+          {/* S15 · M7 — chip lingua (toggle it/en, persistito) */}
+          <button
+            type="button"
+            onClick={toggleLocale}
+            className="chip"
+            aria-label={t('tip.lang')}
+            title={t('tip.lang')}
+          >
+            {t('chip.lang')}
           </button>
           {/* Menu overflow "⋯" — visibile solo quando i chip principali non
               entrano nell'header. Su desktop mostra Confronto/Tour/Free Cam;
@@ -506,36 +699,36 @@ export default function App({ quizRnd }: AppProps = {}) {
                 ? [
                     {
                       key: 'labels',
-                      label: '🏷 Etichette',
-                      title: 'Mostra o nascondi i nomi dei pianeti',
+                      label: `🏷 ${t('chip.labels')}`,
+                      title: t('tip.labels'),
                       active: showLabels,
                       onClick: () => setShowLabels((v) => !v),
                     },
                     {
                       key: 'realistic',
-                      label: '🌍 Realismo',
-                      title: 'Texture procedurali, lune e fascia degli asteroidi',
+                      label: `🌍 ${t('chip.realism')}`,
+                      title: t('tip.realism'),
                       active: realistic,
                       onClick: () => setRealistic((v) => !v),
                     },
                     {
                       key: 'realscale',
-                      label: '📏 Scala reale',
+                      label: `📏 ${t('chip.realscale')}`,
                       title: 'Scala 1:1 (i pianeti interni diventano quasi invisibili)',
                       active: realScale,
                       onClick: () => setRealScale((v) => !v),
                     },
                     {
                       key: 'postfx',
-                      label: '✨ FX',
-                      title: 'Bloom (alone del Sole) e vignette cinematografica',
+                      label: `✨ ${t('chip.fx')}`,
+                      title: t('tip.fx'),
                       active: postFxEnabled,
                       onClick: () => setPostFxEnabled((v) => !v),
                     },
                     {
                       key: 'eclipses',
-                      label: '🌑 Eclissi',
-                      title: 'Ombre reali Terra-Luna (shadow map, costo GPU)',
+                      label: `🌑 ${t('chip.eclipses')}`,
+                      title: t('tip.eclipseShort'),
                       active: eclipsesEnabled,
                       onClick: () => setEclipsesEnabled((v) => !v),
                     },
@@ -543,21 +736,21 @@ export default function App({ quizRnd }: AppProps = {}) {
                 : []),
               {
                 key: 'compare',
-                label: '⚖️ Confronto',
-                title: 'Confronta due pianeti',
+                label: `⚖️ ${t('cmd.compareShort')}`,
+                title: t('tip.compare'),
                 onClick: () => setShowCompare(true),
               },
               {
                 key: 'tour',
                 label: '🎬 Tour',
-                title: 'Tour guidato',
+                title: t('tip.tour'),
                 active: tourActive,
                 onClick: () => setTourActive((v) => !v),
               },
               {
                 key: 'freecam',
                 label: '🛰 Free Cam',
-                title: 'Camera libera',
+                title: t('tip.freecam'),
                 active: freeCamera,
                 onClick: () => setFreeCamera((v) => !v),
               },
@@ -570,9 +763,9 @@ export default function App({ quizRnd }: AppProps = {}) {
               (window as W).__toggleAmbient?.();
             }}
             className="chip hidden sm:block"
-            title="Drone ambientale di sottofondo (sintetizzato, no download)"
+            title={t('tip.audio')}
           >
-            🔊 Audio
+            🔊 {t('chip.audio')}
           </button>
         </div>
       </header>
@@ -627,11 +820,7 @@ export default function App({ quizRnd }: AppProps = {}) {
           <SceneErrorBoundary>
             <Suspense
               fallback={
-                <div
-                  className="h-full w-full"
-                  role="status"
-                  aria-label="Caricamento scena 3D"
-                />
+                <div className="h-full w-full" role="status" aria-label="Caricamento scena 3D" />
               }
             >
               <SolarScene
@@ -654,13 +843,13 @@ export default function App({ quizRnd }: AppProps = {}) {
                 cameraPositionRef={cameraPositionRef}
                 fpsRef={fpsRef}
                 mouseNdcRef={mouseNdcRef}
-              worldHitRef={worldHitRef}
-              hoveredBodyRef={hoveredBodyRef}
-              mobile={isMobile}
-              realScale={realScale}
-              eclipsesEnabled={eclipsesEnabled}
-            />
-          </Suspense>
+                worldHitRef={worldHitRef}
+                hoveredBodyRef={hoveredBodyRef}
+                mobile={isMobile}
+                realScale={realScale}
+                eclipsesEnabled={eclipsesEnabled}
+              />
+            </Suspense>
           </SceneErrorBoundary>
 
           {/* S3.3 — Title overlay cinematografico sopra tutto */}
@@ -679,7 +868,7 @@ export default function App({ quizRnd }: AppProps = {}) {
               onClick={() => setTilt((t) => ({ ...t, pitch: clampPitch(t.pitch + 5) }))}
               className="view-btn"
               aria-label="Alza la camera"
-              title="Camera pitch +"
+              title={t('tip.pitchUp')}
             >
               ↑
             </button>
@@ -687,7 +876,7 @@ export default function App({ quizRnd }: AppProps = {}) {
               onClick={() => setTilt((t) => ({ ...t, pitch: clampPitch(t.pitch - 5) }))}
               className="view-btn"
               aria-label="Abbassa la camera"
-              title="Camera pitch −"
+              title={t('tip.pitchDown')}
             >
               ↓
             </button>
@@ -695,7 +884,7 @@ export default function App({ quizRnd }: AppProps = {}) {
               onClick={resetView}
               className="view-btn"
               aria-label="Reimposta visuale"
-              title="Reimposta visuale (R)"
+              title={t('tip.reset')}
             >
               ⟲
             </button>
@@ -735,6 +924,10 @@ export default function App({ quizRnd }: AppProps = {}) {
               planet={selectedPlanet}
               onClose={() => setSelectedPlanet(null)}
               positionsRef={positionsRef}
+              onQuizRequest={(name) => {
+                setQuizFocus(name);
+                setShowQuiz(true);
+              }}
             />
           )}
 
@@ -791,8 +984,8 @@ export default function App({ quizRnd }: AppProps = {}) {
                   />
                 </label>
                 {simDate && (
-                  <button onClick={goToToday} className="chip" title="Torna alla data di oggi">
-                    📍 Oggi
+                  <button onClick={goToToday} className="chip" title={t('tip.today')}>
+                    {t('chip.today')}
                   </button>
                 )}
               </div>
@@ -818,7 +1011,7 @@ export default function App({ quizRnd }: AppProps = {}) {
               Su mobile è ancorato in basso al centro (la sidebar non è visibile). */}
           {!introVisible && (
             <OnboardingTip
-              text="Clicca un pianeta per vederlo da vicino. Trascina la timeline sopra per viaggiare nel tempo. Buon viaggio! 🚀"
+              text={t('onboarding.text')}
               side={isMobile ? 'top' : 'right'}
               {...(isMobile
                 ? { bottom: '96px', left: '16px', right: '16px' }
@@ -848,7 +1041,7 @@ export default function App({ quizRnd }: AppProps = {}) {
           aria-controls="controls-sheet"
         >
           <span aria-hidden>{controlsSheetOpen ? '✕' : '☰'}</span>
-          <span>{controlsSheetOpen ? 'Chiudi' : 'Controlli'}</span>
+          <span>{controlsSheetOpen ? t('chip.controlsClose') : t('chip.controls')}</span>
         </button>
       )}
 
@@ -867,8 +1060,24 @@ export default function App({ quizRnd }: AppProps = {}) {
             }}
           />
         )}
+        {showSky && <SkyViewModal open={showSky} onClose={() => setShowSky(false)} />}
+        {paletteOpen && (
+          <CommandPalette
+            open={paletteOpen}
+            onClose={() => setPaletteOpen(false)}
+            commands={paletteCommands}
+          />
+        )}
         {showQuiz && (
-          <QuizModal planets={planets} onClose={() => setShowQuiz(false)} rnd={stableQuizRnd} />
+          <QuizModal
+            planets={planets}
+            onClose={() => {
+              setShowQuiz(false);
+              setQuizFocus(null);
+            }}
+            rnd={stableQuizRnd}
+            focusPlanet={quizFocus ?? undefined}
+          />
         )}
       </Suspense>
     </div>
@@ -887,6 +1096,7 @@ interface OverflowItem {
  *  Pensato per header stretti: se i chip entrano, `flex-wrap` li tiene in linea
  *  — il menu aggiunge solo uno shortcut cliccabile per le 3 voci più "nascoste". */
 function OverflowMenu({ items }: { items: OverflowItem[] }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -913,8 +1123,8 @@ function OverflowMenu({ items }: { items: OverflowItem[] }) {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label="Altre opzioni"
-        title="Altre opzioni"
+        aria-label={t('tip.more')}
+        title={t('tip.more')}
         className={`chip ${open ? 'active' : ''}`}
       >
         ⋯

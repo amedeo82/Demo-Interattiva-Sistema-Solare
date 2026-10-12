@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "prebuild": "node scripts/generate-texture-manifest.mjs",
     "postbuild": "node scripts/inject-sw-version.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",

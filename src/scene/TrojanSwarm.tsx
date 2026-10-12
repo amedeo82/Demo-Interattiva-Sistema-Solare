@@ -10,13 +10,7 @@
  */
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import {
-  AdditiveBlending,
-  BufferAttribute,
-  BufferGeometry,
-  Points,
-  ShaderMaterial,
-} from 'three';
+import { AdditiveBlending, BufferAttribute, BufferGeometry, Points, ShaderMaterial } from 'three';
 import { mulberry32 } from '../utils/random';
 import { useOrbitEngineContext } from './OrbitEngineBridge';
 import { BODIES_3D, REAL_SCALE_FACTOR } from './bodies3d';

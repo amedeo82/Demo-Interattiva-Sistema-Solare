@@ -15,11 +15,11 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { AdditiveBlending, Color, Group, Mesh, MeshBasicMaterial, RingGeometry, Vector3 } from 'three';
+import { AdditiveBlending, Color, Group, Mesh, MeshBasicMaterial, RingGeometry } from 'three';
 import { keplerPosition } from '../hooks/useOrbitEngine';
 import { planets as PLANETS_DATA } from '../data/planets';
 import { useOrbitEngineContext } from './OrbitEngineBridge';
-import { BODIES_3D, angularSeparation3D, heliocentricVector3D, REAL_SCALE_FACTOR } from './bodies3d';
+import { BODIES_3D, angularSeparation3D, heliocentricVector3D } from './bodies3d';
 
 const ENTRY_THRESHOLD_DEG = 5; // soglia per entrare in "in congiunzione"
 const EXIT_THRESHOLD_DEG = 3; // soglia per uscirne (isteresi)
@@ -31,13 +31,6 @@ interface Conjunction {
   bestSep: number;
   /** Quando è iniziata (ms reali). */
   startMs: number;
-}
-
-function angDiff(a: number, b: number): number {
-  // Helper legacy (non più usato dopo S9 · M9: la separazione è ora 3D).
-  // Mantenuto per retro-compatibilità interna.
-  const d = Math.abs(a - b) % 360;
-  return d > 180 ? 360 - d : d;
 }
 
 interface ConjunctionsProps {
@@ -94,8 +87,18 @@ export function Conjunctions({ onChange }: ConjunctionsProps) {
         const ba = BODIES_3D[pa.name];
         const bb = BODIES_3D[pb.name];
         if (!ba || !bb) continue;
-        const va = heliocentricVector3D(sa.angle, sa.radius, ba.longitudeOfAscendingNode, ba.orbitalInclination);
-        const vb = heliocentricVector3D(sb.angle, sb.radius, bb.longitudeOfAscendingNode, bb.orbitalInclination);
+        const va = heliocentricVector3D(
+          sa.angle,
+          sa.radius,
+          ba.longitudeOfAscendingNode,
+          ba.orbitalInclination
+        );
+        const vb = heliocentricVector3D(
+          sb.angle,
+          sb.radius,
+          bb.longitudeOfAscendingNode,
+          bb.orbitalInclination
+        );
         const sep = angularSeparation3D(va, vb);
         if (!best || sep < best.sep) {
           // posizione "media" sulla congiunzione (a metà strada)
@@ -137,8 +140,18 @@ export function Conjunctions({ onChange }: ConjunctionsProps) {
         const ba = BODIES_3D[pa.name];
         const bb = BODIES_3D[pb.name];
         if (!ba || !bb) return;
-        const va = heliocentricVector3D(sa.angle, sa.radius, ba.longitudeOfAscendingNode, ba.orbitalInclination);
-        const vb = heliocentricVector3D(sb.angle, sb.radius, bb.longitudeOfAscendingNode, bb.orbitalInclination);
+        const va = heliocentricVector3D(
+          sa.angle,
+          sa.radius,
+          ba.longitudeOfAscendingNode,
+          ba.orbitalInclination
+        );
+        const vb = heliocentricVector3D(
+          sb.angle,
+          sb.radius,
+          bb.longitudeOfAscendingNode,
+          bb.orbitalInclination
+        );
         const mx = (va.x + vb.x) / 2;
         const my = (va.y + vb.y) / 2;
         const mz = (va.z + vb.z) / 2;

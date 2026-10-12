@@ -16,6 +16,89 @@
 
 ---
 
+## ✅ Stato di implementazione (aggiornato al 2026-10-12)
+
+Progresso complessivo: **24/25 step completati** · suite test: **298/298** (baseline 180) · lint 0 errori · 0 errori console in build.
+Commit di riferimento: `5cbbdff` (Fasi 1–5 + F3 math) e working tree corrente (F3 UI + Fasi 7–8.2).
+
+| Fase | Sprint | Step | Stato |
+|---|---|---|---|
+| 1 · Igiene & robustezza | S8 | 1.1 M2 · 1.2 M1 · 1.3 M8 · 1.4 M5 | ✅ Completata |
+| 2 · Guardrail & perf | S10a | 2.1 M6a · 2.2 M6b · 2.3 M6c · 2.4 M6d · 2.5 M4 | ✅ Completata |
+| 3 · Fisica | S9 | 3.1 M3 · 3.2 M9 | ✅ Completata |
+| 4 · Funzionalità motore | S11 | 4.1 F1 · 4.2 F2 | ✅ Completata |
+| 5 · Nuovi corpi | S12 | 5.1 F5 · 5.2 F4 | ✅ Completata |
+| 6 · Cielo da Terra | S13 | 6.1 F3 (math **e** UI `SkyViewModal`) | ✅ Completata |
+| 7 · Educazione & UX | S14 | 7.1 F7 · 7.2 F8 · 7.3 F11 · 7.4 F10 · 7.5 F9 | ✅ Completata |
+| 8 · Realismo & piattaforma | S15 | 8.1 R1 ✅ · 8.2 R2 ✅ · 8.3 M7 ✅ · 8.4 R3 ⏳ | 🔄 3/4 |
+
+### Dettaglio per step
+
+- ✅ **1.1 M2** — `Planet.tsx`, `Planet.test.tsx`, `utils/textures.ts`, `utils/textures.test.ts` rimossi; `FEATURES.md` aggiornato (fallback DOM dichiarato storico).
+- ✅ **1.2 M1** — `SceneErrorBoundary.tsx` (class component + retry via key) attorno a `<Suspense>` in `App.tsx`; `ContextLostGuard.tsx` dentro `<Canvas>` con overlay in portale. 10 test.
+- ✅ **1.3 M8** — token `--text-secondary` (0.78) e `--text-muted` (0.62) in `index.css`; sweep `text-white/40→65`, `/50→70`, `/60→75` su 8 componenti.
+- ✅ **1.4 M5** — `scripts/inject-sw-version.mjs` via hook npm `postbuild` (non in catena `&&`: su Windows la scrittura in catena non era affidabile). Sanity-check sulla `const CACHE_NAME` aggiornata.
+- ✅ **2.1 M6a** — `src/a11y/axe.test.tsx` con `jest-axe`; regole escluse con motivazione in `src/a11y/axe.ts` (`color-contrast` non computabile in jsdom, coperta da Lighthouse; `region`; `heading-order`). Fix a11y reali: `aria-label` sullo slider Timeline, `role="status"` sul fallback Suspense.
+- ✅ **2.2 M6b** — `scripts/check-bundle.mjs` + `bundle.config.mjs` (soglie: main 25KB gz, SolarScene 15KB, drei 180KB, three 200KB, totale 420KB); step `Check bundle budget` in `ci.yml`.
+- ✅ **2.3 M6c** — `e2e/smoke.spec.ts` + `playwright.config.ts` (5 viewport) + workflow `e2e.yml`; `@playwright/test` come devDependency con deroga documentata in `AGENTS.md`; output Playwright in `.gitignore`.
+- ✅ **2.4 M6d** — `.lighthouserc.json` + workflow settimanale `lighthouse.yml` (assert `warn` su a11y ≥ 0.9, best-practices ≥ 0.9, perf ≥ 0.6).
+- ✅ **2.5 M4** — `utils/qualityTiers.ts` (funzione pura `nextTier` con isteresi/cooldown/floor) + `PerformanceGovernor.tsx` (default **OFF**, prop `enabled`); 8 test.
+- ✅ **3.1 M3** — `orbitalInclination` J2000 per gli 8 pianeti; `angleToOrbitPosition` esteso (ordine i→Ω); Ω/i propagati a Bodies, Orbits, Moons, SaturnRings, PlanetRings, Conjunctions. 8 test in `scene/bodies3d.test.ts`.
+- ✅ **3.2 M9** — `heliocentricVector3D` + `angularSeparation3D`; `Conjunctions.tsx` usa la separazione 3D. 6 test.
+- ✅ **4.1 F1** — `utils/deepLink.ts` (parse/encode/writer debounced 300ms con `replaceState`); boot one-shot da `location.hash` in `App.tsx` (precedenza sull'hash, nessuna scrittura in prefs). 13 test.
+- ✅ **4.2 F2** — `utils/celestialEvents.ts` (findConjunctions con minimi locali + raffinamento aureo; findOppositions) + `EventsModal.tsx` (lazy) + chip "☄ Eventi". 9 test. **Limite documentato**: il modello è decorativo, le date reali non corrispondono alle effemeridi (vedi §Deviazioni).
+- ✅ **5.1 F5** — `scene/TrojanSwarm.tsx` (cluster L4/L5 co-rotanti con Giove, 80/40 punti desktop/mobile); montati in `SolarScene` quando `realistic`. 5 test.
+- ✅ **5.2 F4** — `dwarfPlanets` (Plutone, Cerere) in `data/planets.ts` **fuori** da `simDate`/PPCM (array separato, test lo verifica); `scene/DwarfBodies.tsx`; 3 test di validazione.
+- ✅ **6.1 F3** — math: `utils/skyView.ts` (GMST Meeus, triangolo astronomico, `sunAltitude`, `computeSkyView` in AU lineari da `meanLongitudeAt`); UI: `components/SkyViewModal.tsx` (SVG planetario, proiezione azimutale, 4 preset città + input manuale, chip "🌍 Cielo"). 10 test math + 5 test UI. **Fix in itinere**: la prima matrice di rotazione alt/az era sbagliata → riscritta con la formula standard del triangolo astronomico, verificata su mezzogiorno/alba all'equinozio (vedi §Deviazioni).
+- ✅ **7.1 F7** — `hooks/useNarration.ts` (feature-detect, voce it-IT, cancel su cambio testo/unmount, flag `narrationActive` nello store zustand `store/ui.ts`); bottone 🔊 nel pannello info + tasto `N`; ducking in `AmbientAudio` (rampa a 0.02 durante la narrazione). 5 test.
+- ✅ **7.2 F8** — `QuizModal`: livelli easy/medium/hard (3/5/8 domande), best score persistito per livello (`PREFS_KEYS.quizBest`, salvataggio in `useEffect`, StrictMode-safe), `focusPlanet` (bottone "🧠 Mettimi alla prova" nel tab Curiosità del pannello info → App `quizFocus`).
+- ✅ **7.3 F11** — `gravity` nel dataset (8 pianeti, validati ±5%); `utils/logScale.ts` + `meanOrbitalVelocity` (derivata 29.78/√a); CompareModal con barre animate log-scale e nuove righe (Gravità, Vel. orbitale media). 8 test.
+- ✅ **7.4 F10** — `MissionEntry { name, year, note? }` al posto di `string[]` per tutti gli 8 pianeti (35 missioni datate); helper `formatMission()`; tab Missioni come timeline verticale; validazione anni 1950–2035 ordinati.
+- ✅ **7.5 F9** — `components/CommandPalette.tsx` (filtro, ↑↓, Enter, Esc, a11y combobox/listbox); import **sincrono** (non lazy, vedi §Deviazioni); Ctrl/Cmd+K in `App.tsx` (effect separato con setter funzionale); 17 comandi (8 pianeti, Oggi, Pausa, 4 viste, Screenshot, Tour, Free cam, 6 toggle); i test esistenti di tastiera non confliggono (gli input di testo sono già ignorati dal gestore globale). 8 test palette + 4 test keyboard App.
+- ✅ **8.1 R1** — `LensFlare` di `@react-three/postprocessing@3.2.0` nel composer esistente (`src/scene/PostProcessing.tsx`), **`multisampling={0}` invariato**. Config: `lensPosition=[0,0,0]` (Sole all'origine), `opacity=0.45`, `glareSize=0.3`, `starBurst=false` (costo), ghost secondari ON. Occlusione via raycast del wrapper (i pianeti davanti al Sole attenuano il flare). FX-gated: default desktop ON / mobile OFF, quindi il costo del raycast per frame non tocca il default mobile. **Verifica reale in browser headless** (procedura FEATURES.md S5): campionamento 64×64 del drawing buffer per 60 frame → **0/60 frame neri**, 0 errori console, banner/simboli corretti. Docs aggiornate (`MOBILE-UX.md` §4.6 + §Rimandati).
+- ✅ **8.2 R2** — pipeline texture tier-based:
+  - **Asset reali scaricati**: Terra albedo **4096×2048** (`public/textures/planets/4k/earth.jpg`, NASA Blue Marble via repo three.js/jsdelivr) + **normal map 2K** (`normal/earth_normal_2048.jpg`) — Solar System Scope blocca il download diretto (403), quindi per la Terra si usa il mirror three.js (MIT/dati NASA)
+  - **Normal map applicata** solo alla Terra in `Bodies.tsx` (`normalScale` 0.6, anisotropy max, colorSpace lineare preservato)
+  - **Architettura upgrade automatico**: `scripts/generate-texture-manifest.mjs` (hook npm `prebuild`) scandisce `public/textures/planets/4k/` e genera `src/generated/hiResTextures.json`; `textureUrl(name, hiRes)` in `bodies3d.ts` usa il manifest con **fallback 2K garantito** (mai URL inesistenti). Chi deposita i 4K SSS (CC-BY) per Marte/Giove/Saturno ottiene l'upgrade senza toccare codice
+  - **Tier**: `Bodies` riceve `hiRes={!mobile}` da `SolarScene`; mobile sempre 2K (fill-rate)
+  - **PWA**: le 4K NON sono nell'`APP_SHELL` di `sw.js` (verificato) — solo cache on-demand runtime
+  - `useTexture.preload` NON necessario: `useTexture` carica già tutto al mount (deviazione §12)
+  - Verifica in browser: richiesta `/textures/planets/4k/earth.jpg` → 200, normal map → 200, 0 errori console. 6 test nuovi (`textureUrl` + normal map). Crediti aggiornati in `public/textures/README.md`
+- ✅ **8.3 M7** — i18n it/en layer leggero:
+  - **Dizionari**: `src/i18n/dict.ts` con **~120 chiavi** (`chip.*`, `tip.*`, `sidebar.*`, `panel.*`, `compare.*`, `quiz.*`, `events.*`, `sky.*`, `banner.*`, `palette.*`, `cmd.*`, `onboarding.*`); le stringhe `it` sono **identiche** a quelle hardcoded → la suite esistente continua a passare con locale di default.
+  - **Layer runtime**: `src/i18n/index.ts` esporta `t(key, vars?)` (imperativo), `useT()` (hook reattivo con `useCallback` per memo), `getLocale()`, `toggleLocale()`, `localeTag()`. Store zustand con persistenza in `localStorage` (`PREFS_KEYS.lang`, default `'it'`). Interpolazione `{var}` con `split/join` (compatibile lib ES2020).
+  - **Chip lingua** `🌐 EN` / `🌐 IT` in header (toggle one-click, persistito). Default `it` (l'app si avvia in italiano).
+  - **Migrazione shell** (V1 del piano): header chips, tooltip, FAB mobile "Controlli/Chiudi", `ControlsSidebar` (incluso `toLocaleDateString(localeTag())`), `PlanetInfoPanel` (tab Dati/Atmosfera/Missioni/Curiosità, "Nessuna missione registrata.", "Mettimi alla prova", narration labels), `ConjunctionBanner`, `CompareModal`, `QuizModal` (livelli, focus, best score, fine), `EventsModal` (incluso `eventLabel` parametrico con `t`), `SkyViewModal` (incluso cardinali N/E/S/W), `CommandPalette` (placeholder/aria/none), `OnboardingTip`. `App.tsx` ha anche `useT()` + chip toggle iniettato.
+  - **Non migrato** (V2): facts dataset, domande quiz generate, nomi pianeti (`nameIt`), label metriche `moons`/`gravity` restano in italiano per non rompere i test e la coerenza del dataset.
+  - **Verifica end-to-end** in browser headless: chip `🌐 EN` presente, click → header passa a `Labels/Realism/Eclipses`, click di nuovo → torna `Etichette/Realismo/Eclissi`, 0 errori console. Persistenza `localStorage` confermata da `toggleLocale` test.
+  - **Test**: 11 nuovi (`src/i18n/dict.test.ts`): parità chiavi it/en, placeholder coerenti, fallback, `t()` con vars, `setLocale`, `toggleLocale` (con persistenza), `localeTag`, `useT` reattivo.
+
+### Deviazioni e decisioni tecniche registrate in itinere
+
+1. **Modelli kepleriano "decorativo"** — `simTimeForDate` mappa le date su un tempo di simulazione ideato (posizioni J2000 = offset arbitrari), quindi **le date del calendario non corrispondono a effemeridi reali**. Conseguenze:
+   - il test "Grande Congiunzione 2020-12-21" è stato sostituito da assert strutturali (eventi trovati, ordinati, sep coerenti);
+   - `EventsModal` mostra il disclaimer "precisione ~±1° sulle date".
+   Per effemeridi reali servirebbe l'elemento-set completo (a, e, i, Ω, ω, M₀) + equazione di Keplero con epoca: apribile come fase 2.
+2. **`altitudeAzimuth` riscritta** — la prima versione (catena di rotazioni matriciali) restituiva azimut specchiato; sostituita con la soluzione trigonometrica del triangolo astronomico (`az = atan2(−cosδ·sinH, sinδ·cosφ − cosδ·sinφ·cosH)`), verificata su 3 casi esatti. I test costruiscono le date con il **rate sidereo** (1.0027379), non solare.
+3. **`fileParallelism: false`** in `vitest.config.ts` — con >25 file il parallelismo fra thread generava timeout flaky su macchina lenta; il costo (~+30s in CI) compra la determinabilità.
+4. **`CACHE_NAME` via hook `postbuild`** — la catena `vite build && node script` su Windows/PowerShell scriveva prima che il file fosse leggibile; l'hook npm postbuild è affidabile. Lo script gestisce tutte le occorrenze del placeholder (regex globale) e fallisce se la `const` non è aggiornata.
+5. **Command palette sincrona** — l'import lazy rompeva i test con fake timer (la risoluzione della promise non avviene nel flusso sincrono di `fireEvent`); il componente è piccolo e keyboard-first, quindi import diretto.
+6. **FPS governor default OFF** — per evitare qualsiasi cambiamento percettibile del comportamento attuale finché non esiste un chip UI per attivarlo (il piano prevedeva l'attivazione con query param `?qualityHud=1`; la logica è pronta e testata).
+7. **Axe**: 3 regole disabilitate con motivazione documentata in `src/a11y/axe.ts`; 2 violazioni reali corrette (aria-label slider, role="status" sul fallback Suspense).
+8. **`EventsModal` lazy** richiede export default (wrapper `then((m) => ({ default: m.EventsModal }))`).
+
+### Deviazioni aggiuntive (batch 8.1)
+
+9. **Corruzione encoding in `src/data/planets.ts` individuata e corretta** — un round-trip PowerShell (`Get-Content`/`Set-Content`, PS 5.1 legge UTF-8 senza BOM come CP1252) aveva double-encoded 65 caratteri (ù→Ã¹, è→Ã¨, '→â€™, ≈→â‰ˆ…) + aggiunto BOM. Corrotti anche i simboli dei pianeti, visibili nel banner congiunzioni ("♀"→"â™€"). **Fix**: reverse-transcode esatto (stringa UTF-8 → byte CP1252 → UTF-8, senza BOM), verificato: 0 mojibake residui, dataset test 88/88, bundle pulito, banner "♀ Venere ↔ ♆ Nettuno" corretto in browser. **Lezione**: su Windows/PS 5.1 usare l'edit tool o `[System.IO.File]::ReadAllText/WriteAllText` con encoding esplicito, mai `Get-Content`/`Set-Content` per file non-ASCII.
+10. **Deep-link data completato per davvero** — il ramo `parsed.date` di `App.tsx` era uno stub (calcolava `simTimeForDate` senza usarlo): ora fa `setSimDate(new Date(parsed.date))`, sfruttando i memo dichiarativi `anglesForDate`/`anomaliesForDate`/`simTimeForDate` già esistenti (stesso percorso del date picker). Un link `#p=Mars&d=2025-01-16` ora funziona end-to-end.
+11. **Debito lint saldato** — 22 errori `no-unused-vars` accumulati negli step 3.2–8.1 (mascherati dall'output troncato `Select-Object -Last 5`) rimossi: import morti in `Conjunctions.tsx`/`DwarfBodies.tsx`/`celestialEvents.ts`/`skyView.ts`/`celestialEvents.test.ts`, stub `daysFromJ2000`, helper legacy `angDiff`. Stato: **0 errori, 11 warning pre-esistenti**.
+12. **Texture 4K: fonte CDN (non repo) + manifest a build** — Solar System Scope risponde 403 ai download diretti, quindi gli albedo 4K di Marte/Giove/Saturno NON sono committabili in modo automatico. Scelta: Terra 4K + normal map committate (mirror three.js), e **manifest generato dall'hook `prebuild`** che attiva automaticamente qualunque 4K depositato in `public/textures/planets/4k/` — così l'upgrade per gli altri pianeti è un'operazione di soli asset, senza tocchi di codice. `resolveJsonModule` aggiunto a `tsconfig.json` per l'import del manifest.
+13. **`useTexture.preload` non implementato** — il piano lo prevedeva per la Terra 4K su desktop, ma `useTexture` di drei carica già tutte le texture al mount di `<Bodies>`: un preload aggiuntivo sarebbe un no-op. L'ottimizzazione futuro-friendly sarebbe il lazy-load su zoom (fly-to), non richiesto dal piano.
+14. **i18n V1: shell UI, no facts/domande** — il piano limitava la V1 a header/sidebar/modali/banner. La migrazione è completa per quelle superfici; i facts del dataset, le domande generate del quiz e i nomi pianeti (`nameIt`) restano in italiano (la sostituzione con un `nameEn` è V2). Rischio principale: una chiave dimenticata → guard in dev (warning console) + fallback a `it` + ritorno della chiave grezza, ma non un crash. `vite-env.d.ts` aggiunto per `import.meta.env`; `replaceAll` evitato in favore di `split/join` (lib ES2020).
+15. **`OverflowMenu` in App.tsx** ha dovuto aggiungere `useT()` perché la `aria-label`/`title` del trigger button richiedono la traduzione (la `t` del componente parent non è in scope qui). Il componente `OverflowMenu` è definito nello stesso file di App e riceve l'hook direttamente.
+
+---
+
 ## 0. Principi trasversali (valgono per OGNI step)
 
 ### 0.1 Checklist pre-commit / pre-PR (obbligatoria)
@@ -1348,6 +1431,11 @@ npm test    # invariato (test esistenti) + nuovo
 
 ## 7. Metriche di successo aggregate (al termine di S15)
 
+> **Stato attuale (2026-10-11)**: 281/281 test (target ≥ 220 già superato);
+> CI `quality` verde con budget bundle rispettati; workflow `e2e` e
+> `lighthouse` pronti (attivati su PR/schedule). Restano da valutare al
+> termine di S15: Lighthouse a11y ≥ 0.95, rigenerazione screenshot docs.
+
 - Test: ≥ **220/220** (partenza 180; +2 (1.2) +1 (1.3) +4 (2.1) +0 (2.2)
   +0 (2.3) +0 (2.4) +4 (2.5) +2 (3.1) +1 (3.2) +2 (4.1) +3 (4.2) +1
   (5.1) +2 (5.2) +2 (6.1) +1 (7.1) +3 (7.2) +1 (7.3) +1 (7.4) +1 (7.5)
@@ -1365,23 +1453,26 @@ npm test    # invariato (test esistenti) + nuovo
 
 ## 8. Cronoprogramma indicativo (1 PR = 1 giorno)
 
+> **Stato**: settimane W1–W12 completate in blocco (Fasi 1–7); restano
+> W13–W15 (Fase 8). Vedere §Stato di implementazione per il dettaglio.
+
 | Settimana | Step | Note |
 |---|---|---|
-| W1 | 1.1 → 1.4 | S8 chiuso, igiene completa |
-| W2 | 2.1, 2.2 | S10a parte a11y + budget |
-| W3 | 2.3 | E2E (più lento, dipende da setup) |
-| W4 | 2.4, 2.5 | Lighthouse + governor |
-| W5 | 3.1 | Inclinazione `i` (L, 2g) |
-| W6 | 3.2 | Congiunzioni 3D |
-| W7 | 4.1, 4.2 | Deep link + eventi |
-| W8 | 5.1, 5.2 | Troiani + pianeti nani |
-| W9 | 6.1 | Cielo da Terra (L) |
-| W10 | 7.1, 7.2 | TTS + quiz |
-| W11 | 7.3, 7.4 | Confronto + missioni |
-| W12 | 7.5 | Command palette |
-| W13 | 8.1, 8.2 | Lens flare + 4K |
-| W14 | 8.3 | i18n |
-| W15 | 8.4 (opzionale) | WebXR spike |
+| W1 | 1.1 → 1.4 | ✅ S8 chiuso, igiene completa |
+| W2 | 2.1, 2.2 | ✅ S10a parte a11y + budget |
+| W3 | 2.3 | ✅ E2E (più lento, dipende da setup) |
+| W4 | 2.4, 2.5 | ✅ Lighthouse + governor |
+| W5 | 3.1 | ✅ Inclinazione `i` (L, 2g) |
+| W6 | 3.2 | ✅ Congiunzioni 3D |
+| W7 | 4.1, 4.2 | ✅ Deep link + eventi |
+| W8 | 5.1, 5.2 | ✅ Troiani + pianeti nani |
+| W9 | 6.1 | ✅ Cielo da Terra (math + UI) |
+| W10 | 7.1, 7.2 | ✅ TTS + quiz |
+| W11 | 7.3, 7.4 | ✅ Confronto + missioni |
+| W12 | 7.5 | ✅ Command palette |
+| W13 | 8.1, 8.2 | ✅ 8.1 (lens flare) + 8.2 (Terra 4K + normal map + pipeline tier-based) |
+| W14 | 8.3 | ✅ i18n it/en (shell UI + chip lingua, persistito) |
+| W15 | 8.4 (opzionale) | ⏳ WebXR spike |
 
 ---
 

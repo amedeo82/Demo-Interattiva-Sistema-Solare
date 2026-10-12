@@ -67,8 +67,9 @@ describe('App — a11y (axe-core)', () => {
     fireEvent.click(screen.getByRole('button', { name: /mercurio/i }));
     await waitFor(
       () => {
-        expect(screen.getByRole('dialog', { hidden: true }) ||
-          document.querySelector('[role="dialog"]')).toBeTruthy();
+        expect(
+          screen.getByRole('dialog', { hidden: true }) || document.querySelector('[role="dialog"]')
+        ).toBeTruthy();
       },
       { timeout: 2000 }
     );

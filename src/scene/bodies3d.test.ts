@@ -22,14 +22,14 @@ describe('angleToOrbitPosition — orbite 3D', () => {
     expect(v.z).toBeCloseTo(-10, 5);
   });
 
-  it('orbita base a 90° è sull\'asse X', () => {
+  it("orbita base a 90° è sull'asse X", () => {
     const v = angleToOrbitPosition(90, 10);
     expect(v.x).toBeCloseTo(10, 5);
     expect(v.y).toBeCloseTo(0, 5);
     expect(v.z).toBeCloseTo(0, 5);
   });
 
-  it('Ω=90° ruota l\'orbita di 90° attorno a Y', () => {
+  it("Ω=90° ruota l'orbita di 90° attorno a Y", () => {
     const v0 = angleToOrbitPosition(0, 10, undefined, 90);
     // a ν=0 l'orbita è a (-cos, 0, -sin)*r * 10 → (-0, 0, -10)?
     // Con Ω=90: posizione iniziale (0,0,-r) ruotata di 90° attorno a Y
@@ -39,7 +39,7 @@ describe('angleToOrbitPosition — orbite 3D', () => {
     expect(v0.z).toBeCloseTo(0, 5);
   });
 
-  it('i=90° porta l\'orbita sul piano XY (verticale)', () => {
+  it("i=90° porta l'orbita sul piano XY (verticale)", () => {
     // ν=0: posizione (0, 0, -r). Inclinazione 90° attorno alla linea dei
     // nodi (X locale prima di Ω): y = 0·cos90 - (-r)·sin90 = r, z = 0 + 0 = 0
     const v = angleToOrbitPosition(0, 10, undefined, undefined, 90);
@@ -75,7 +75,16 @@ describe('angleToOrbitPosition — orbite 3D', () => {
   });
 
   it('tutti gli 8 pianeti hanno orbitalInclination definito e nel range', () => {
-    for (const name of ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'] as const) {
+    for (const name of [
+      'Mercury',
+      'Venus',
+      'Earth',
+      'Mars',
+      'Jupiter',
+      'Saturn',
+      'Uranus',
+      'Neptune',
+    ] as const) {
       const i = BODIES_3D[name].orbitalInclination;
       expect(i, `${name} deve avere orbitalInclination`).toBeDefined();
       // Range realistico: 0..7.5° (Mercurio è il massimo fra i pianeti classici)

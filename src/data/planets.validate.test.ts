@@ -5,6 +5,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { planets, dwarfPlanets, type PlanetData } from './planets';
+import { formatMission } from './planets';
 
 // Valori fisici di riferimento (diametro km, distanza mln km, periodo giorni)
 const REAL_VALUES: Record<string, [number, number, number]> = {
@@ -78,11 +79,33 @@ describe('dataset pianeti — accuratezza scientifica', () => {
       expect(p.longitudeOfAscendingNode).toBeLessThan(360);
     }
   );
+  // 4.9 — Argomento del perielio ω nel range [0, 360)
   it.each(planets.map((p) => [p.name, p] as const))(
     '%s: argomento del perielio ω nel range [0, 360)',
     (_name, p) => {
       expect(p.argumentOfPerihelion).toBeGreaterThanOrEqual(0);
       expect(p.argumentOfPerihelion).toBeLessThan(360);
+    }
+  );
+
+  // S14 · F11 — gravità superficiale entro il 5% dai valori reali
+  const REAL_GRAVITY: Record<string, number> = {
+    Mercury: 3.7,
+    Venus: 8.87,
+    Earth: 9.81,
+    Mars: 3.71,
+    Jupiter: 24.79,
+    Saturn: 10.44,
+    Uranus: 8.87,
+    Neptune: 11.15,
+  };
+  it.each(planets.map((p) => [p.name, p] as const))(
+    '%s: gravità entro il 5% dal valore reale',
+    (name, p) => {
+      const real = REAL_GRAVITY[name];
+      expect(real, `${name} deve avere un riferimento di gravità`).toBeDefined();
+      expect(p.gravity / real).toBeGreaterThan(0.95);
+      expect(p.gravity / real).toBeLessThan(1.05);
     }
   );
 });
@@ -152,6 +175,28 @@ describe('dataset pianeti — completezza per i componenti UI', () => {
       const p = planets.find((x) => x.name === name)!;
       expect(p.moons.length).toBeGreaterThanOrEqual(count);
     }
+  });
+
+  // S14 · F10 — missioni strutturate con anno, ordinate cronologicamente
+  it.each(planets.map((p) => [p.name, p] as const))(
+    '%s: missioni con anno valido e ordinate per anno crescente',
+    (_name, p) => {
+      expect(Array.isArray(p.facts.missions)).toBe(true);
+      expect(p.facts.missions.length).toBeGreaterThan(0);
+      for (let i = 0; i < p.facts.missions.length; i++) {
+        const m = p.facts.missions[i];
+        expect(m.name, 'nome missione presente').toBeTruthy();
+        expect(m.year).toBeGreaterThanOrEqual(1950);
+        expect(m.year).toBeLessThanOrEqual(2035);
+        if (i > 0) {
+          expect(m.year).toBeGreaterThanOrEqual(p.facts.missions[i - 1].year);
+        }
+      }
+    }
+  );
+
+  it("formatMission include il nome e l'anno", () => {
+    expect(formatMission({ name: 'Juno', year: 2016 })).toBe('Juno (2016)');
   });
 });
 

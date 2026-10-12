@@ -65,6 +65,32 @@ export function radiusUnits(diameterKm: number): number {
 
 const TEX = '/textures/planets';
 
+/** S15 · R2 — manifest delle texture hi-res, generato a build time da
+ *  `scripts/generate-texture-manifest.mjs` (hook prebuild) scandendo
+ *  `public/textures/planets/4k/`. Se la cartella è vuota il manifest è
+ *  `{}` e `textureUrl` ricade sulle 2K esistenti: depositare i file 4K
+ *  (CC-BY Solar System Scope) e rebuildare attiva l'upgrade senza tocchi
+ *  al codice. */
+import hiResManifest from '../generated/hiResTextures.json';
+
+/**
+ * S15 · R2 — URL della texture albedo per un corpo, in funzione del tier.
+ *
+ * - `hiRes=true` (desktop): usa la variante 4K **se presente nel manifest
+ *   generato a build**, altrimenti ricade sulla 2K (mai URL inesistenti).
+ * - `hiRes=false` (mobile): sempre 2K (fill-rate saturo su smartphone).
+ */
+export function textureUrl(bodyName: string, hiRes: boolean): string {
+  const fallback = `${TEX}/${bodyName.toLowerCase()}.jpg`;
+  if (!hiRes) return fallback;
+  return (hiResManifest as Record<string, string>)[bodyName.toLowerCase()] ?? fallback;
+}
+
+/** Percorsi delle normal map disponibili (2K, peso contenuto). */
+export const NORMAL_MAPS = {
+  Earth: `${TEX}/normal/earth_normal_2048.jpg`,
+} as const;
+
 export interface Body3D {
   name: string;
   diameterKm: number;
@@ -322,13 +348,7 @@ export function heliocentricVector3D(
   inclinationDeg: number | undefined,
   target?: THREE.Vector3
 ): THREE.Vector3 {
-  return angleToOrbitPosition(
-    angleDeg,
-    orbitDistance,
-    target,
-    ascendingNodeDeg,
-    inclinationDeg
-  );
+  return angleToOrbitPosition(angleDeg, orbitDistance, target, ascendingNodeDeg, inclinationDeg);
 }
 
 /**

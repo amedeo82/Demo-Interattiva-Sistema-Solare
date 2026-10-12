@@ -43,7 +43,6 @@ export function PerformanceGovernor({
   kuiperScaleRef,
   dprRef,
 }: PerformanceGovernorProps): null {
-  const gl = useThree((s) => s.gl);
   const setDpr = useThree((s) => s.setDpr);
   const stateRef = useRef<GovernorState>({
     tier: initialTier,

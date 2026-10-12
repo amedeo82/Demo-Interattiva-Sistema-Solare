@@ -10,6 +10,12 @@
  */
 import { useEffect, useRef } from 'react';
 import { usePersistentState } from '../utils/prefs';
+import { useUiStore } from '../store/ui';
+
+/** Volume target del drone: base e versione "abbassata" durante la narrazione
+ *  TTS (ducking −12dB ≈ ×0.25). */
+const GAIN_BASE = 0.08;
+const GAIN_DUCKED = 0.02;
 
 export default function AmbientAudio() {
   const [enabled, setEnabled] = usePersistentState<boolean>(
@@ -17,9 +23,23 @@ export default function AmbientAudio() {
     false,
     (v) => typeof v === 'boolean'
   );
+  // S14 · F7 — ducking durante la narrazione TTS
+  const narrationActive = useUiStore((s) => s.narrationActive);
   // Refs al grafo audio. Vengono creati lazy al primo enable.
   const ctxRef = useRef<AudioContext | null>(null);
   const masterRef = useRef<GainNode | null>(null);
+
+  // Applica il volume target (base o ducked) con rampa dolce.
+  useEffect(() => {
+    const master = masterRef.current;
+    const ctx = ctxRef.current;
+    if (!master || !ctx || !enabled) return;
+    const now = ctx.currentTime;
+    const target = narrationActive ? GAIN_DUCKED : GAIN_BASE;
+    master.gain.cancelScheduledValues(now);
+    master.gain.setValueAtTime(master.gain.value, now);
+    master.gain.linearRampToValueAtTime(target, now + 0.4);
+  }, [narrationActive, enabled]);
 
   useEffect(() => {
     if (!enabled) {
@@ -54,13 +74,13 @@ export default function AmbientAudio() {
       ctx.resume().catch(() => undefined);
     }
 
-    // Fade-in
+    // Fade-in (rispettando l'eventuale ducking attivo)
     const master = masterRef.current;
     if (master && ctx) {
       const now = ctx.currentTime;
       master.gain.cancelScheduledValues(now);
       master.gain.setValueAtTime(master.gain.value, now);
-      master.gain.linearRampToValueAtTime(0.08, now + 1.2);
+      master.gain.linearRampToValueAtTime(GAIN_BASE, now + 1.2);
     }
   }, [enabled]);
 

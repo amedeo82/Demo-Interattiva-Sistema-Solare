@@ -162,10 +162,14 @@ Il punto luce di `Lighting` permette **ombre reali**: attivare
 quando l'allineamento accade). Costo: shadow map 1024 su un solo pair
 Terra-Luna, impatto contenuto.
 
-### 🟠 4.6 Lens flare quando la camera guarda il Sole
-Un `<LensFlare>` (drei o custom con sprite additivi) attivato quando il Sole
-entra nel frustum vicino al centro viewport. Sinergia con il bloom già
-presente: il flare appare solo con FX attivi.
+### 🟠 4.6 Lens flare quando la camera guarda il Sole — ✅ S15 · R1
+Implementato via `<LensFlare>` di `@react-three/postprocessing` nel composer
+(`src/scene/PostProcessing.tsx`), attivo solo con FX togglati (default
+desktop ON, mobile OFF). Il prototipo DOM 2D menzionato più sotto è stato
+scartato: la resa via postprocessing è superiore e il composer ha già il
+vincolo `multisampling={0}` (frame neri) sotto controllo. Occlusione gestita
+dal wrapper (raycast verso il Sole proiettato). Verificato: 0/60 frame neri
+al campionamento 64×64 del drawing buffer con flare attivo.
 
 ### 🟠 4.7 Cintura di Kuiper "viva" e fascia principale con colori reali
 Gli asteroidi hanno colore uniforme `#b9a58c`; la distribuzione reale ha
@@ -297,16 +301,16 @@ realisticamente — visibile soprattutto in date diverse da oggi (il motore
 kepleriano posiziona Mercurio a 48°, Venere a 77°, Terra a 175°, ecc.).
 
 ### ⏭ Rimandati (per budget)
-- **4.6 Lens flare**: implementato un primo prototipo (`LensFlare.tsx`
-  con 6 anelli additivi), ma la resa con sfere 3D è deludente vs una
-  soluzione post-processing (`@react-three/postprocessing` ha un LensFlare
-  dedicato che richiede l'integrazione con l'attuale `PostProcessing`).
-  Roadmap: integrare `LensFlare` da postprocessing nella pipeline esistente.
+- **4.6 Lens flare**: ✅ **completato in S15 · R1** — `LensFlare` di
+  `@react-three/postprocessing` integrato nel composer esistente
+  (`src/scene/PostProcessing.tsx`), FX-gated, con occlusione via raycast del
+  wrapper. Il prototipo DOM (`LensFlare.tsx` con 6 anelli additivi) resta
+  scartato.
 - **4.10 Texture 4K-8K + normal map**: richiede download asset
   addizionali (CC-BY NASA). Roadmap: aggiungere `useTexture.preload` per
-  la Terra, Marte, Giove, Saturno.
+  la Terra, Marte, Giove, Saturno. (Piano: `docs/ROADMAP.md` §4 step 8.2.)
 - **4.12 WebXR**: richiede refactor sostanziale del scene tree con
-  `<XR>` di @react-three/xr. Roadmap: fase 2.
+  `<XR>` di @react-three/xr. Roadmap: fase 2. (Piano: step 8.4, opzionale.)
 
 ### 📂 File toccati (S6)
 ```

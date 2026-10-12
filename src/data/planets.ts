@@ -1,4 +1,4 @@
-/** Satellite naturale principale di un pianeta. */
+﻿/** Satellite naturale principale di un pianeta. */
 export interface MoonData {
   name: string;
   /** Raggio orbitale in px (scala simulazione). */
@@ -11,16 +11,31 @@ export interface MoonData {
 }
 
 /** Dati fisici estesi per il pannello informativo. */
+
+/** S14 · F10 — missione spaziale con anno, per la timeline interattiva. */
+export interface MissionEntry {
+  name: string;
+  /** Anno di arrivo/orbita (o di lancio se non ancora arrivata). */
+  year: number;
+  /** Nota opzionale (es. "arrivo previsto"). */
+  note?: string;
+}
+
 export interface PlanetFacts {
   atmosphere: string;
   temperature: string;
   moonsCount: number;
   dayLength: string;
-  missions: string[];
+  missions: MissionEntry[];
   /** Fatti curiosi per la modalità esplorazione. */
   trivia: string[];
   /** Confronto con oggetti familiari (es. "Giove contiene 1.300 Terre"). */
   comparison: string;
+}
+
+/** Formatta una missione come stringa leggibile (retro-compatibilità). */
+export function formatMission(m: MissionEntry): string {
+  return `${m.name} (${m.year})`;
 }
 
 export interface PlanetData {
@@ -48,6 +63,8 @@ export interface PlanetData {
   animationDuration: number;
   /** Inclinazione assiale in gradi (per rotazione e anelli realistici). */
   axialTilt: number;
+  /** S14 · F11 — Accelerazione di gravità all'equatore in m/s². */
+  gravity: number;
   /** Periodo di rotazione in ore (negativo = rotazione retrograda). */
   rotationHours: number;
   /** Eccentricità orbitale reale (per orbite kepleriane). */
@@ -109,7 +126,7 @@ export const dwarfPlanets: DwarfPlanetData[] = [
     color: '#d9c7a8',
     size: 0.4,
     orbitRadius: 70,
-    description: "Il pianeta nano più famoso, classificato come tale dal 2006.",
+    description: 'Il pianeta nano più famoso, classificato come tale dal 2006.',
     eccentricity: 0.2488,
     meanLongitudeJ2000: 14.53,
     longitudeOfAscendingNode: 110.3,
@@ -154,6 +171,7 @@ export const planets: PlanetData[] = [
     description: 'Il pianeta più piccolo e più vicino al Sole.',
     animationDuration: 2.4, // 88 giorni ÷ 36.5 g/s (taro terrestre)
     axialTilt: 0.03,
+    gravity: 3.7,
     rotationHours: 1407.6,
     eccentricity: 0.2056,
     meanLongitudeJ2000: 252.25,
@@ -165,7 +183,11 @@ export const planets: PlanetData[] = [
       temperature: '-173 °C / +427 °C',
       moonsCount: 0,
       dayLength: '58,6 giorni terrestri',
-      missions: ['Mariner 10', 'MESSENGER', 'BepiColombo'],
+      missions: [
+        { name: 'Mariner 10', year: 1974 },
+        { name: 'MESSENGER', year: 2011 },
+        { name: 'BepiColombo', year: 2026, note: 'arrivo previsto' },
+      ],
       trivia: [
         'Un anno su Mercurio dura 88 giorni ma un giorno solare ne dura 176.',
         'Il polo nord contiene ghiaccio nonostante le temperature estreme.',
@@ -187,6 +209,7 @@ export const planets: PlanetData[] = [
     description: 'Il pianeta più caldo del sistema solare.',
     animationDuration: 6.2, // ≈ 224.7 giorni ÷ 36.5 g/s (taro terrestre)
     axialTilt: 177.4,
+    gravity: 8.87,
     rotationHours: -5832.5,
     eccentricity: 0.0068,
     meanLongitudeJ2000: 181.98,
@@ -198,7 +221,11 @@ export const planets: PlanetData[] = [
       temperature: '~465 °C media al suolo',
       moonsCount: 0,
       dayLength: '243 giorni terrestri (retrograda)',
-      missions: ['Venera 7', 'Magellan', 'Akatsuki'],
+      missions: [
+        { name: 'Venera 7', year: 1970 },
+        { name: 'Magellan', year: 1990 },
+        { name: 'Akatsuki', year: 2015 },
+      ],
       trivia: [
         'Ruota in senso opposto alla maggior parte dei pianeti.',
         'Un giorno venusiano è più lungo di un anno venusiano.',
@@ -220,6 +247,7 @@ export const planets: PlanetData[] = [
     description: "Il nostro pianeta, l'unico con vita conosciuta.",
     animationDuration: 10, // il "taro": CONFIG.earthYearSimSeconds ↔ 365 giorni
     axialTilt: 23.44,
+    gravity: 9.81,
     rotationHours: 23.93,
     eccentricity: 0.0167,
     meanLongitudeJ2000: 100.46,
@@ -231,7 +259,11 @@ export const planets: PlanetData[] = [
       temperature: '15 °C media superficiale',
       moonsCount: 1,
       dayLength: '23h 56m (siderale)',
-      missions: ['ISS', 'Sentinel-2', 'James Webb (L2)'],
+      missions: [
+        { name: 'ISS', year: 1998, note: 'primo modulo Zarya' },
+        { name: 'Sentinel-2', year: 2015 },
+        { name: 'James Webb', year: 2021, note: 'in orbita a L2' },
+      ],
       trivia: [
         'È l’unico pianeta non nominato da una divinità.',
         'La Luna si allontana di ~3,8 cm ogni anno.',
@@ -254,6 +286,7 @@ export const planets: PlanetData[] = [
     description: 'Il pianeta rosso, obiettivo di esplorazione umana.',
     animationDuration: 19,
     axialTilt: 25.19,
+    gravity: 3.71,
     rotationHours: 24.62,
     eccentricity: 0.0934,
     meanLongitudeJ2000: 355.45,
@@ -268,7 +301,11 @@ export const planets: PlanetData[] = [
       temperature: '-63 °C media',
       moonsCount: 2,
       dayLength: '24h 37m',
-      missions: ['Perseverance', 'Curiosity', 'InSight'],
+      missions: [
+        { name: 'Curiosity', year: 2012 },
+        { name: 'InSight', year: 2018 },
+        { name: 'Perseverance', year: 2021 },
+      ],
       trivia: [
         'Ospita Olympus Mons, il vulcano più alto del sistema solare (21 km).',
         'Le sue tempeste di polvere possono avvolgere l’intero pianeta.',
@@ -291,6 +328,7 @@ export const planets: PlanetData[] = [
     description: 'Il pianeta più grande del sistema solare.',
     animationDuration: 119, // 4333 giorni ÷ 36.5 g/s (taro terrestre)
     axialTilt: 3.13,
+    gravity: 24.79,
     rotationHours: 9.93,
     eccentricity: 0.0489,
     meanLongitudeJ2000: 34.4,
@@ -307,7 +345,11 @@ export const planets: PlanetData[] = [
       temperature: '-110 °C (sommità nuvole)',
       moonsCount: 95,
       dayLength: '9h 56m',
-      missions: ['Galileo', 'Juno', 'Europa Clipper'],
+      missions: [
+        { name: 'Galileo', year: 1995 },
+        { name: 'Juno', year: 2016 },
+        { name: 'Europa Clipper', year: 2030, note: 'arrivo previsto' },
+      ],
       trivia: [
         'La Grande Macchia Rossa è una tempesta più ampia della Terra.',
         'Giove possiede il campo magnetico più forte tra i pianeti.',
@@ -329,6 +371,7 @@ export const planets: PlanetData[] = [
     description: 'Famoso per i suoi magnifici anelli.',
     animationDuration: 295, // 10759 giorni ÷ 36.5 g/s (taro terrestre)
     axialTilt: 26.73,
+    gravity: 10.44,
     rotationHours: 10.66,
     eccentricity: 0.0565,
     meanLongitudeJ2000: 49.94,
@@ -343,7 +386,10 @@ export const planets: PlanetData[] = [
       temperature: '-140 °C (livello 1 bar)',
       moonsCount: 146,
       dayLength: '10h 40m',
-      missions: ['Cassini-Huygens', 'Dragonfly (in viaggio)'],
+      missions: [
+        { name: 'Cassini-Huygens', year: 2004 },
+        { name: 'Dragonfly', year: 2034, note: 'in viaggio verso Titano' },
+      ],
       trivia: [
         'Gli anelli sono fatti per il 99,9% di ghiaccio dacqua.',
         'Su Titano piove metano liquido.',
@@ -365,6 +411,7 @@ export const planets: PlanetData[] = [
     description: 'Un gigante di ghiaccio che ruota su un fianco.',
     animationDuration: 840, // 30687 giorni ÷ 36.5 g/s (taro terrestre)
     axialTilt: 97.77,
+    gravity: 8.87,
     rotationHours: -17.24,
     eccentricity: 0.0457,
     meanLongitudeJ2000: 313.23,
@@ -376,7 +423,7 @@ export const planets: PlanetData[] = [
       temperature: '-195 °C (record -224 °C)',
       moonsCount: 28,
       dayLength: '17h 14m (retrograda)',
-      missions: ['Voyager 2 (1986)'],
+      missions: [{ name: 'Voyager 2', year: 1986 }],
       trivia: [
         'Il suo asse è inclinato di 98°: "rotola" lungo lorbita.',
         'Fu il primo pianeta scoperto con un telescopio (1781).',
@@ -398,6 +445,7 @@ export const planets: PlanetData[] = [
     description: 'Il pianeta più lontano dal Sole.',
     animationDuration: 1648, // 60190 giorni ÷ 36.5 g/s (taro terrestre)
     axialTilt: 28.32,
+    gravity: 11.15,
     rotationHours: 16.11,
     eccentricity: 0.0113,
     meanLongitudeJ2000: 304.88,
@@ -409,7 +457,7 @@ export const planets: PlanetData[] = [
       temperature: '-200 °C (sommità nuvole)',
       moonsCount: 16,
       dayLength: '16h 6m',
-      missions: ['Voyager 2 (1989)'],
+      missions: [{ name: 'Voyager 2', year: 1989 }],
       trivia: [
         'I venti superano i 2.000 km/h: i più veloci del sistema solare.',
         'Tritone orbita in senso retrogrado, forse un KBO catturato.',

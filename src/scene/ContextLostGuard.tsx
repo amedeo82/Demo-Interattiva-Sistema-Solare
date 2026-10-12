@@ -50,11 +50,7 @@ export function ContextLostGuard(): ReactNode {
 
     return () => {
       canvas.removeEventListener('webglcontextlost', handleLost as EventListener, false);
-      canvas.removeEventListener(
-        'webglcontextrestored',
-        handleRestored as EventListener,
-        false
-      );
+      canvas.removeEventListener('webglcontextrestored', handleRestored as EventListener, false);
     };
   }, [gl]);
 

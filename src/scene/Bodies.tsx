@@ -12,12 +12,13 @@ import {
   BackSide,
   SphereGeometry,
   SRGBColorSpace,
+  Vector2,
   Vector3,
   ShaderMaterial,
 } from 'three';
 import { useTexture } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
-import { BODIES_3D, BODIES_ORDER, angleToOrbitPosition } from './bodies3d';
+import { BODIES_3D, BODIES_ORDER, NORMAL_MAPS, angleToOrbitPosition, textureUrl } from './bodies3d';
 import { makeVenusCloudsTexture } from '../utils/proceduralTextures';
 import type { SimPlanetState } from '../hooks/useOrbitEngine';
 import { useOrbitEngineContext } from './OrbitEngineBridge';
@@ -27,6 +28,7 @@ export function Bodies({
   onSelectBody,
   realScale = false,
   eclipsesEnabled = false,
+  hiRes = false,
 }: {
   selectedBodyName: string | null;
   onSelectBody: (n: string) => void;
@@ -35,11 +37,17 @@ export function Bodies({
   realScale?: boolean;
   /** 4.5 — Abilita shadow map per eclissi Terra-Luna. Default OFF. */
   eclipsesEnabled?: boolean;
+  /** S15 · R2 — texture albedo 4K per i corpi "hero" (se presenti nel
+   *  manifest generato a build). Default false = sempre 2K. */
+  hiRes?: boolean;
 }) {
   const { positionsRef, simRateRef } = useOrbitEngineContext();
   const { gl } = useThree();
   const bodiesNoSun = BODIES_ORDER.filter((n) => n !== 'Sun');
-  const textures = useTexture(bodiesNoSun.map((n) => BODIES_3D[n].map!));
+  // S15 · R2 — tier-based: 4K via manifest (se esiste) su desktop, 2K su mobile.
+  const textures = useTexture(bodiesNoSun.map((n) => textureUrl(n, hiRes)));
+  // Normal map Terra (2K, costo trascurabile): dettaglio orografia sottile.
+  const earthNormalTex = useTexture(NORMAL_MAPS.Earth);
   // Upgrade asset: nubi terrestri (mappa in scala di grigi, usata come alphaMap).
   const earthCloudsTex = useTexture('/textures/planets/earth_clouds.png');
   // Le texture JPG sono sRGB: senza colorSpace esplicito three le tratta
@@ -50,10 +58,13 @@ export function Bodies({
       t.anisotropy = gl.capabilities.getMaxAnisotropy();
       t.needsUpdate = true;
     }
+    // La normal map è dati NON-sRGB (lineare): non toccare colorSpace.
+    earthNormalTex.anisotropy = gl.capabilities.getMaxAnisotropy();
+    earthNormalTex.needsUpdate = true;
     earthCloudsTex.colorSpace = SRGBColorSpace;
     earthCloudsTex.anisotropy = gl.capabilities.getMaxAnisotropy();
     earthCloudsTex.needsUpdate = true;
-  }, [textures, earthCloudsTex, gl]);
+  }, [textures, earthNormalTex, earthCloudsTex, gl]);
 
   // Layer nubi: per ogni pianeta con copertura significativa, un secondo
   // mesh sferico leggermente più grande con texture dedicata e trasparenza
@@ -107,6 +118,20 @@ export function Bodies({
       }, {}),
     [textures]
   );
+
+  // S15 · R2 — normal map solo per la Terra (unica orografia disponibile in
+  // licenza libera); `normalScale` moderato per evitare rilievi esagerati.
+  useEffect(() => {
+    const earthMat = mats.Earth;
+    if (!earthMat) return;
+    earthMat.normalMap = earthNormalTex;
+    earthMat.normalScale = new Vector2(0.6, 0.6);
+    earthMat.needsUpdate = true;
+    return () => {
+      earthMat.normalMap = null;
+      earthMat.needsUpdate = true;
+    };
+  }, [mats, earthNormalTex]);
 
   // Atmosfere: per ogni pianeta con atmosfera significativa, un ShaderMaterial
   // Fresnel che produce un alone più brillante sul bordo del disco (dove la

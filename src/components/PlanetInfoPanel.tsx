@@ -5,21 +5,32 @@ import { useOrbitCounters, type OrbitCountersRef } from '../hooks/useOrbitCounte
 import { useIsMobile } from '../hooks/useMedia';
 import type { SimPlanetState } from '../hooks/useOrbitEngine';
 import { PREFS_KEYS, loadJSON, saveJSON, type PanelPos } from '../utils/prefs';
+import { useNarration } from '../hooks/useNarration';
+import { useT } from '../i18n';
 
 interface Props {
   planet: PlanetData;
   onClose: () => void;
   positionsRef: { current: Record<string, SimPlanetState> };
+  /** S14 · F8 — apre il quiz in modalità focus su questo pianeta. */
+  onQuizRequest?: (planetName: string) => void;
 }
 
 type Tab = 'data' | 'atmosphere' | 'missions' | 'trivia';
 
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'data', label: 'Dati', icon: '📊' },
-  { id: 'atmosphere', label: 'Atmosfera', icon: '🌫' },
-  { id: 'missions', label: 'Missioni', icon: '🚀' },
-  { id: 'trivia', label: 'Curiosità', icon: '💡' },
-];
+const TAB_KEYS: Record<Tab, string> = {
+  data: 'panel.tabData',
+  atmosphere: 'panel.tabAtmosphere',
+  missions: 'panel.tabMissions',
+  trivia: 'panel.tabTrivia',
+};
+
+const TAB_ICONS: Record<Tab, string> = {
+  data: '📊',
+  atmosphere: '🌫',
+  missions: '🚀',
+  trivia: '💡',
+};
 
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
@@ -36,7 +47,7 @@ function validatePos(v: unknown): v is PanelPos {
   return typeof o.x === 'number' && typeof o.y === 'number' && isFinite(o.x) && isFinite(o.y);
 }
 
-export default function PlanetInfoPanel({ planet, onClose, positionsRef }: Props) {
+export default function PlanetInfoPanel({ planet, onClose, positionsRef, onQuizRequest }: Props) {
   // Mobile: il pannello diventa una bottom sheet a tutta larghezza
   // (niente drag/posizione persistita: su schermo stretto non c'è spazio).
   const isMobile = useIsMobile();
@@ -130,20 +141,30 @@ export default function PlanetInfoPanel({ planet, onClose, positionsRef }: Props
     setTab('data');
   }, [planet.name]);
 
+  const periodLabel = formatOrbitalPeriod(planet.orbitalPeriod);
+  const totalOrbits = Object.values(orbitCountersRef.current).reduce((a, b) => a + b, 0);
+  const thisOrbits = orbitCountersRef.current[planet.name] ?? 0;
+
+  // S14 · F7 — Narrazione TTS: legge descrizione + prima curiosità.
+  // Solo su click utente (o tasto N col focus nel pannello); mai auto-play.
+  const narrationText = `${planet.nameIt}. ${planet.description} ${planet.facts.trivia[0] ?? ''}`;
+  const narration = useNarration(narrationText);
+  const t = useT();
+
   // Escape chiude: lo gestiamo a livello di dialog (oltre a quello globale in App).
+  // S14 · F7 — `n` avvia/interrompe la narrazione TTS (focus dentro il pannello).
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
         onClose();
+      } else if (e.key === 'n' || e.key === 'N') {
+        e.stopPropagation();
+        narration.toggle();
       }
     },
-    [onClose]
+    [onClose, narration]
   );
-
-  const periodLabel = formatOrbitalPeriod(planet.orbitalPeriod);
-  const totalOrbits = Object.values(orbitCountersRef.current).reduce((a, b) => a + b, 0);
-  const thisOrbits = orbitCountersRef.current[planet.name] ?? 0;
 
   return (
     <div
@@ -195,6 +216,23 @@ export default function PlanetInfoPanel({ planet, onClose, positionsRef }: Props
             {planet.name} · {planet.symbol}
           </p>
         </div>
+        {narration.supported && (
+          <button
+            onClick={narration.toggle}
+            aria-label={narration.speaking ? t('panel.narrateStop') : t('panel.narrate')}
+            aria-pressed={narration.speaking}
+            title={
+              narration.speaking ? `${t('panel.narrateStop')} (N)` : `${t('panel.narrate')} (N)`
+            }
+            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-[11px] transition-colors ${
+              narration.speaking
+                ? 'border-purple-400/60 bg-purple-500/25 text-white'
+                : 'border-white/10 bg-white/5 text-white/75 hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            {narration.speaking ? '⏹' : '🔊'}
+          </button>
+        )}
         {!isMobile && pos && (
           <button
             onClick={resetPos}
@@ -221,22 +259,22 @@ export default function PlanetInfoPanel({ planet, onClose, positionsRef }: Props
         aria-label="Sezioni informazioni pianeta"
         className="flex shrink-0 gap-1 border-b border-white/10 bg-black/20 px-2 py-1.5"
       >
-        {TABS.map((t) => (
+        {(Object.keys(TAB_KEYS) as Tab[]).map((id) => (
           <button
-            key={t.id}
+            key={id}
             role="tab"
-            aria-selected={tab === t.id}
-            onClick={() => setTab(t.id)}
+            aria-selected={tab === id}
+            onClick={() => setTab(id)}
             className={`flex-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
-              tab === t.id
+              tab === id
                 ? 'bg-white/15 text-white'
                 : 'text-white/55 hover:bg-white/5 hover:text-white/80'
             }`}
           >
             <span aria-hidden className="mr-1">
-              {t.icon}
+              {TAB_ICONS[id]}
             </span>
-            {t.label}
+            {t(TAB_KEYS[id])}
           </button>
         ))}
       </div>
@@ -281,20 +319,28 @@ export default function PlanetInfoPanel({ planet, onClose, positionsRef }: Props
         )}
 
         {tab === 'missions' && (
-          <ul className="space-y-1.5 text-sm text-white/80">
+          <div>
             {planet.facts.missions.length === 0 ? (
-              <li className="text-white/70">Nessuna missione registrata.</li>
+              <p className="text-sm text-white/70">{t('panel.noMissions')}</p>
             ) : (
-              planet.facts.missions.map((m) => (
-                <li key={m} className="flex items-start gap-2">
-                  <span aria-hidden className="text-white/65">
-                    ▸
-                  </span>
-                  <span>{m}</span>
-                </li>
-              ))
+              /* S14 · F10 — timeline verticale delle missioni, ordinata per anno */
+              <ol className="relative ml-2 space-y-3 border-l border-white/15 pl-4">
+                {planet.facts.missions.map((m) => (
+                  <li key={`${m.name}-${m.year}`} className="relative">
+                    <span
+                      aria-hidden
+                      className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-purple-400 shadow-[0_0_6px_rgba(168,85,247,0.8)]"
+                    />
+                    <p className="text-sm font-medium leading-tight text-white">{m.name}</p>
+                    <p className="text-[11px] text-white/65">
+                      {m.year}
+                      {m.note ? ` · ${m.note}` : ''}
+                    </p>
+                  </li>
+                ))}
+              </ol>
             )}
-          </ul>
+          </div>
         )}
 
         {tab === 'trivia' && (
@@ -312,6 +358,15 @@ export default function PlanetInfoPanel({ planet, onClose, positionsRef }: Props
             <p className="rounded-lg bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-200/90">
               📏 {planet.facts.comparison}
             </p>
+            {onQuizRequest && (
+              <button
+                type="button"
+                onClick={() => onQuizRequest(planet.name)}
+                className="mt-3 w-full rounded-lg bg-purple-500/20 px-3 py-2 text-sm text-white transition-colors hover:bg-purple-500/30"
+              >
+                {t('panel.quizMe')}
+              </button>
+            )}
           </div>
         )}
       </div>

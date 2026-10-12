@@ -5,6 +5,7 @@
  * resetta le preferenze.
  */
 import { useEffect, useState } from 'react';
+import { useT } from '../i18n';
 import { loadJSON, saveJSON } from '../utils/prefs';
 
 const STORAGE_KEY = 'solarsys.onboarded';
@@ -34,6 +35,7 @@ export function OnboardingTip({
   bottom,
   onDismiss,
 }: OnboardingTipProps) {
+  const t = useT();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -58,8 +60,8 @@ export function OnboardingTip({
       role="status"
     >
       <div>{text}</div>
-      <button className="onboard-tip-close" onClick={dismiss} aria-label="Chiudi suggerimento">
-        ✨ Ho capito
+      <button className="onboard-tip-close" onClick={dismiss} aria-label={t('onboarding.close')}>
+        {t('onboarding.dismiss')}
       </button>
     </div>
   );

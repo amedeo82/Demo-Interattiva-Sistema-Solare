@@ -88,7 +88,12 @@ describe('createHashWriter', () => {
 
   it('debounce 300ms', () => {
     const push = createHashWriter(300);
-    const state: DeepLinkState = { planetKey: 'Earth', date: null, speed: null, toggles: new Set() };
+    const state: DeepLinkState = {
+      planetKey: 'Earth',
+      date: null,
+      speed: null,
+      toggles: new Set(),
+    };
     push(state);
     push(state);
     push(state);
@@ -97,14 +102,19 @@ describe('createHashWriter', () => {
     expect(window.history.replaceState).toHaveBeenCalledTimes(1);
   });
 
-  it('non scrive se l\'hash è già uguale', () => {
+  it("non scrive se l'hash è già uguale", () => {
     // Simula hash già presente
     Object.defineProperty(window, 'location', {
       value: { ...window.location, hash: '#p=Earth' },
       configurable: true,
     });
     const push = createHashWriter(0);
-    const state: DeepLinkState = { planetKey: 'Earth', date: null, speed: null, toggles: new Set() };
+    const state: DeepLinkState = {
+      planetKey: 'Earth',
+      date: null,
+      speed: null,
+      toggles: new Set(),
+    };
     push(state);
     expect(window.history.replaceState).not.toHaveBeenCalled();
   });

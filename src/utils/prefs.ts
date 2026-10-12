@@ -72,6 +72,10 @@ export const PREFS_KEYS = {
   realScale: 'solarsys.realscale',
   eclipsesEnabled: 'solarsys.eclipses',
   panelPos: 'solarsys.panelpos',
+  /** S15 · F8 — miglior punteggio del quiz (per livello, serializzato). */
+  quizBest: 'solarsys.quiz.best',
+  /** S15 · M7 — lingua della UI ('it' | 'en'). */
+  lang: 'solarsys.lang',
 } as const;
 
 /** Posizione trascinabile del pannello pianeta, in pixel dall'angolo top-right

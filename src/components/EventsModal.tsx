@@ -1,4 +1,4 @@
-/**
+﻿/**
  * S11 · F2 — Modal "Eventi celesti".
  *
  * Lista le congiunzioni/opposizioni in un range selezionato. Click
@@ -11,6 +11,7 @@
  * indicative, non astronomicamente precise.
  */
 import { useEffect, useState } from 'react';
+import { useT, localeTag } from '../i18n';
 import { findConjunctions, findOppositions, type CelestialEvent } from '../utils/celestialEvents';
 
 interface EventsModalProps {
@@ -24,20 +25,24 @@ interface EventsModalProps {
 }
 
 function fmtDate(d: Date): string {
-  return d.toLocaleDateString('it-IT', {
+  return d.toLocaleDateString(localeTag(), {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
   });
 }
 
-function eventLabel(e: CelestialEvent): string {
-  if (e.kind === 'conjunction') return `Congiunzione ${e.a}–${e.b}`;
-  if (e.kind === 'opposition') return `Opposizione ${e.a}`;
-  return `Transito ${e.a}`;
+function eventLabel(
+  e: CelestialEvent,
+  t: (k: string, vars?: Record<string, string | number>) => string
+): string {
+  if (e.kind === 'conjunction') return t('events.conjunction', { a: e.a, b: e.b ?? '' });
+  if (e.kind === 'opposition') return t('events.opposition', { a: e.a });
+  return t('events.opposition', { a: e.a });
 }
 
 export function EventsModal({ open, onClose, onGoTo, from, rangeMonths = 12 }: EventsModalProps) {
+  const t = useT();
   const [events, setEvents] = useState<CelestialEvent[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -70,15 +75,15 @@ export function EventsModal({ open, onClose, onGoTo, from, rangeMonths = 12 }: E
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Eventi celesti"
+      aria-label={t('events.title')}
       className="surface glass absolute inset-0 z-40 flex flex-col p-6"
       data-testid="events-modal"
     >
       <div className="flex items-center justify-between">
-        <h2 className="font-display text-lg text-white">☄ Eventi celesti</h2>
+        <h2 className="font-display text-lg text-white">{t('events.title')}</h2>
         <button
           type="button"
-          aria-label="Chiudi"
+          aria-label={t('events.close')}
           onClick={onClose}
           className="rounded-md p-1.5 text-white/70 hover:bg-white/10 hover:text-white"
         >
@@ -86,23 +91,23 @@ export function EventsModal({ open, onClose, onGoTo, from, rangeMonths = 12 }: E
         </button>
       </div>
       <p className="mt-1 text-xs text-white/65">
-        Congiunzioni e opposizioni nel range {fmtDate(from ?? new Date())} →{' '}
-        {fmtDate(
-          (() => {
-            const d = new Date(from ?? new Date());
-            d.setMonth(d.getMonth() + rangeMonths);
-            return d;
-          })()
-        )}
-        . Modello kepleriano semplificato: precisione ~±1° sulle date.
+        {t('events.range', {
+          from: fmtDate(from ?? new Date()),
+          to: fmtDate(
+            (() => {
+              const d = new Date(from ?? new Date());
+              d.setMonth(d.getMonth() + rangeMonths);
+              return d;
+            })()
+          ),
+        })}
+        {t('events.disclaimer')}
       </p>
       <div className="mt-4 flex-1 overflow-y-auto">
         {busy ? (
-          <p className="text-sm text-white/70">Calcolo in corso…</p>
+          <p className="text-sm text-white/70">{t('events.computing')}</p>
         ) : events.length === 0 ? (
-          <p className="text-sm text-white/70">
-            Nessun evento trovato nel range. Prova ad allargare le date.
-          </p>
+          <p className="text-sm text-white/70">{t('events.none')}</p>
         ) : (
           <ul className="space-y-1">
             {events.map((e, i) => (
@@ -111,9 +116,9 @@ export function EventsModal({ open, onClose, onGoTo, from, rangeMonths = 12 }: E
                 className="flex items-center justify-between gap-3 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm"
               >
                 <div className="flex flex-col">
-                  <span className="text-white">{eventLabel(e)}</span>
+                  <span className="text-white">{eventLabel(e, t)}</span>
                   <span className="text-xs text-white/65">
-                    {fmtDate(e.date)} · sep {e.separationDeg.toFixed(2)}°
+                    {fmtDate(e.date)} · {t('events.sep', { deg: e.separationDeg.toFixed(2) })}
                   </span>
                 </div>
                 <button
@@ -121,7 +126,7 @@ export function EventsModal({ open, onClose, onGoTo, from, rangeMonths = 12 }: E
                   onClick={() => onGoTo(e)}
                   className="rounded-md bg-purple-500/20 px-2 py-1 text-xs text-white hover:bg-purple-500/30"
                 >
-                  Vai →
+                  {t('events.go')}
                 </button>
               </li>
             ))}

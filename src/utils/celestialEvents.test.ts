@@ -11,11 +11,6 @@
  */
 import { describe, it, expect } from 'vitest';
 import { findConjunctions, findOppositions } from './celestialEvents';
-import { angularSeparation3D, BODIES_3D, heliocentricVector3D } from '../scene/bodies3d';
-import { keplerPosition } from '../hooks/useOrbitEngine';
-import { simTimeForDate } from './simDate';
-import { planets } from '../data/planets';
-import { Vector3 } from 'three';
 
 describe('findConjunctions', () => {
   it('range vuoto → []', () => {
@@ -30,7 +25,9 @@ describe('findConjunctions', () => {
     // range ampio. Se il modello non coglie congiunzioni strette,
     // verifichiamo invece che l'ordinamento sia preservato e gli eventi
     // abbiano sep coerente.
-    const events = findConjunctions(new Date('2030-01-01'), new Date('2035-01-01'), { maxSepDeg: 180 });
+    const events = findConjunctions(new Date('2030-01-01'), new Date('2035-01-01'), {
+      maxSepDeg: 180,
+    });
     // Non assert sul count: il modello decorativo può non avere minimi
     if (events.length > 0) {
       for (const e of events) {
@@ -55,7 +52,6 @@ describe('findConjunctions', () => {
 describe('findOppositions', () => {
   it('opposizione di Marte nel 2025-2027', () => {
     const events = findOppositions(new Date('2024-01-01'), new Date('2027-12-31'));
-    const mars = events.find((e) => e.a === 'Mars' && e.kind === 'opposition');
     // Marte ha opposizioni ogni ~26 mesi (2025-01-16, 2027-02-19)
     // Il modello semplificato potrebbe non trovarle precisamente; verifichiamo
     // almeno che NON ritorna più di 3 opposizioni di Marte in 4 anni.

@@ -69,3 +69,42 @@ describe('Scorciatoia Spazio ≡ pulsante Play/Pausa', () => {
     expect(pressedChip()).toBe('1x');
   });
 });
+
+describe('S14 · F9 — Command palette (Ctrl/Cmd+K)', () => {
+  it('Ctrl+K apre la palette, secondo Ctrl+K la chiude', () => {
+    render(<App />);
+    expect(document.querySelector('[data-testid="command-palette"]')).toBeNull();
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+    expect(document.querySelector('[data-testid="command-palette"]')).not.toBeNull();
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+    expect(document.querySelector('[data-testid="command-palette"]')).toBeNull();
+  });
+
+  it('la palette contiene i pianeti e i comandi principali', () => {
+    render(<App />);
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+    const palette = document.querySelector('[data-testid="command-palette"]');
+    expect(palette).not.toBeNull();
+    expect(palette!.textContent).toContain('Giove');
+    expect(palette!.textContent).toContain('Confronto pianeti');
+    expect(palette!.textContent).toContain('Quiz spaziale');
+  });
+
+  it('Esc dentro la palette la chiude senza chiudere altri modali', () => {
+    render(<App />);
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+    const input = document.querySelector<HTMLInputElement>('[role="searchbox"]');
+    expect(input).not.toBeNull();
+    fireEvent.keyDown(input!, { key: 'Escape' });
+    expect(document.querySelector('[data-testid="command-palette"]')).toBeNull();
+  });
+
+  it('digitare nella palette non triggera le scorciatoie globali (es. R reset)', () => {
+    render(<App />);
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+    const input = document.querySelector<HTMLInputElement>('[role="searchbox"]');
+    fireEvent.change(input!, { target: { value: 'r' } });
+    // La palette resta aperta e mostra il filtro (nessun crash, nessun reset)
+    expect(document.querySelector('[data-testid="command-palette"]')).not.toBeNull();
+  });
+});

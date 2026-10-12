@@ -82,13 +82,11 @@ export class SceneErrorBoundary extends Component<
         </div>
         <h2 className="font-display text-lg text-white">Scena 3D non disponibile</h2>
         <p className="max-w-sm text-sm text-white/75">
-          Si è verificato un errore nel rendering della scena. Questo può accadere se il
-          browser non supporta WebGL o se le risorse GPU sono limitate.
+          Si è verificato un errore nel rendering della scena. Questo può accadere se il browser non
+          supporta WebGL o se le risorse GPU sono limitate.
         </p>
         {this.state.error && (
-          <p className="max-w-md font-mono text-[11px] text-white/65">
-            {this.state.error.message}
-          </p>
+          <p className="max-w-md font-mono text-[11px] text-white/65">{this.state.error.message}</p>
         )}
         <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
           <button
