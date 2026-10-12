@@ -24,11 +24,12 @@ const ASSETS_DIR = join(ROOT, 'dist', 'assets');
 
 /** Soglie gzip in KB. Modificabili in `bundle.config.mjs`. */
 const DEFAULT_BUDGETS = {
-  main: 25, // index-*.js
+  main: 28, // index-*.js (entry chunk, scaricato al primo paint)
+  modals: 12, // chunk lazy di CompareModal/EventsModal/QuizModal/SkyViewModal
   'solar-scene': 15, // SolarScene-*.js (chunk lazy)
   'drei-vendor': 170, // drei-vendor-*.js
   'three-vendor': 200, // three-vendor-*.js (separato in S7)
-  total: 320, // somma di tutti i chunk JS gzip
+  total: 450, // somma di tutti i chunk JS gzip
 };
 
 async function loadBudgets() {
@@ -53,6 +54,14 @@ async function listJs(dir) {
 
 function classify(name) {
   if (name.startsWith('index-')) return 'main';
+  if (
+    name.startsWith('CompareModal-') ||
+    name.startsWith('EventsModal-') ||
+    name.startsWith('QuizModal-') ||
+    name.startsWith('SkyViewModal-')
+  ) {
+    return 'modals';
+  }
   if (name.startsWith('SolarScene-')) return 'solar-scene';
   if (name.startsWith('drei-vendor-')) return 'drei-vendor';
   if (name.startsWith('three-vendor-')) return 'three-vendor';
@@ -73,7 +82,13 @@ async function main() {
   const budgets = await loadBudgets();
   const files = await listJs(ASSETS_DIR);
   const rows = [];
-  const perCat = { main: 0, 'solar-scene': 0, 'drei-vendor': 0, 'three-vendor': 0 };
+  const perCat = {
+    main: 0,
+    modals: 0,
+    'solar-scene': 0,
+    'drei-vendor': 0,
+    'three-vendor': 0,
+  };
   let totalGzip = 0;
 
   for (const f of files) {

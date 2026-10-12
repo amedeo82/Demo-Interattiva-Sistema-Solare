@@ -39,7 +39,7 @@ Commit di riferimento: `5cbbdff` (Fasi 1–5 + F3 math) e working tree corrente 
 - ✅ **1.3 M8** — token `--text-secondary` (0.78) e `--text-muted` (0.62) in `index.css`; sweep `text-white/40→65`, `/50→70`, `/60→75` su 8 componenti.
 - ✅ **1.4 M5** — `scripts/inject-sw-version.mjs` via hook npm `postbuild` (non in catena `&&`: su Windows la scrittura in catena non era affidabile). Sanity-check sulla `const CACHE_NAME` aggiornata.
 - ✅ **2.1 M6a** — `src/a11y/axe.test.tsx` con `jest-axe`; regole escluse con motivazione in `src/a11y/axe.ts` (`color-contrast` non computabile in jsdom, coperta da Lighthouse; `region`; `heading-order`). Fix a11y reali: `aria-label` sullo slider Timeline, `role="status"` sul fallback Suspense.
-- ✅ **2.2 M6b** — `scripts/check-bundle.mjs` + `bundle.config.mjs` (soglie: main 25KB gz, SolarScene 15KB, drei 180KB, three 200KB, totale 420KB); step `Check bundle budget` in `ci.yml`.
+- ✅ **2.2 M6b** — `scripts/check-bundle.mjs` + `bundle.config.mjs` (soglie: main 28KB gz, modals 12KB gz, SolarScene 15KB, drei 180KB, three 200KB, totale 450KB); step `Check bundle budget` in `ci.yml`. Calibrazione S9–S15: main cresciuto legittimamente a ~25KB per i18n + command palette + deep link + screenshot, modali lazy separati in `modals`.
 - ✅ **2.3 M6c** — `e2e/smoke.spec.ts` + `playwright.config.ts` (5 viewport) + workflow `e2e.yml`; `@playwright/test` come devDependency con deroga documentata in `AGENTS.md`; output Playwright in `.gitignore`.
 - ✅ **2.4 M6d** — `.lighthouserc.json` + workflow settimanale `lighthouse.yml` (assert `warn` su a11y ≥ 0.9, best-practices ≥ 0.9, perf ≥ 0.6).
 - ✅ **2.5 M4** — `utils/qualityTiers.ts` (funzione pura `nextTier` con isteresi/cooldown/floor) + `PerformanceGovernor.tsx` (default **OFF**, prop `enabled`); 8 test.
@@ -486,17 +486,19 @@ chunk principali.
 - Nuovi: `scripts/check-bundle.mjs`, `bundle.config.mjs` (soglie).
 - Modificati: `.github/workflows/ci.yml` (step dopo `build`).
 
-**Come**:
-1. Lo script legge `dist/assets/*.js`, gzip con `zlib.gzipSync`, somma per
-   categoria (main, vendor-drei, vendor-three, SolarScene).
-2. Soglie iniziali (riferimento: bundle S7 = main 16.04 KB gz, SolarScene
-   10.35 KB gz, drei-vendor 161.51 KB gz):
-   - main ≤ **25 KB** gz
-   - SolarScene (chunk lazy) ≤ **15 KB** gz
-   - drei-vendor ≤ **170 KB** gz
-   - totale JS ≤ **320 KB** gz
-3. Stampa tabella Markdown, esce con codice 1 se sforato.
-4. CI: step `Check bundle budget` che chiama `node scripts/check-bundle.mjs`.
+  **Come**:
+  1. Lo script legge `dist/assets/*.js`, gzip con `zlib.gzipSync`, somma per
+     categoria (main, modals, vendor-drei, vendor-three, SolarScene).
+  2. Soglie (riferimento: bundle S7 = main 16.04 KB gz, SolarScene
+     10.35 KB gz, drei-vendor 161.51 KB gz). Calibrazione S9–S15:
+     - main (index-*.js, scaricato al primo paint) ≤ **28 KB** gz
+     - modals (chunk lazy di Compare/Events/Quiz/SkyView) ≤ **12 KB** gz
+     - SolarScene (chunk lazy) ≤ **15 KB** gz
+     - drei-vendor ≤ **180 KB** gz
+     - three-vendor ≤ **200 KB** gz
+     - totale JS ≤ **450 KB** gz
+  3. Stampa tabella Markdown, esce con codice 1 se sforato.
+  4. CI: step `Check bundle budget` che chiama `node scripts/check-bundle.mjs`.
 
 **Test**: nessun nuovo test (script).
 
