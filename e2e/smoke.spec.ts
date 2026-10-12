@@ -17,6 +17,14 @@ async function waitForScene(page: Page): Promise<void> {
   await page.locator('canvas').first().waitFor({ state: 'visible', timeout: 15_000 });
   // Attesa extra per il lazy load della scena 3D
   await page.waitForLoadState('networkidle');
+  // Aspetta che al centro del viewport ci sia il canvas (no loading screen, no OnboardingTip)
+  await page.waitForFunction(
+    () =>
+      document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2)?.tagName ===
+      'CANVAS',
+    undefined,
+    { timeout: 15_000 }
+  );
 }
 
 test.describe('smoke', () => {
