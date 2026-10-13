@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main, master]
 
+# S15 · M9 — annulla run precedenti sulla stessa PR/branch quando si
+# pusha un nuovo commit. Risparmia minuti su PR molto attive.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   quality:
     name: Lint · Typecheck · Test · Build

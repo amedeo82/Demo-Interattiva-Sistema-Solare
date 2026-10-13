@@ -1,12 +1,27 @@
 name: E2E
 
 on:
-  pull_request:
-    branches: [main, master]
+  # S15 · M9 — la E2E viene eseguita DOPO che la CI è verde (workflow_run)
+  # invece di partire in parallelo. Se lint/typecheck/test falliscono,
+  # non sprechiamo 3-5 min per scaricare Chromium e fare la smoke suite.
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  # Trigger manuale per debug/rilancio senza un commit
   workflow_dispatch:
+
+concurrency:
+  # S15 · M9 — annulla run precedenti sulla stessa PR quando si pusha
+  # un nuovo commit. Risparmia minuti di run "stale" su PR molto attive.
+  group: e2e-${{ github.event.workflow_run.pull_requests[0].number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   e2e:
+    # Salta se la CI upstream è fallita (workflow_run con conclusion != success)
+    if: >
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
     name: E2E smoke (multi-viewport)
     runs-on: ubuntu-latest
     steps:
@@ -20,13 +35,48 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # S15 · M9 — cache dei browser Playwright. Chiave basata sulla
+      # versione di @playwright/test in package.json + lockfile. La cache
+      # hit evita il download di Chromium (~150 MB) + WebKit (~80 MB)
+      # su ogni run (~90s risparmiati).
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json', 'package.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
       - name: Install Playwright browsers
+        # Senza --with-deps: le system deps sono già nella cache run
+        # image e cambiano raramente. Se serve davvero: `npx playwright
+        # install-deps` una tantum (l'azione cache assorbe i download).
         run: npm run e2e:install
 
-      - name: Build for preview
+      # S15 · M9 — riusa l'artifact dist/ prodotto dal workflow CI invece
+      # di rifare il build localmente (~30-60s risparmiati). Fallback
+      # al build locale se per qualche motivo l'artifact manca (es.
+      # workflow_dispatch standalone).
+      - name: Download dist from CI workflow
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v5
+        with:
+          name: dist
+          path: dist
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Build dist (fallback for workflow_dispatch)
+        if: github.event_name != 'workflow_run'
         run: npm run build
 
+      - name: Verify dist present
+        run: test -f dist/index.html || (echo "::error::dist/index.html missing" && exit 1)
+
       - name: Run Playwright tests
+        # playwright.config.ts ha `webServer: { command: 'npm run preview', port: 4173 }`
+        # che in CI parte in automatico. Niente server manuale qui.
         run: npm run e2e
 
       - name: Upload Playwright report on failure
