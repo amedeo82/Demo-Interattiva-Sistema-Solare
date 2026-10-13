@@ -9,8 +9,22 @@
  * di un offset di secondi di sim, lasciando invariata l'epoca. Quando
  * l'utente trascina, lo stato `paused` viene impostato per evitare che il
  * motore "scappi" durante l'interazione.
+ *
+ * S15 — marker eventi: pallini cliccabili sopra la traccia per le
+ * congiunzioni/opposizioni calcolate da `findConjunctions/findOppositions`.
+ * Click su un marker → seek a quel simTime + mostra un tooltip col nome
+ * dell'evento (hover/focus).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+
+export interface TimelineMarker {
+  /** simTime assoluto a cui posizionare il marker. */
+  simTime: number;
+  /** Etichetta breve ("Congiunzione Venere-Giove", "Opposizione Marte"). */
+  label: string;
+  /** Colore del marker: 'conjunction' (giallo) | 'opposition' (rosso) | altro. */
+  kind: 'conjunction' | 'opposition' | 'other';
+}
 
 export interface TimelineProps {
   /** Secondi simulati corrispondenti all'inizio della timeline. */
@@ -26,9 +40,17 @@ export interface TimelineProps {
   onSeek: (simTime: number) => void;
   /** Notifica lo stato di drag (true durante l'interazione, false al rilascio). */
   onDragChange?: (dragging: boolean) => void;
+  /** S15 · marker eventi (congiunzioni/opposizioni) da mostrare sopra la traccia. */
+  markers?: TimelineMarker[];
 }
 
 const KEYBOARD_STEP_YEARS = 0.1;
+
+const MARKER_COLOR: Record<TimelineMarker['kind'], string> = {
+  conjunction: '#fbbf24', // amber-400
+  opposition: '#f87171', // red-400
+  other: '#a78bfa', // violet-400
+};
 
 export default function Timeline({
   baseSimTime,
@@ -37,6 +59,7 @@ export default function Timeline({
   yearSimSeconds,
   onSeek,
   onDragChange,
+  markers = [],
 }: TimelineProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -126,6 +149,31 @@ export default function Timeline({
         onKeyDown={onKeyDown}
       >
         <div className="timeline-fill" />
+        {/* S15 — marker eventi (congiunzioni/opposizioni). Cliccabili,
+            tooltip col label. Renderizzati sopra la fill ma sotto il thumb
+            (z-stacking via DOM order). */}
+        {markers.map((m, i) => {
+          const ratio = (m.simTime - min) / (max - min);
+          if (ratio < 0 || ratio > 1) return null;
+          return (
+            <button
+              key={`${m.simTime}-${i}`}
+              type="button"
+              className="timeline-marker"
+              style={{
+                left: `${ratio * 100}%`,
+                background: MARKER_COLOR[m.kind],
+                boxShadow: `0 0 6px ${MARKER_COLOR[m.kind]}`,
+              }}
+              title={m.label}
+              aria-label={m.label}
+              onClick={(e) => {
+                e.stopPropagation(); // non triggera il seek-on-pointerdown
+                onSeek(m.simTime);
+              }}
+            />
+          );
+        })}
         <div className="timeline-thumb" style={{ left: `${fillPct}%` }} />
       </div>
       <span

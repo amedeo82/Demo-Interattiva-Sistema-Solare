@@ -142,7 +142,11 @@ describe('Flusso: tilt camera e reset visuale (3D)', () => {
 describe('Flusso: data picker posiziona i pianeti alla data scelta', () => {
   it('cambiando la data la sidebar aggiorna la data di simulazione', () => {
     render(<App />);
-    const dateInput = screen.getByLabelText(/Data/i) as HTMLInputElement;
+    // S15 — la data è ora inline (chip + input nascosto che gestisce il
+    // picker). Clicchiamo il bottone per aprire il picker e poi inviamo
+    // l'evento change sull'input nascosto.
+    fireEvent.click(screen.getByLabelText(/Data/i));
+    const dateInput = document.querySelector<HTMLInputElement>('input[type="date"]')!;
     fireEvent.change(dateInput, { target: { value: '2031-06-15' } });
     expect(dateInput.value).toBe('2031-06-15');
   });

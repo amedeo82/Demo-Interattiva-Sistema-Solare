@@ -48,8 +48,10 @@ export default function ControlsSidebar({
           <span aria-hidden>{isPlaying ? '⏸' : '▶'}</span>
           {isPlaying ? t('sidebar.pause') : t('sidebar.play')}
         </button>
-        {/* Scorciatoie tastiera: sensate solo con una tastiera fisica */}
-        <p className="mt-1.5 hidden text-center text-[11px] text-white/35 md:block">
+        {/* Scorciatoie tastiera: sensate solo con una tastiera fisica. text-white/55
+            (era /35): al limite WCAG AA sul dark theme — più leggibile per chi
+            consulta la sidebar mentre esplora la demo. */}
+        <p className="mt-1.5 hidden text-center text-[11px] text-white/55 md:block">
           {t('sidebar.shortcutsPrefix')} <kbd className="kbd">Spazio</kbd> {t('sidebar.kbdPause')} ·{' '}
           <kbd className="kbd">←</kbd> <kbd className="kbd">→</kbd> {t('sidebar.kbdSpeed')} ·{' '}
           <kbd className="kbd">↑</kbd>
@@ -131,9 +133,10 @@ export default function ControlsSidebar({
         })}
       </div>
 
-      {/* Nota didascalica */}
+      {/* Nota didascalica. white/75 invece di /65: al limite WCAG AA
+          sul dark theme del sidebar (vedi review S15). */}
       <div className="border-t border-white/10 pt-3">
-        <p className="text-center text-xs leading-relaxed text-white/65">{t('sidebar.note')}</p>
+        <p className="text-center text-xs leading-relaxed text-white/75">{t('sidebar.note')}</p>
       </div>
     </div>
   );

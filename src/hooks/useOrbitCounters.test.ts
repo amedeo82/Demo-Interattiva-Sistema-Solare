@@ -25,7 +25,10 @@ describe('useOrbitCounters', () => {
   it('parte a 0 orbite e incrementa al wrap-around (avanti)', () => {
     const positionsRef = makePositions();
     const { result } = renderHook(() => useOrbitCounters(positionsRef, ['Earth']));
-    expect(result.current.current['Earth'] ?? 0).toBe(0);
+    // S15 — il hook ritorna { counters, progress }; il test accede a
+    // counters.current (ref) per retro-compat.
+    const counters = result.current.counters;
+    expect(counters.current['Earth'] ?? 0).toBe(0);
     // Simula un frame iniziale di assestamento
     act(() => {
       vi.advanceTimersByTime(0);
@@ -36,13 +39,13 @@ describe('useOrbitCounters', () => {
     act(() => {
       vi.advanceTimersByTime(20);
     });
-    expect(result.current.current['Earth'] ?? 0).toBe(0);
+    expect(counters.current['Earth'] ?? 0).toBe(0);
     // Secondo frame: 0 -> 359 (differenza = +359, > 180 → wrap forward)
     positionsRef.current.Earth = { angle: 359, radius: 130 };
     act(() => {
       vi.advanceTimersByTime(20);
     });
-    expect(result.current.current['Earth'] ?? 0).toBe(1);
+    expect(counters.current['Earth'] ?? 0).toBe(1);
   });
 
   it('rileva wrap-around retrogrado (Venere, Urano)', () => {
@@ -50,7 +53,8 @@ describe('useOrbitCounters', () => {
       Record<string, SimPlanetState>
     >;
     const { result } = renderHook(() => useOrbitCounters(positionsRef, ['Venus']));
-    expect(result.current.current['Venus'] ?? 0).toBe(0);
+    const counters = result.current.counters;
+    expect(counters.current['Venus'] ?? 0).toBe(0);
     act(() => {
       vi.advanceTimersByTime(20);
     });
@@ -58,6 +62,31 @@ describe('useOrbitCounters', () => {
     act(() => {
       vi.advanceTimersByTime(20);
     });
-    expect(result.current.current['Venus'] ?? 0).toBe(1);
+    expect(counters.current['Venus'] ?? 0).toBe(1);
+  });
+
+  it("S15 — espone la frazione (0..1) dell'orbita in corso", () => {
+    // Questo test usa timer reali perché il loop interno usa rAF, che
+    // vi.useFakeTimers() non avanza automaticamente.
+    vi.useRealTimers();
+    const positionsRef = makePositions();
+    const { result } = renderHook(() => useOrbitCounters(positionsRef, ['Earth']));
+    const progress = result.current.progress;
+    return new Promise<void>((resolve) => {
+      setTimeout(() => {
+        // Dopo init: fraction = 0
+        expect(progress.current['Earth']?.count ?? 0).toBe(0);
+        expect(progress.current['Earth']?.fraction ?? 0).toBe(0);
+        // Sposta avanti di 90°: dopo alcuni frame fraction dovrebbe essere ~0.25
+        positionsRef.current.Earth = { angle: 180, radius: 130 };
+        setTimeout(() => {
+          const frac = progress.current['Earth']?.fraction ?? 0;
+          expect(frac).toBeGreaterThan(0.2);
+          expect(frac).toBeLessThan(0.3);
+          vi.useFakeTimers(); // restore
+          resolve();
+        }, 100);
+      }, 50);
+    });
   });
 });

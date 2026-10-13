@@ -671,6 +671,29 @@ button:focus:not(:focus-visible) {
   border-radius: 999px;
 }
 
+/* S15 · marker eventi (congiunzioni/opposizioni) sopra la traccia. */
+.timeline-marker {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  z-index: 2;
+  padding: 0;
+  transition: transform 0.15s ease;
+}
+.timeline-marker:hover,
+.timeline-marker:focus-visible {
+  transform: translate(-50%, -50%) scale(1.6);
+  outline: none;
+}
+.timeline-marker:focus-visible {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8);
+}
+
 /* ---------- Pulsanti vista (pitch ±, reset) ---------- */
 .view-btn {
   display: flex;
@@ -770,11 +793,16 @@ button:focus:not(:focus-visible) {
   bottom: max(1rem, env(safe-area-inset-bottom));
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 18px;
+  justify-content: center;
+  /* S15 — FAB icon-only: 44×44 (target touch WCAG 2.5.5) per ridurre
+     l'ingombro e non collidere con i pulsanti zoom/reset della camera.
+     Era pillola con testo "Controlli" (~120×44). */
+  width: 44px;
+  height: 44px;
+  padding: 0;
   border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 1.25rem;
+  line-height: 1;
   color: #e9d5ff;
   border: 1px solid rgba(168, 85, 247, 0.5);
   background: linear-gradient(135deg, rgba(168, 85, 247, 0.35), rgba(30, 20, 60, 0.9));
