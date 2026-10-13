@@ -40,6 +40,9 @@ export function LoadingProvider({ children }: { children: ReactNode }) {
 
 export function useLoadingState(): LoadingState {
   const [s, setS] = useState<LoadingState>(currentState);
+  // S15 · M9-audit — il cleanup ritornato da subscribeLoading DEVE essere
+  // chiamato su unmount (stesso pattern di useConjunctionState). Era
+  // ignorato, leak del listener nel Set globale.
   useEffect(() => subscribeLoading(setS), []);
   return s;
 }

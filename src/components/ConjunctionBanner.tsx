@@ -24,7 +24,11 @@ export function ConjunctionBanner() {
   const hideTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    return subscribeConjunction((c) => {
+    // S15 · M9-audit — 2 leak fixati:
+    // 1. il cleanup di subscribeConjunction era ignorato
+    // 2. il setTimeout del "hide after HIDE_DELAY_MS" non veniva pulito
+    //    su unmount → setInfo(null) su componente smontato
+    const unsub = subscribeConjunction((c) => {
       if (c) {
         if (hideTimerRef.current != null) {
           clearTimeout(hideTimerRef.current);
@@ -34,12 +38,19 @@ export function ConjunctionBanner() {
         setInfo(c);
       } else if (lastSeenRef.current != null) {
         hideTimerRef.current = window.setTimeout(() => {
-          setInfo(null);
-          lastSeenRef.current = null;
           hideTimerRef.current = null;
+          lastSeenRef.current = null;
+          setInfo(null);
         }, HIDE_DELAY_MS);
       }
     });
+    return () => {
+      unsub();
+      if (hideTimerRef.current != null) {
+        clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = null;
+      }
+    };
   }, []);
 
   if (!info) return null;

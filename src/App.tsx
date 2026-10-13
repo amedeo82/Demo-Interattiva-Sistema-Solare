@@ -167,6 +167,12 @@ export default function App({ quizRnd }: AppProps = {}) {
   );
   // 4.11 — Screenshot: flag flash sullo schermo dopo lo scatto.
   const [screenshotFlash, setScreenshotFlash] = useState(false);
+  // S15 · M9-audit — ref per il timer del flash: se l'utente preme S due
+  // volte in 200ms, il vecchio setTimeout farebbe sparire il flash
+  // mentre il secondo trigger lo riaccende subito dopo (intermittenza
+  // visiva). Cancel-and-replace garantisce che ogni nuovo scatto
+  // mostri un flash continuo di 200ms.
+  const screenshotFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Motore animativo requestAnimationFrame con orbite kepleriane ed eccentricità.
   // Quando si sceglie una data, offset angolari E tempo simulato di partenza
   // derivano dalla stessa anomalia media (vedi utils/simDate): la scena mostra
@@ -281,6 +287,19 @@ export default function App({ quizRnd }: AppProps = {}) {
       setSimDate(new Date(parsed.date));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // S15 · M9-audit — cleanup su unmount del timer del flash screenshot.
+  // Senza, se l'utente cattura uno screenshot e poi naviga via nei 200ms
+  // successivi, `setScreenshotFlash(false)` viene chiamato su un
+  // componente smontato (warning React).
+  useEffect(() => {
+    return () => {
+      if (screenshotFlashTimerRef.current != null) {
+        clearTimeout(screenshotFlashTimerRef.current);
+        screenshotFlashTimerRef.current = null;
+      }
+    };
   }, []);
   // Writer debounced per l'hash
   const pushHash = useMemo(() => createHashWriter(300), []);
@@ -436,7 +455,13 @@ export default function App({ quizRnd }: AppProps = {}) {
     }
     // Flash overlay per feedback visivo
     setScreenshotFlash(true);
-    setTimeout(() => setScreenshotFlash(false), 200);
+    if (screenshotFlashTimerRef.current != null) {
+      clearTimeout(screenshotFlashTimerRef.current);
+    }
+    screenshotFlashTimerRef.current = setTimeout(() => {
+      screenshotFlashTimerRef.current = null;
+      setScreenshotFlash(false);
+    }, 200);
     // Mobile: Web Share API con file immagine
     const blob = await (await fetch(dataUrl)).blob();
     const file = new File([blob], `solar-system-${Date.now()}.png`, { type: 'image/png' });

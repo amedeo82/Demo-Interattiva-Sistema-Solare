@@ -270,5 +270,7 @@ export function useFrameSubscription(
 ) {
   const cbRef = useRef(onFrame);
   cbRef.current = onFrame;
+  // S15 · M9-audit — il cleanup ritornato da subscribeFrames DEVE essere
+  // chiamato su unmount, altrimenti il listener resta nel Set globale.
   useEffect(() => subscribeFrames((p, t) => cbRef.current(p, t)), [subscribeFrames]);
 }
