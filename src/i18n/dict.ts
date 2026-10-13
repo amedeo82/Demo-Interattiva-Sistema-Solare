@@ -90,7 +90,11 @@ const it: Record<string, string> = {
   'panel.orbitsOf': 'Orbite di {name}',
   'panel.orbitsTotal': 'Orbite totali (tutti i corpi)',
   'panel.noMoons': 'Nessuno',
-  'panel.moonsShown': 'Satelliti mostrati ({count} totali)',
+  // "Satelliti mostrati (N totale)" vs "(N totali)" — forma singolare/plurale
+  // selezionata in PlanetInfoPanel in base al count, non da un generico i18n
+  // pluralRules (il dizionario è piatto per semplicità).
+  'panel.moonsShownOne': 'Satellite mostrato ({count} totale)',
+  'panel.moonsShownMany': 'Satelliti mostrati ({count} totali)',
   'panel.description': 'Descrizione',
 
   // Confronto
@@ -271,7 +275,8 @@ const en: Record<string, string> = {
   'panel.orbitsOf': 'Orbits of {name}',
   'panel.orbitsTotal': 'Total orbits (all bodies)',
   'panel.noMoons': 'None',
-  'panel.moonsShown': 'Moons shown ({count} total)',
+  'panel.moonsShownOne': 'Moon shown ({count} total)',
+  'panel.moonsShownMany': 'Moons shown ({count} total)',
   'panel.description': 'Description',
 
   // Compare

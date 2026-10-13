@@ -1,4 +1,4 @@
-import { useEffect, useRef, useReducer, useState, useCallback } from 'react';
+import { useEffect, useRef, useReducer, useState, useCallback, useMemo } from 'react';
 import type { PlanetData } from '../data/planets';
 import { formatNumber, formatOrbitalPeriod } from '../utils/format';
 import { useOrbitCounters, type OrbitCountersRef } from '../hooks/useOrbitCounters';
@@ -60,16 +60,15 @@ export default function PlanetInfoPanel({ planet, onClose, positionsRef, onQuizR
     origY: number;
   } | null>(null);
 
-  const orbitCountersRef: OrbitCountersRef = useOrbitCounters(positionsRef, [
-    'Mercury',
-    'Venus',
-    'Earth',
-    'Mars',
-    'Jupiter',
-    'Saturn',
-    'Uranus',
-    'Neptune',
-  ]);
+  // Lista pianeti stabile: passata al hook useOrbitCounters, che la mette
+  // nei deps dell'effect. Se creassimo un array nuovo a ogni render,
+  // l'rAF loop verrebbe cancellato e `lastAngleRef` resettato → i counter
+  // tornerebbero a 0 ogni volta che si cambia tab o si rende il pannello.
+  const allBodyNames = useMemo(
+    () => ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'],
+    []
+  );
+  const orbitCountersRef: OrbitCountersRef = useOrbitCounters(positionsRef, allBodyNames);
   const [, force] = useReducer((x: number) => x + 1, 0);
   useEffect(() => {
     const id = setInterval(() => force(), 2000);
@@ -296,7 +295,10 @@ export default function PlanetInfoPanel({ planet, onClose, positionsRef, onQuizR
             <StatRow label="Inclinazione assiale" value={`${planet.axialTilt}°`} />
             <StatRow label="Eccentricità orbita" value={planet.eccentricity.toFixed(4)} />
             <StatRow
-              label={`Satelliti mostrati (${planet.facts.moonsCount} totali)`}
+              label={t(
+                planet.facts.moonsCount === 1 ? 'panel.moonsShownOne' : 'panel.moonsShownMany',
+                { count: planet.facts.moonsCount }
+              )}
               value={
                 planet.moons.length > 0 ? planet.moons.map((m) => m.name).join(', ') : 'Nessuno'
               }
