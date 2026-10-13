@@ -1,4 +1,4 @@
-import { useEffect, useRef, useReducer, useState, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import type { PlanetData } from '../data/planets';
 import { formatNumber, formatOrbitalPeriod } from '../utils/format';
 import { useOrbitCounters } from '../hooks/useOrbitCounters';
@@ -72,11 +72,31 @@ export default function PlanetInfoPanel({ planet, onClose, positionsRef, onQuizR
     positionsRef,
     allBodyNames
   );
-  const [, force] = useReducer((x: number) => x + 1, 0);
+  // S15 · M9-c — prima c'era un setInterval(2000ms) che forzava un
+  // re-render dell'intero PlanetInfoPanel (4 tab, drag handlers, scan
+  // line) ogni 2 secondi anche se il counter non era cambiato.
+  // Ora: stato locale `progressDisplay` (count + fraction) che si
+  // aggiorna solo quando la parte INTERA del count o la FRAZIONE a 2
+  // decimali cambia. Poll ogni 500ms, ma il re-render è condizionato.
+  // Risultato: re-render solo quando "3 → 4" o "0.42 → 0.43", ~4-5
+  // volte l'ora anziché 30.
+  const [progressDisplay, setProgressDisplay] = useState<{
+    count: number;
+    fraction: number;
+  }>({ count: 0, fraction: 0 });
   useEffect(() => {
-    const id = setInterval(() => force(), 2000);
+    const id = setInterval(() => {
+      const cur = orbitProgressRef.current[planet.name] ?? { count: 0, fraction: 0 };
+      // Round fraction a 2 decimali per evitare di triggare re-render
+      // su cambiamenti sub-pixel che l'utente non può percepire.
+      const roundedFrac = Math.round(cur.fraction * 100) / 100;
+      setProgressDisplay((prev) => {
+        if (prev.count === cur.count && prev.fraction === roundedFrac) return prev;
+        return { count: cur.count, fraction: roundedFrac };
+      });
+    }, 500);
     return () => clearInterval(id);
-  }, []);
+  }, [orbitProgressRef, planet.name]);
 
   // Focus iniziale sul pulsante di chiusura del dialog
   useEffect(() => {
@@ -144,15 +164,18 @@ export default function PlanetInfoPanel({ planet, onClose, positionsRef, onQuizR
   }, [planet.name]);
 
   const periodLabel = formatOrbitalPeriod(planet.orbitalPeriod);
+  // S15 · M9-c — `totalOrbits` è letto dal ref direttamente (la somma
+  // di tutti i pianeti). Non throttlato: cambia raramente (un wrap ogni
+  // pochi minuti a 1x, 8 pianeti), il "mancato" update si corregge al
+  // prossimo tick di `progressDisplay`.
   const totalOrbits = Object.values(orbitCountersRef.current).reduce((a, b) => a + b, 0);
-  const thisProgress = orbitProgressRef.current[planet.name] ?? { count: 0, fraction: 0 };
   // Format: "3 (0.42/1)" — orbite complete + frazione in corso.
   // Mostra la frazione solo se > 0 (a sessione appena iniziata nascondiamo
   // il "(0.00/1)" che sarebbe rumore).
   const orbitsLabel =
-    thisProgress.fraction > 0.01
-      ? `${thisProgress.count} (${thisProgress.fraction.toFixed(2)}/1)`
-      : `${thisProgress.count}`;
+    progressDisplay.fraction > 0.01
+      ? `${progressDisplay.count} (${progressDisplay.fraction.toFixed(2)}/1)`
+      : `${progressDisplay.count}`;
 
   // S14 · F7 — Narrazione TTS: legge descrizione + prima curiosità.
   // Solo su click utente (o tasto N col focus nel pannello); mai auto-play.

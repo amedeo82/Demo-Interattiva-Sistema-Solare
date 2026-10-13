@@ -115,8 +115,12 @@ export default function App({ quizRnd }: AppProps = {}) {
   // S3.4 — cinematic slow-mo: quando l'utente seleziona un pianeta, la
   // simulazione rallenta a 0.25× per 2.5s per dare "peso" alla transizione
   // della camera. Ref (non state) per non causare re-render.
+  // S15 · M9-b — `slowmoEndRef` rimosso: prima c'era un setInterval(100ms)
+  // che confrontava `performance.now()` con `slowmoEndRef.current` per
+  // decidere se resettare il moltiplicatore. Ora il reset è un
+  // setTimeout one-shot in `handleSelectPlanet` (più semplice, niente
+  // polling). Il timer id è in `slowmoResetTimerRef`.
   const slowmoMultiplierRef = useRef(1);
-  const slowmoEndRef = useRef(0);
   // S3.5 — Free camera toggle: quando ON, OrbitControls vola libero
   // (no tilt limits, no auto-setPolarAngle).
   const [freeCamera, setFreeCamera] = useState(false);
@@ -173,6 +177,12 @@ export default function App({ quizRnd }: AppProps = {}) {
   // visiva). Cancel-and-replace garantisce che ogni nuovo scatto
   // mostri un flash continuo di 200ms.
   const screenshotFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // S15 · M9-b — ref per il timer del cinematic slow-mo: prima era un
+  // setInterval(100ms) che girava per tutta la vita del componente
+  // (~10 check/s, 1 confronto numerico). Sostituito con un setTimeout
+  // one-shot schedulato al momento del select pianeta, con cancel-and-
+  // replace per selezioni rapide (slowmo multipli sovrapposti).
+  const slowmoResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Motore animativo requestAnimationFrame con orbite kepleriane ed eccentricità.
   // Quando si sceglie una data, offset angolari E tempo simulato di partenza
   // derivano dalla stessa anomalia media (vedi utils/simDate): la scena mostra
@@ -328,19 +338,21 @@ export default function App({ quizRnd }: AppProps = {}) {
     pushHash,
   ]);
 
-  // S3.4 — Auto reset del cinematic slow-mo dopo 2.5s. Il motore legge
+  // S15 · M9-b — Auto reset del cinematic slow-mo. Il motore legge
   // `slowmoMultiplierRef.current` ad ogni frame: 0.25 durante la finestra
-  // cinematica, 1 altrimenti. Loop rAF separato (setInterval a 100ms)
-  // per non re-renderizzare App quando il valore cambia.
+  // cinematica, 1 altrimenti. Prima c'era un setInterval(100ms) che
+  // girava per sempre; ora il reset è schedulato one-shot al momento
+  // del select pianeta (vedi handleSelectPlanet), niente polling.
+  // Cleanup su unmount: se l'utente chiude l'app durante i 2.5s di
+  // slow-mo, il timer viene cancellato e `slowmoMultiplierRef` non
+  // viene resettato (ma anche irrilevante, componente smontato).
   useEffect(() => {
-    const id = setInterval(() => {
-      const now = performance.now();
-      const target = now < slowmoEndRef.current ? 0.25 : 1;
-      if (slowmoMultiplierRef.current !== target) {
-        slowmoMultiplierRef.current = target;
+    return () => {
+      if (slowmoResetTimerRef.current != null) {
+        clearTimeout(slowmoResetTimerRef.current);
+        slowmoResetTimerRef.current = null;
       }
-    }, 100);
-    return () => clearInterval(id);
+    };
   }, []);
 
   useEffect(() => {
@@ -431,9 +443,18 @@ export default function App({ quizRnd }: AppProps = {}) {
 
   const handleSelectPlanet = (p: PlanetData) => {
     setSelectedPlanet(p);
-    // S3.4 — attiva slow-mo cinematografico per 2.5s
+    // S3.4 — attiva slow-mo cinematografico per 2.5s. S15 · M9-b:
+    // schedula un setTimeout one-shot che ripristina il moltiplicatore.
+    // Cancel-and-replace: se l'utente seleziona un altro pianeta durante
+    // il slow-mo corrente, il vecchio timer viene cancellato.
     slowmoMultiplierRef.current = 0.25;
-    slowmoEndRef.current = performance.now() + 2500;
+    if (slowmoResetTimerRef.current != null) {
+      clearTimeout(slowmoResetTimerRef.current);
+    }
+    slowmoResetTimerRef.current = setTimeout(() => {
+      slowmoResetTimerRef.current = null;
+      slowmoMultiplierRef.current = 1;
+    }, 2500);
   };
 
   // 4.11 — Screenshot: cattura il canvas WebGL e lo scarica. Su mobile con

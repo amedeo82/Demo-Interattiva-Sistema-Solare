@@ -258,19 +258,8 @@ export function useOrbitEngine(
   return { subscribeFrames, useSimTime, simTimeRef, positionsRef, simRateRef, seekTo };
 }
 
-/**
- * Hook ausiliario: abbona un componente al flusso di frame del motore.
- * La callback riceve lo stesso buffer `positions` mutato in place — usarla
- * SOLO per scritture DOM dirette (style.transform, attribute set), mai per
- * setState. La callback può cambiare a ogni render (viene letta da ref).
- */
-export function useFrameSubscription(
-  subscribeFrames: (l: FrameListener) => () => void,
-  onFrame: FrameListener
-) {
-  const cbRef = useRef(onFrame);
-  cbRef.current = onFrame;
-  // S15 · M9-audit — il cleanup ritornato da subscribeFrames DEVE essere
-  // chiamato su unmount, altrimenti il listener resta nel Set globale.
-  useEffect(() => subscribeFrames((p, t) => cbRef.current(p, t)), [subscribeFrames]);
-}
+// S15 · M9-c — `useFrameSubscription` rimosso (era dead code, esportato
+// ma mai importato). Se in futuro servirà un hook che si abbona ai
+// frame del motore con subscribeFrames, ripristinare il pattern
+// `const unsub = subscribeFrames(...); return unsub` (cleanup del
+// listener per evitare leak nel Set globale).
