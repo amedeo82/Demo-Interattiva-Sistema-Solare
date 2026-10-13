@@ -49,7 +49,7 @@ export function Bodies({
   // Normal map Terra (2K, costo trascurabile): dettaglio orografia sottile.
   const earthNormalTex = useTexture(NORMAL_MAPS.Earth);
   // Upgrade asset: nubi terrestri (mappa in scala di grigi, usata come alphaMap).
-  const earthCloudsTex = useTexture('/textures/planets/earth_clouds.png');
+  const earthCloudsTex = useTexture(`${import.meta.env.BASE_URL}textures/planets/earth_clouds.png`);
   // Le texture JPG sono sRGB: senza colorSpace esplicito three le tratta
   // come dati lineari → colori slavati che non corrispondono al pianeta reale.
   useEffect(() => {

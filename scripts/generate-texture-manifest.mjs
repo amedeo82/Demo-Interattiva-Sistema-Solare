@@ -35,7 +35,9 @@ function main() {
     for (const f of readdirSync(HI_RES_DIR)) {
       if (!/\.(jpe?g|png|webp)$/i.test(f)) continue;
       const key = basename(f, extname(f)).toLowerCase();
-      manifest[key] = `/textures/planets/4k/${f}`;
+      // Percorso relativo alla root di public/ (portabile su GitHub Pages):
+      // textureUrl() lo prefissa con import.meta.env.BASE_URL a runtime.
+      manifest[key] = `textures/planets/4k/${f}`;
     }
   }
   mkdirSync(OUT_DIR, { recursive: true });

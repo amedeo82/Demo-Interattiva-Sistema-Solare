@@ -63,7 +63,9 @@ export function radiusUnits(diameterKm: number): number {
   return diameterKm * SCALE_DIAMETER;
 }
 
-const TEX = '/textures/planets';
+// Base del deploy: '/' su Vercel/locale, '/<repo>/' su GitHub Pages.
+// NB: BASE_URL termina sempre con '/'.
+const TEX = `${import.meta.env.BASE_URL}textures/planets`;
 
 /** S15 · R2 — manifest delle texture hi-res, generato a build time da
  *  `scripts/generate-texture-manifest.mjs` (hook prebuild) scandendo
@@ -83,7 +85,10 @@ import hiResManifest from '../generated/hiResTextures.json';
 export function textureUrl(bodyName: string, hiRes: boolean): string {
   const fallback = `${TEX}/${bodyName.toLowerCase()}.jpg`;
   if (!hiRes) return fallback;
-  return (hiResManifest as Record<string, string>)[bodyName.toLowerCase()] ?? fallback;
+  const hi = (hiResManifest as Record<string, string>)[bodyName.toLowerCase()];
+  // Il manifest è relativo alla root di public/ → prefisso con la base
+  // del deploy (portabile fra Vercel e GitHub Pages).
+  return hi ? `${import.meta.env.BASE_URL}${hi}` : fallback;
 }
 
 /** Percorsi delle normal map disponibili (2K, peso contenuto). */

@@ -1,0 +1,57 @@
+name: Deploy GitHub Pages
+
+# Pubblica la demo live su https://<owner>.github.io/<repo>/ a ogni push
+# su main (e manualmente da Actions → Run workflow).
+#
+# NB: la prima volta va attivato Pages dalle impostazioni del repository:
+# Settings → Pages → Build and deployment → Source: "GitHub Actions".
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build & deploy
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # VITE_BASE fa compilare Vite con base "/<repo>/" (asset, manifest,
+      # service worker e texture risultano corretti sotto il subpath).
+      - name: Build (base /<repo>/ per GitHub Pages)
+        run: npm run build
+        env:
+          VITE_BASE: /${{ github.event.repository.name }}/
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

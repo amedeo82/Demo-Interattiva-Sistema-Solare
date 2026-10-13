@@ -11,7 +11,19 @@
  * resta (cade su cache 'dev' locale, ma invalida correttamente al
  * deploy grazie al bump). */
 const CACHE_NAME = 'solarsys-__BUILD_HASH__';
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon-192.svg', '/icon-512.svg'];
+
+// Base del deploy, derivata dallo scope del service worker: '/' su Vercel,
+// '/<repo>/' su GitHub Pages. Rende l'app shell portabile fra i due host.
+const SCOPE_PATH = self.registration
+  ? new URL(self.registration.scope).pathname
+  : '/';
+const APP_SHELL = [
+  SCOPE_PATH,
+  `${SCOPE_PATH}index.html`,
+  `${SCOPE_PATH}manifest.webmanifest`,
+  `${SCOPE_PATH}icon-192.svg`,
+  `${SCOPE_PATH}icon-512.svg`,
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -35,8 +47,9 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
+  const isLocalTexture = url.pathname.startsWith(`${SCOPE_PATH}textures/`);
   // Solo same-origin + texture locali; lascia passare tutto il resto
-  if (url.origin !== self.location.origin && !url.pathname.startsWith('/textures/')) {
+  if (url.origin !== self.location.origin && !isLocalTexture) {
     return;
   }
 
@@ -49,7 +62,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((c) => c.put(req, copy));
           return res;
         })
-        .catch(() => caches.match('/index.html'))
+        .catch(() => caches.match(`${SCOPE_PATH}index.html`))
     );
     return;
   }

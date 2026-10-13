@@ -2,7 +2,13 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
+// Deploy su GitHub Pages (project site sotto /<repo>/): il workflow
+// deploy-pages.yml passa VITE_BASE=/Demo-Interattiva-Sistema-Solare/.
+// Su Vercel e in locale la variabile è assente → base "/".
+const deployBase = process.env.VITE_BASE;
+
 export default defineConfig({
+  base: deployBase || "/",
   plugins: [react(), tailwindcss()],
   server: {
     host: "0.0.0.0",

@@ -18,10 +18,10 @@ describe('textureUrl', () => {
     }
   });
 
-  it('hiRes=true → 4K per i corpi presenti nel manifest', () => {
+  it('hiRes=true → 4K per i corpi presenti nel manifest (URL = BASE_URL + path relativo)', () => {
     for (const [key, url] of Object.entries(hiResManifest)) {
       const body = key.charAt(0).toUpperCase() + key.slice(1);
-      expect(textureUrl(body, true)).toBe(url);
+      expect(textureUrl(body, true)).toBe(`${import.meta.env.BASE_URL}${url}`);
     }
   });
 

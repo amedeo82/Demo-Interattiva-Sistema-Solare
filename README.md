@@ -1,6 +1,24 @@
 # 🌌 Sistema Solare Interattivo
 
+[![CI](https://img.shields.io/github/actions/workflow/status/amedeo82/Demo-Interattiva-Sistema-Solare/ci.yml?branch=main&label=CI&logo=github)](https://github.com/amedeo82/Demo-Interattiva-Sistema-Solare/actions/workflows/ci.yml)
+[![Live Demo](https://img.shields.io/badge/▶_Live_Demo-online-8A2BE2?logo=githubpages)](https://amedeo82.github.io/Demo-Interattiva-Sistema-Solare/)
+[![tests](https://img.shields.io/badge/tests-302%20passing-2EA043)](#-avvio-rapido)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-0A84FF)](#-avvio-rapido)
+
+# ▶️ **Provalo subito — nessuna installazione**
+
+<p align="center">
+  <a href="https://amedeo82.github.io/Demo-Interattiva-Sistema-Solare/"><b>🚀 LIVE DEMO</b> (GitHub Pages)</a>
+  &nbsp;·&nbsp;
+  <a href="#-avvio-rapido">Esecuzione locale</a>
+</p>
+
 Una simulazione interattiva del sistema solare costruita con **React 19**, **TypeScript**, **Vite 6** e **Tailwind CSS 4**: otto pianeti in orbita attorno al Sole con fisica keplariana reale, texture NASA, 12 lune, fasce degli asteroidi e di Kuiper, effemeridi Ω/ω J2000, modalità "scala reale 1:1", ombre/eclissi, screenshot mode, modalità mobile responsive e strumenti educativi (quiz e confronto).
+
+<p align="center">
+  <img src="docs/images/demo.gif" alt="Demo: tour cinematico panoramica → Terra → Saturno" width="720" />
+</p>
+<p align="center"><i>Tour cinematico automatico: panoramica → Terra → Saturno (record con <code>scripts/demo-gif.mjs</code>).</i></p>
 
 ## 🖼️ Galleria
 
@@ -181,26 +199,41 @@ npm run build && npm run preview &   # serve dist/ su :4173
 node scripts/screenshots.mjs         # scrive docs/images/*.png
 ```
 
-## 🔄 CI/CD
-
-Ogni push/PR esegue il workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml): **Prettier check → Typecheck → ESLint → Vitest → Build**, con caricamento dell'artifact `dist/`.
-
-## 🚀 Deploy su Vercel
-
-### Opzione 1: Deploy diretto da GitHub (consigliata)
-
-1. Carica il progetto su GitHub
-2. Su [vercel.com](https://vercel.com) → **Add New Project** → importa il repository
-3. Vercel rileva automaticamente Vite (config in `vercel.json`)
-4. Clicca **Deploy**
-
-### Opzione 2: Vercel CLI
+### Rigenerare la GIF demo del README
 
 ```bash
-npm install -g vercel
-vercel          # preview
-vercel --prod   # produzione
+npm run build && npm run preview &   # serve dist/ su :4173
+node scripts/demo-gif.mjs            # scrive docs/images/demo.gif (~4 MB, 15s)
 ```
+
+Lo script avvia il **tour cinematico** (panoramica → Terra → Saturno), registra un
+video WebM e lo converte in GIF con ffmpeg. Se passi un URL (es. build con base
+Pages su `:4173/Demo-Interattiva-Sistema-Solare/`) funziona anche come smoke test:
+esce con errore se ci sono richieste 4xx/5xx o errori console.
+
+## 🔄 CI/CD
+
+Ogni push/PR esegue il workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml): **Prettier check → Typecheck → ESLint → Vitest → Build**, con caricamento dell'artifact `dist/`. A ogni push su `main` il workflow [`deploy-pages.yml`](.github/workflows/deploy-pages.yml) pubblica automaticamente la demo live su **GitHub Pages** (build con `base /<repo>/`).
+
+## 🌐 Deploy
+
+### Opzione 1: GitHub Pages (automatica, già configurata)
+
+La demo live è pubblicata su: **<https://amedeo82.github.io/Demo-Interattiva-Sistema-Solare/>**
+
+Attivazione (solo la prima volta):
+
+1. **Settings → Pages → Build and deployment → Source: "GitHub Actions"**
+2. Push su `main` (o Actions → "Deploy GitHub Pages" → Run workflow)
+3. La demo va online in ~2 minuti
+
+Il build Pages usa `VITE_BASE=/<repo>/` (letto da `vite.config.ts`): asset, manifest, service worker e texture risultano corretti sotto il subpath. Le risorse sono già relative (`./sw.js`, `./manifest.webmanifest`, texture via `import.meta.env.BASE_URL`), quindi il **medesimo codice** funziona identico su Vercel (base `/`) e su Pages (base `/<repo>/`).
+
+### Opzione 2: Vercel
+
+1. Su [vercel.com](https://vercel.com) → **Add New Project** → importa il repository
+2. Vercel rileva automaticamente Vite (config in `vercel.json`)
+3. Clicca **Deploy** — oppure da CLI: `vercel --prod`
 
 ## 📁 Struttura del progetto
 
@@ -268,6 +301,7 @@ vercel --prod   # produzione
 │       └── ui.ts              # Zustand store
 ├── scripts/
 │   ├── screenshots.mjs        # Generazione screenshot con Playwright
+│   ├── demo-gif.mjs           # GIF demo del README (tour + ffmpeg)
 │   └── make-saturn-rings.cjs  # Generatore saturn_rings.png procedurale
 ├── docs/
 │   ├── FEATURES.md            # Descrizione tecnica di ogni feature
@@ -276,7 +310,11 @@ vercel --prod   # produzione
 │   ├── MOBILE-UX.md           # Sprint S5 (mobile) + S6 (realismo 3D) + roadmap
 │   ├── images/                # Screenshot PNG del README (Playwright)
 │   └── mockups/               # Mockup SVG statici
-├── .github/workflows/ci.yml   # Pipeline CI
+├── .github/workflows/
+│   ├── ci.yml                 # Pipeline CI (lint, test, build)
+│   ├── e2e.yml                # Smoke suite Playwright (5 viewport)
+│   ├── deploy-pages.yml       # Deploy automatico demo → GitHub Pages
+│   └── lighthouse.yml         # Audit Lighthouse settimanale
 └── vercel.json                # Configurazione Vercel (incluso service worker)
 ```
 
