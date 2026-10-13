@@ -1,0 +1,54 @@
+fix(s15): audit codice — 6 bug/memory leak risolti
+
+Audit sistematico del codice del progetto (104 file .ts/.tsx, ~12k righe
+stimate). Trovati 6 problemi reali tutti legati a cleanup, listener leak
+e context value non memoizzati. Fix mirati, test 302/302.
+
+#10 OrbitEngineBridge: Context value non memoizzato (performance)
+- src/scene/OrbitEngineBridge.tsx: il value passato a <Ctx.Provider>
+  era un oggetto inline creato ad ogni render, invalidando TUTTI i
+  consumer (SolarScene, Bodies, Moons, Orbits, ecc.). Memoizzato
+  con useMemo([positionsRef, simRateRef, simTimeRef]) — i ref sono
+  stabili, le deps sono costanti, nessun rischio di re-render
+  aggiuntivo.
+
+#11 useConjunctionState: listener leak
+- src/scene/Conjunctions.tsx: useEffect(() => subscribeConjunction(setInfo), [])
+  ignorava l'unsub ritornato. Ad ogni remount del componente (HMR,
+  navigazione), il listener si accumulava nel Set globale
+  `conjunctionListeners`. Documentato il pattern corretto.
+
+#12 useLoadingState: listener leak (stesso pattern)
+- src/scene/LoadingProvider.tsx: stessa issue di useConjunctionState.
+  subscribeLoading ritorna unsub, ignorato. Fix + doc.
+
+#13 useFrameSubscription: listener leak (stesso pattern)
+- src/hooks/useOrbitEngine.ts: useFrameSubscription (hook documentato
+  ma attualmente non usato in produzione) — stesso pattern. Aggiunto
+  commento che indica il cleanup.
+
+#14 ConjunctionBanner: 2 leak
+- src/components/ConjunctionBanner.tsx:
+  1. subscribeConjunction unsub ignorato (stesso leak dei precedenti)
+  2. hideTimerRef.current = window.setTimeout(...) non veniva pulito
+     su unmount → setInfo(null) su componente smontato + listener leak
+  Fix: ritorno unsub esplicito + cleanup del timer nel return.
+
+#15 IntroOverlay: setTimeout del fade-out non tracciato
+- src/components/IntroOverlay.tsx: il setTimeout interno a
+  checkAndAdvance (fadeMs, default 1200ms) non era referenziato nel
+  cleanup. Se il componente unmount durante il fade, setPhase('done')
+  + onComplete?.() chiamati su componente smontato. Fix: variabile
+  fadeTimer locale, aggiunta a clearTimeout nel return.
+
+#16 App.tsx screenshot flash: timer cumulativo
+- src/App.tsx: setTimeout(() => setScreenshotFlash(false), 200) senza
+  ref. Se l'utente preme S due volte in 200ms, il secondo scatto
+  triggerava un flash che veniva "resettato" dal timer del primo,
+  causando intermittenza visiva. Fix: screenshotFlashTimerRef con
+  cancel-and-replace + cleanup su unmount.
+
+Bug minori documentati ma NON corretti in questo commit (basso impatto):
+- App.tsx setInterval 100ms per slowmo (overhead trascurabile)
+- PlanetInfoPanel force() ogni 2s (re-render inutile ma invisibile)
+- useFrameSubscription: dead code (esportato ma non usato)

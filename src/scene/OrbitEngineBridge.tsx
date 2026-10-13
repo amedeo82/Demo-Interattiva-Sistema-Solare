@@ -3,7 +3,7 @@
  * figli dentro <Canvas>. Il motore continua a vivere in App.tsx; qui
  * esponiamo SOLO il ref alle posizioni, letto dentro `useFrame`.
  */
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useMemo } from 'react';
 import type { MutableRefObject, ReactNode } from 'react';
 import type { SimPlanetState } from '../hooks/useOrbitEngine';
 
@@ -34,5 +34,14 @@ export function OrbitEngineBridge({
   simTimeRef: SimTimeRef;
   children: ReactNode;
 }) {
-  return <Ctx.Provider value={{ positionsRef, simRateRef, simTimeRef }}>{children}</Ctx.Provider>;
+  // S15 · M9-audit — memoizza il value del Context. Senza useMemo, ogni
+  // render di OrbitEngineBridge crea un nuovo oggetto, invalidando
+  // TUTTI i consumer (SolarScene, Bodies, Moons, Orbits, ecc.) e
+  // facendoli re-renderizzare inutilmente. I ref sono stabili quindi
+  // le dipendenze di useMemo sono costanti.
+  const value = useMemo(
+    () => ({ positionsRef, simRateRef, simTimeRef }),
+    [positionsRef, simRateRef, simTimeRef]
+  );
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

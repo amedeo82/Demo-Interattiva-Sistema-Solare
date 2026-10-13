@@ -31,12 +31,17 @@ export function IntroOverlay({
   useEffect(() => {
     const start = performance.now();
     const t1 = setTimeout(() => setPhase('visible'), 30);
+    // S15 · M9-audit — il setTimeout interno (fade-out finale) non era
+    // tracciato. Se il componente unmount durante i `fadeMs` (default
+    // 1200ms), `setPhase('done')` e `onComplete?.()` vengono chiamati
+    // su componente smontato. Lo aggiungiamo alla lista di cleanup.
+    let fadeTimer: ReturnType<typeof setTimeout> | null = null;
     const checkAndAdvance = () => {
       const elapsed = performance.now() - start;
       const l = getLoading();
       if (l.ready && elapsed >= minVisibleMs) {
         setPhase('out');
-        setTimeout(() => {
+        fadeTimer = setTimeout(() => {
           setPhase('done');
           onComplete?.();
         }, fadeMs);
@@ -57,6 +62,7 @@ export function IntroOverlay({
     });
     return () => {
       clearTimeout(t1);
+      if (fadeTimer != null) clearTimeout(fadeTimer);
       clearInterval(interval);
       off();
     };

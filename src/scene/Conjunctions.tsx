@@ -195,6 +195,11 @@ export function useConjunctionState(): ConjunctionInfo | null {
   const [info, setInfo] = useState<ConjunctionInfo | null>(null);
   // Il componente 3D chiama onChange (vedi <Conjunctions>): noi
   // semplicemente ci registriamo a un piccolo event bus.
+  // S15 · M9-audit — il cleanup ritornato da subscribeConjunction DEVE
+  // essere chiamato su unmount, altrimenti il listener resta nel Set
+  // globale e, se il componente viene re-montato (HMR, navigazione),
+  // si accumula. setInfo è stabile (state setter) quindi può essere
+  // omesso dai deps.
   useEffect(() => subscribeConjunction(setInfo), []);
   return info;
 }
