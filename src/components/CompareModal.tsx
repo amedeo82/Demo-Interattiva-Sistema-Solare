@@ -5,7 +5,7 @@
  * S14 · F11 — evoluzione: barre animate in scala logaritmica, nuove righe
  * (gravità, velocità orbitale media, giorno siderale) derivate dal dataset.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useT } from '../i18n';
 import type { PlanetData } from '../data/planets';
 import { formatNumber, formatOrbitalPeriod } from '../utils/format';
@@ -80,20 +80,7 @@ export default function CompareModal({ planets, onClose }: Props) {
   const b = planets.find((p) => p.name === bName) ?? planets[1];
 
   const selector = (label: string, value: string, onChange: (v: string) => void) => (
-    <label className="flex flex-col gap-1 text-xs text-white/75">
-      {label}
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg border border-white/15 bg-[#141433] px-2 py-1.5 text-sm text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400"
-      >
-        {planets.map((p) => (
-          <option key={p.name} value={p.name}>
-            {p.nameIt}
-          </option>
-        ))}
-      </select>
-    </label>
+    <PlanetPicker label={label} planets={planets} value={value} onChange={onChange} />
   );
 
   return (
@@ -179,6 +166,102 @@ export default function CompareModal({ planets, onClose }: Props) {
         </table>
         <p className="mt-3 text-[11px] text-white/35">{t('compare.note')}</p>
       </div>
+    </div>
+  );
+}
+
+/** S15 — sostituisce il <select> nativo: usa il tema dark, mostra il colore
+ *  del pianeta, ed evita il flicker di stile cross-browser dei menu OS. */
+function PlanetPicker({
+  label,
+  planets,
+  value,
+  onChange,
+}: {
+  label: string;
+  planets: PlanetData[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = planets.find((p) => p.name === value) ?? planets[0];
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={ref} className="flex flex-col gap-1 text-xs text-white/75">
+      <span>{label}</span>
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={label}
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center justify-between gap-2 rounded-lg border border-white/15 bg-[#141433] px-2 py-1.5 text-left text-sm text-white transition-colors hover:border-white/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400"
+      >
+        <span className="flex items-center gap-2">
+          <span
+            className="inline-block h-3 w-3 rounded-full"
+            style={{ background: selected.color }}
+            aria-hidden
+          />
+          {selected.nameIt}
+        </span>
+        <span
+          className={`text-white/50 transition-transform ${open ? 'rotate-180' : ''}`}
+          aria-hidden
+        >
+          ▾
+        </span>
+      </button>
+      {open && (
+        <ul
+          role="listbox"
+          className="panel-in z-10 mt-1 max-h-60 overflow-auto rounded-lg border border-white/10 bg-[#0d0d2a]/98 p-1 shadow-2xl backdrop-blur-md"
+        >
+          {planets.map((p) => {
+            const active = p.name === value;
+            return (
+              <li key={p.name}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={active}
+                  onClick={() => {
+                    onChange(p.name);
+                    setOpen(false);
+                  }}
+                  className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-white/10 ${
+                    active ? 'bg-white/10 text-white' : 'text-white/80'
+                  }`}
+                >
+                  <span
+                    className="inline-block h-3 w-3 rounded-full"
+                    style={{ background: p.color }}
+                    aria-hidden
+                  />
+                  {p.nameIt}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

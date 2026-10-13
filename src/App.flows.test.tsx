@@ -45,10 +45,10 @@ describe('Flusso: modalità confronto pianeti', () => {
     // default: Terra vs Giove — il rapporto dimensioni deve citare Giove
     expect(dialog).toHaveTextContent(/Giove è [\d.,]+× più grande/);
 
-    // cambio Pianeta B: Giove → Mercurio
-    fireEvent.change(screen.getByLabelText(/Pianeta B/i), {
-      target: { value: 'Mercury' },
-    });
+    // cambio Pianeta B: Giove → Mercurio (picker custom: apri la listbox e
+    // clicca l'opzione, l'evento `change` dei <select> non esiste più)
+    fireEvent.click(screen.getByLabelText(/Pianeta B/i));
+    fireEvent.click(screen.getByRole('option', { name: /Mercurio/i }));
     expect(dialog).toHaveTextContent(/Terra è [\d.,]+× più grande/);
 
     // chiusura
