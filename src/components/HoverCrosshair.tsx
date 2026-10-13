@@ -21,6 +21,16 @@ export interface HoverCrosshairProps {
 
 export function HoverCrosshair({ mouseNdcRef, worldHitRef, hoveredBodyRef }: HoverCrosshairProps) {
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  // S15 · M7 — modalità debug: mostra le coordinate 3D sotto il mouse
+  // (`?debug=1` nell'URL o `localStorage('debug') === '1'`). Il mirino
+  // resta sempre attivo, il readout numerico no (riduce il rumore visivo
+  // per l'utente finale — la posizione è utile solo in fase di authoring).
+  const [debug] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      (new URLSearchParams(window.location.search).get('debug') === '1' ||
+        (typeof localStorage !== 'undefined' && localStorage.getItem('debug') === '1'))
+  );
   // Refresh forza re-render ogni 100ms per rileggere i ref live (worldHit, hoveredBody).
   const [, force] = useState(0);
   useEffect(() => {
@@ -74,8 +84,10 @@ export function HoverCrosshair({ mouseNdcRef, worldHitRef, hoveredBodyRef }: Hov
         <circle cx="12" cy="12" r="1" fill={bodyName ? '#a855f7' : 'rgba(255,255,255,0.9)'} />
       </svg>
 
-      {/* Badge coordinate in basso al centro */}
-      {(hit || bodyName) && (
+      {/* Badge coordinate in basso al centro. Mostra il nome del corpo
+          hovered (utile per orientarsi) sempre; le coordinate 3D grezze
+          solo in modalità debug (?debug=1). */}
+      {(hit || bodyName) && (bodyName || debug) && (
         <div
           className="pointer-events-none fixed bottom-3 left-1/2 z-10 -translate-x-1/2 rounded border border-white/20 bg-black/55 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-white/85 backdrop-blur-sm"
           aria-hidden
@@ -85,7 +97,7 @@ export function HoverCrosshair({ mouseNdcRef, worldHitRef, hoveredBodyRef }: Hov
               <span className="text-white/70">Target · </span>
               <span className="text-purple-300">{bodyName}</span>
             </>
-          ) : hit ? (
+          ) : hit && debug ? (
             <>
               <span className="text-white/70">X </span>
               <span>{hit.x.toFixed(1)}</span>

@@ -292,7 +292,20 @@ export default function QuizModal({
           </div>
         ) : (
           <>
-            <p className="mb-1 text-xs uppercase tracking-wider text-white/65">
+            {/* S15 — barra di progresso visiva (1/5, 2/5, ...): migliora
+                l'orientamento dell'utente nel flusso di domande. */}
+            <div className="mb-2 flex items-center gap-2" aria-hidden>
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-400 transition-[width] duration-300 ease-out"
+                  style={{ width: `${((index + 1) / questions.length) * 100}%` }}
+                />
+              </div>
+              <span className="font-mono text-[10px] tabular-nums text-white/70">
+                {index + 1}/{questions.length}
+              </span>
+            </div>
+            <p className="mb-3 text-[11px] uppercase tracking-wider text-white/55">
               {t('quiz.question', { n: index + 1, total: questions.length })}
             </p>
             <p className="mb-4 text-sm font-medium leading-relaxed">{q.prompt}</p>

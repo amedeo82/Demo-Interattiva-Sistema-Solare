@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState, useCallback, lazy, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import { planets, type PlanetData } from './data/planets';
 import {
   createHashWriter,
@@ -1094,69 +1095,92 @@ interface OverflowItem {
 
 /** Bottone "⋯" che apre un menu dropdown con le voci secondarie dell'header.
  *  Pensato per header stretti: se i chip entrano, `flex-wrap` li tiene in linea
- *  — il menu aggiunge solo uno shortcut cliccabile per le 3 voci più "nascoste". */
+ *  — il menu aggiunge solo uno shortcut cliccabile per le 3 voci più "nascoste".
+ *  Il dropdown è portaled a <body> per sfuggire allo stacking context
+ *  dell'header (z-10) e non essere coperto dalla timeline (anch'essa z-10). */
 function OverflowMenu({ items }: { items: OverflowItem[] }) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
 
   useEffect(() => {
     if (!open) return;
     const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (ref.current?.contains(target)) return;
+      if (triggerRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
     };
-    document.addEventListener('mousedown', onClick);
-    document.addEventListener('keydown', onKey);
+    const updatePos = () => {
+      const r = triggerRef.current?.getBoundingClientRect();
+      if (r) setPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+    };
+    updatePos();
+    window.addEventListener('mousedown', onClick);
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('resize', updatePos);
+    window.addEventListener('scroll', updatePos, true);
     return () => {
-      document.removeEventListener('mousedown', onClick);
-      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('mousedown', onClick);
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', updatePos);
+      window.removeEventListener('scroll', updatePos, true);
     };
   }, [open]);
 
   return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={t('tip.more')}
-        title={t('tip.more')}
-        className={`chip ${open ? 'active' : ''}`}
-      >
-        ⋯
-      </button>
-      {open && (
-        <div
-          role="menu"
-          className="panel-in absolute right-0 top-full z-50 mt-1.5 flex min-w-[180px] flex-col gap-0.5 rounded-lg border border-white/10 bg-[#0d0d2a]/95 p-1.5 shadow-2xl backdrop-blur-md"
+    <>
+      <div ref={ref} className="relative">
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label={t('tip.more')}
+          title={t('tip.more')}
+          className={`chip ${open ? 'active' : ''}`}
         >
-          {items.map((it) => (
-            <button
-              key={it.key}
-              role="menuitem"
-              onClick={() => {
-                it.onClick();
-                setOpen(false);
-              }}
-              className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-1.5 text-left text-[12px] transition-colors hover:bg-white/10 ${
-                it.active ? 'text-white' : 'text-white/75'
-              }`}
-              title={it.title}
-            >
-              <span>{it.label}</span>
-              {it.active && (
-                <span className="text-purple-300" aria-hidden>
-                  ●
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+          ⋯
+        </button>
+      </div>
+      {open &&
+        pos &&
+        createPortal(
+          <div
+            role="menu"
+            style={{ position: 'fixed', top: pos.top, right: pos.right, zIndex: 400 }}
+            className="panel-in flex min-w-[180px] flex-col gap-0.5 rounded-lg border border-white/10 bg-[#0d0d2a]/95 p-1.5 shadow-2xl backdrop-blur-md"
+          >
+            {items.map((it) => (
+              <button
+                key={it.key}
+                role="menuitem"
+                onClick={() => {
+                  it.onClick();
+                  setOpen(false);
+                }}
+                className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-1.5 text-left text-[12px] transition-colors hover:bg-white/10 ${
+                  it.active ? 'text-white' : 'text-white/75'
+                }`}
+                title={it.title}
+              >
+                <span>{it.label}</span>
+                {it.active && (
+                  <span className="text-purple-300" aria-hidden>
+                    ●
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>,
+          document.body
+        )}
+    </>
   );
 }

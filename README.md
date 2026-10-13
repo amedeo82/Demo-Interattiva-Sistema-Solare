@@ -8,7 +8,7 @@ Una simulazione interattiva del sistema solare costruita con **React 19**, **Typ
 
 ![Hero](docs/images/01-home.png)
 
-Otto pianeti in orbita keplariana attorno al Sole, timeline interattiva in alto, sidebar controlli laterale, header compatto con chip toggle (Etichette, Realismo, Eclissi, Scala reale, FX, Quiz, Foto, Audio), banner congiunzione.
+Otto pianeti in orbita keplariana attorno al Sole, timeline interattiva in alto, sidebar controlli laterale, header compatto con chip toggle (Etichette, Realismo, Eclissi, Scala reale, FX, Quiz, Foto, Audio), banner congiunzione. L'HUD telemetria (SPD / DATE / DIST) è sempre visibile; la badge FPS si auto-attiva solo se il frame rate scende sotto i 30 FPS per più di 1s (riduce il rumore visivo).
 
 ### Modalità realismo + eclissi
 
@@ -20,25 +20,25 @@ Texture NASA 2K, 12 lune orbitanti (Terra, Marte×2, Giove×4, Saturno×2, Urano
 
 ![Planet info](docs/images/03-planet-info.png)
 
-Quattro tab (Dati / Atmosfera / Missioni / Curiosità), statistiche live: orbite completate nella sessione, composizione atmosfera, missioni spaziali, drag-and-drop per riposizionare. Linea scan "strumentazione di bordo" ogni 6s.
+Quattro tab (Dati / Atmosfera / Missioni / Curiosità), statistiche live: orbite completate nella sessione (counter stabile, non si resetta al cambio tab), composizione atmosfera, missioni spaziali, drag-and-drop per riposizionare. Linea scan "strumentazione di bordo" ogni 6s. Label "Satelliti mostrati (N totale/totali)" con forma singolare/plurale corretta.
 
 ### Confronto pianeti
 
 ![Compare](docs/images/04-compare.png)
 
-Selettori dropdown, tabella con righe comparative (diametro, distanza, periodo, lune, temperatura), valore maggiore in verde, scale comparative animate.
+Selettori custom in tema dark (PlanetPicker) con il colore del pianeta per opzione, tabella con righe comparative (diametro, distanza dal Sole, anno planetario, gravità, velocità orbitale media, lune) e barre proporzionali animate, valore maggiore in verde, rapporto dimensioni finale.
 
 ### Quiz spaziale
 
 ![Quiz](docs/images/05-quiz.png)
 
-Domande a risposta multipla generate dal dataset. Counter "Prossima domanda →" alla fine di ogni step.
+Domande a risposta multipla generate dal dataset, con barra di progresso visiva (gradiente viola→rosa) e contatore "1/5". Tre livelli di difficoltà (Facile/Media/Difficile), best score persistito per livello, modalità "focus" su un singolo pianeta dal pannello info.
 
 ### Mobile: scena a tutto schermo + FAB
 
 ![Mobile home](docs/images/06-mobile.png)
 
-Su mobile (< 1024px) la sidebar si chiude in una bottom sheet richiamabile col FAB "☰ Controlli". La scena 3D occupa tutto lo schermo. Chip secondari (Etichette, Realismo, Eclissi, Scala reale, FX) si nascondono sotto 640px e confluiscono nel menu "⋯".
+Su mobile (< 1024px) la sidebar si chiude in una bottom sheet richiamabile col FAB "≡ Controlli". La scena 3D occupa tutto lo schermo. Chip secondari (Etichette, Realismo, Eclissi, Scala reale, FX) si nascondono sotto 640px e confluiscono nel menu "⋯".
 
 ### Mobile: bottom sheet controlli
 
@@ -144,7 +144,7 @@ Scomposizione dei componenti visivi: Sole (limb darkening + corona), Pianeti (al
 | Styling | Tailwind CSS 4 + CSS custom (animazioni, shader, mobile sheet) |
 | State | Zustand 5 + custom hooks |
 | PWA | Service worker + manifest |
-| Test | Vitest 4 + Testing Library 16 + jsdom 30 (180 test) |
+| Test | Vitest 4 + Testing Library 16 + jsdom 30 (298 test) |
 | Qualità | ESLint 10, Prettier, TypeScript-ESLint 8, GitHub Actions CI |
 | Screenshot docs | Playwright (script `scripts/screenshots.mjs`) |
 
@@ -160,7 +160,7 @@ npm run preview    # anteprima della build di produzione
 ### Script utili
 
 ```bash
-npm test              # suite Vitest (unit + integrazione, 180 test)
+npm test              # suite Vitest (unit + integrazione, 298 test)
 npm run test:coverage # coverage dei test
 npm run lint          # ESLint
 npm run format        # Prettier --write
