@@ -1,7 +1,7 @@
 import { useEffect, useRef, useReducer, useState, useCallback, useMemo } from 'react';
 import type { PlanetData } from '../data/planets';
 import { formatNumber, formatOrbitalPeriod } from '../utils/format';
-import { useOrbitCounters, type OrbitCountersRef } from '../hooks/useOrbitCounters';
+import { useOrbitCounters } from '../hooks/useOrbitCounters';
 import { useIsMobile } from '../hooks/useMedia';
 import type { SimPlanetState } from '../hooks/useOrbitEngine';
 import { PREFS_KEYS, loadJSON, saveJSON, type PanelPos } from '../utils/prefs';
@@ -68,7 +68,10 @@ export default function PlanetInfoPanel({ planet, onClose, positionsRef, onQuizR
     () => ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'],
     []
   );
-  const orbitCountersRef: OrbitCountersRef = useOrbitCounters(positionsRef, allBodyNames);
+  const { counters: orbitCountersRef, progress: orbitProgressRef } = useOrbitCounters(
+    positionsRef,
+    allBodyNames
+  );
   const [, force] = useReducer((x: number) => x + 1, 0);
   useEffect(() => {
     const id = setInterval(() => force(), 2000);
@@ -142,7 +145,14 @@ export default function PlanetInfoPanel({ planet, onClose, positionsRef, onQuizR
 
   const periodLabel = formatOrbitalPeriod(planet.orbitalPeriod);
   const totalOrbits = Object.values(orbitCountersRef.current).reduce((a, b) => a + b, 0);
-  const thisOrbits = orbitCountersRef.current[planet.name] ?? 0;
+  const thisProgress = orbitProgressRef.current[planet.name] ?? { count: 0, fraction: 0 };
+  // Format: "3 (0.42/1)" — orbite complete + frazione in corso.
+  // Mostra la frazione solo se > 0 (a sessione appena iniziata nascondiamo
+  // il "(0.00/1)" che sarebbe rumore).
+  const orbitsLabel =
+    thisProgress.fraction > 0.01
+      ? `${thisProgress.count} (${thisProgress.fraction.toFixed(2)}/1)`
+      : `${thisProgress.count}`;
 
   // S14 · F7 — Narrazione TTS: legge descrizione + prima curiosità.
   // Solo su click utente (o tasto N col focus nel pannello); mai auto-play.
@@ -306,7 +316,7 @@ export default function PlanetInfoPanel({ planet, onClose, positionsRef, onQuizR
             <p className="mt-3 text-[10px] uppercase tracking-wider text-white/65">
               Sessione corrente
             </p>
-            <StatRow label={`Orbite di ${planet.nameIt}`} value={`${thisOrbits}`} />
+            <StatRow label={`Orbite di ${planet.nameIt}`} value={orbitsLabel} />
             <StatRow label="Orbite totali (tutti i corpi)" value={`${totalOrbits}`} />
           </div>
         )}

@@ -8,7 +8,7 @@ Una simulazione interattiva del sistema solare costruita con **React 19**, **Typ
 
 ![Hero](docs/images/01-home.png)
 
-Otto pianeti in orbita keplariana attorno al Sole, timeline interattiva in alto, sidebar controlli laterale, header compatto con chip toggle (Etichette, Realismo, Eclissi, Scala reale, FX, Quiz, Foto, Audio), banner congiunzione. L'HUD telemetria (SPD / DATE / DIST) è sempre visibile; la badge FPS si auto-attiva solo se il frame rate scende sotto i 30 FPS per più di 1s (riduce il rumore visivo).
+Otto pianeti in orbita keplariana attorno al Sole, timeline interattiva in alto con **marker cliccabili di congiunzioni/opposizioni** (pallini colorati giallo/rosso sulla traccia), sidebar controlli laterale, header compatto con chip toggle (Etichette, Realismo, Eclissi, Scala reale, FX, Quiz, Foto, Audio), **chip data inline** ("📅 17 ott 2027" → click apre il picker nativo), banner congiunzione. L'HUD telemetria (SPD / DATE / DIST) è sempre visibile; la badge FPS si auto-attiva solo se il frame rate scende sotto i 30 FPS per più di 1s.
 
 ### Modalità realismo + eclissi
 
@@ -20,7 +20,7 @@ Texture NASA 2K, 12 lune orbitanti (Terra, Marte×2, Giove×4, Saturno×2, Urano
 
 ![Planet info](docs/images/03-planet-info.png)
 
-Quattro tab (Dati / Atmosfera / Missioni / Curiosità), statistiche live: orbite completate nella sessione (counter stabile, non si resetta al cambio tab), composizione atmosfera, missioni spaziali, drag-and-drop per riposizionare. Linea scan "strumentazione di bordo" ogni 6s. Label "Satelliti mostrati (N totale/totali)" con forma singolare/plurale corretta.
+Quattro tab (Dati / Atmosfera / Missioni / Curiosità), statistiche live: orbite completate nella sessione con **frazione dell'orbita in corso** (es. "3 (0.42/1)") per dare feedback continuo durante l'anno, composizione atmosfera, missioni spaziali, drag-and-drop per riposizionare. Linea scan "strumentazione di bordo" ogni 6s. Label "Satelliti mostrati (N totale/totali)" con forma singolare/plurale corretta.
 
 ### Confronto pianeti
 
@@ -38,7 +38,7 @@ Domande a risposta multipla generate dal dataset, con barra di progresso visiva 
 
 ![Mobile home](docs/images/06-mobile.png)
 
-Su mobile (< 1024px) la sidebar si chiude in una bottom sheet richiamabile col FAB "≡ Controlli". La scena 3D occupa tutto lo schermo. Chip secondari (Etichette, Realismo, Eclissi, Scala reale, FX) si nascondono sotto 640px e confluiscono nel menu "⋯".
+Su mobile (< 1024px) la sidebar si chiude in una bottom sheet richiamabile col **FAB icon-only "≡"** (44×44px, target touch WCAG 2.5.5). La scena 3D occupa tutto lo schermo. Chip secondari (Etichette, Realismo, Eclissi, Scala reale, FX) si nascondono sotto 640px e confluiscono nel menu "⋯". Onboarding tip posizionato sopra la bottom sheet per non essere coperto.
 
 ### Mobile: bottom sheet controlli
 
@@ -113,12 +113,18 @@ Scomposizione dei componenti visivi: Sole (limb darkening + corona), Pianeti (al
 - **Tour guidato** cinematico (panoramica → Terra → Saturno) con tween 1.8s
 
 ### Mobile / Responsive (S5)
-- **Bottom sheet controlli** su < 1024px (FAB "☰ Controlli" in basso a destra con safe-area)
+- **Bottom sheet controlli** su < 1024px (FAB icon-only "☰" 44×44px in basso a destra con safe-area, target touch WCAG 2.5.5)
 - **Header compatto** sotto 640px: chip secondari confluiscono nel menu "⋯" con stato attivo
 - **Pannello info → bottom sheet** full-width con grab bar (no drag su mobile)
-- **Date picker** spostato nella sheet su mobile
+- **Date picker** spostato nella sheet su mobile; chip data inline su desktop ("17 ott 2027")
 - **Touch & safe-area**: target touch ≥ 44px su `pointer: coarse`, `env(safe-area-inset-*)`, pinch del browser disattivato (conflitto con OrbitControls)
 - **Performance tier mobile**: dpr [1, 1.25] vs [1, 1.75] desktop, fasce ridotte (200/70 vs 350/120), post-processing off di default
+
+### Timeline con eventi (S15)
+- **Marker cliccabili** di congiunzioni (gialli) e opposizioni (rossi) sopra la traccia: `findConjunctions` + `findOppositions` ricalcolati al cambio `simDate`, posizionati al simTime dell'evento
+- Click su un marker → `seekTo(event.simTime)` e pause
+- Tooltip con il label localizzato ("Congiunzione Earth–Jupiter", "Opposizione di Mars")
+- Computazione lazy (solo quando `simDate` cambia); eventi fuori range (±2y) filtrati
 
 ### PWA & offline
 - **Manifest** + icone SVG (192/512)
@@ -144,7 +150,7 @@ Scomposizione dei componenti visivi: Sole (limb darkening + corona), Pianeti (al
 | Styling | Tailwind CSS 4 + CSS custom (animazioni, shader, mobile sheet) |
 | State | Zustand 5 + custom hooks |
 | PWA | Service worker + manifest |
-| Test | Vitest 4 + Testing Library 16 + jsdom 30 (298 test) |
+| Test | Vitest 4 + Testing Library 16 + jsdom 30 (302 test) |
 | Qualità | ESLint 10, Prettier, TypeScript-ESLint 8, GitHub Actions CI |
 | Screenshot docs | Playwright (script `scripts/screenshots.mjs`) |
 
@@ -160,7 +166,7 @@ npm run preview    # anteprima della build di produzione
 ### Script utili
 
 ```bash
-npm test              # suite Vitest (unit + integrazione, 298 test)
+npm test              # suite Vitest (unit + integrazione, 302 test)
 npm run test:coverage # coverage dei test
 npm run lint          # ESLint
 npm run format        # Prettier --write

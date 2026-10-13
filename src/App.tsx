@@ -7,10 +7,11 @@ import {
   type DeepLinkState,
   type DeepLinkToggle,
 } from './utils/deepLink';
+import { DateInline } from './components/DateInline';
 import PlanetInfoPanel from './components/PlanetInfoPanel';
 import ControlsSidebar from './components/ControlsSidebar';
 import { IntroOverlay } from './components/IntroOverlay';
-import Timeline from './components/Timeline';
+import Timeline, { type TimelineMarker } from './components/Timeline';
 import { OnboardingTip } from './components/OnboardingTip';
 import { ConjunctionBanner } from './components/ConjunctionBanner';
 import AmbientAudio from './components/AmbientAudio';
@@ -33,13 +34,14 @@ import { useIsMobile } from './hooks/useMedia';
 import {
   anglesForDate,
   anomaliesForDate,
-  simTimeForDate,
   currentDateForSimTime,
+  simTimeForDate,
 } from './utils/simDate';
 import { usePersistentState, PREFS_KEYS } from './utils/prefs';
 import { CONFIG } from './config';
 import { TelemetryHUD } from './scene/TelemetryHUD';
 import { HoverCrosshair } from './components/HoverCrosshair';
+import { findConjunctions, findOppositions, eventLabel } from './utils/celestialEvents';
 // Code-splitting: <SolarScene> porta dentro tutto Three.js (300KB+ gzip).
 // Lazy = non viene scaricato finché non si renderizza la scena.
 const SolarScene = lazy(() =>
@@ -204,6 +206,37 @@ export default function App({ quizRnd }: AppProps = {}) {
     () => currentDateForSimTime(earth, simDate ?? new Date(), simTime),
     [simDate, simTime]
   );
+
+  // S15 — marker eventi per la timeline: congiunzioni/opposizioni nel range
+  // visibile (±2y da baseSimTime). Ricalcolati solo quando cambia simDate
+  // (o al primo mount). Ogni evento è mappato al simTime assoluto per
+  // posizionarlo sulla traccia.
+  const timelineMarkers = useMemo<TimelineMarker[]>(() => {
+    const baseDate = simDate ?? new Date();
+    const rangeYears = 2;
+    const from = new Date(baseDate);
+    from.setFullYear(from.getFullYear() - rangeYears);
+    const to = new Date(baseDate);
+    to.setFullYear(to.getFullYear() + rangeYears);
+    let events: import('./utils/celestialEvents').CelestialEvent[];
+    try {
+      events = [
+        ...findConjunctions(from, to, { minSepDeg: 0, maxSepDeg: 6 }),
+        ...findOppositions(from, to),
+      ];
+    } catch {
+      return [];
+    }
+    return events
+      .map((e) => ({ event: e, t: simTimeForDate(earth, e.date, planets) }))
+      .filter(({ t }) => Math.abs(t - startSimTime) <= CONFIG.earthYearSimSeconds * 2 * 2)
+      .map(({ event, t: evT }): TimelineMarker => ({
+        simTime: evT,
+        kind: event.kind === 'conjunction' ? 'conjunction' : 'opposition',
+        label: eventLabel(event, t),
+      }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [simDate]);
 
   // Tilt camera 3D: ref imperativo per evitare re-render del <SolarScene>.
   // Il tilt viene letto dentro useFrame() del CameraRig (vedi scene/CameraRig.tsx).
@@ -593,21 +626,12 @@ export default function App({ quizRnd }: AppProps = {}) {
           <span aria-hidden>🌌</span> Sistema Solare Interattivo
         </h1>
         <div className="flex flex-wrap items-center gap-2">
-          <label
-            className="hidden items-center gap-2 text-xs text-white/75 lg:flex"
-            title={t('tip.date')}
-          >
-            📅 Data
-            <input
-              type="date"
-              value={simDate ? simDate.toISOString().slice(0, 10) : ''}
-              onChange={(e) => {
-                const v = e.target.value;
-                setSimDate(v ? new Date(`${v}T12:00:00Z`) : null);
-              }}
-              className="rounded-lg border border-white/15 bg-[#141433] px-2 py-1 text-xs text-white"
-            />
-          </label>
+          <DateInline
+            value={simDate}
+            onChange={setSimDate}
+            visible
+            className="hidden lg:inline-flex"
+          />
           {simDate && (
             <button onClick={goToToday} className="chip" title={t('tip.today')}>
               {t('chip.today')}
@@ -781,6 +805,7 @@ export default function App({ quizRnd }: AppProps = {}) {
           yearSimSeconds={CONFIG.earthYearSimSeconds}
           onSeek={seekTo}
           onDragChange={setIsDraggingTimeline}
+          markers={timelineMarkers}
         />
       </div>
 
@@ -1009,13 +1034,17 @@ export default function App({ quizRnd }: AppProps = {}) {
             />
           </div>
           {/* Onboarding tip: mostrato al primo avvio, dopo l'intro cinematografico.
-              Su mobile è ancorato in basso al centro (la sidebar non è visibile). */}
+              S15 — su mobile è posizionato sopra la bottom sheet (che può
+              occupare fino a 75dvh) invece che a 96px dal fondo, dove
+              finiva coperto dalla sheet. `calc(75dvh + 12px)` è robusto
+              anche a viewport bassi; fallback a 320px se dvh non
+              supportato. */}
           {!introVisible && (
             <OnboardingTip
               text={t('onboarding.text')}
               side={isMobile ? 'top' : 'right'}
               {...(isMobile
-                ? { bottom: '96px', left: '16px', right: '16px' }
+                ? { bottom: 'max(320px, calc(75dvh + 12px))', left: '16px', right: '16px' }
                 : { top: '40%', left: '-260px' })}
             />
           )}
@@ -1032,7 +1061,10 @@ export default function App({ quizRnd }: AppProps = {}) {
       )}
 
       {/* FAB controlli mobile: apre/chiude la bottom sheet. Nascosto su
-          desktop (>= 1024px) dove la sidebar è sempre visibile. */}
+          desktop (>= 1024px) dove la sidebar è sempre visibile. S15 —
+          icon-only (☰/✕) per ridurre l'ingombro e non collidere con i
+          pulsanti zoom/reset della camera. Lo stato è descritto da
+          aria-label + aria-expanded. */}
       {isMobile && (
         <button
           type="button"
@@ -1040,9 +1072,10 @@ export default function App({ quizRnd }: AppProps = {}) {
           onClick={() => setControlsSheetOpen((v) => !v)}
           aria-expanded={controlsSheetOpen}
           aria-controls="controls-sheet"
+          aria-label={controlsSheetOpen ? t('chip.controlsClose') : t('chip.controls')}
+          title={controlsSheetOpen ? t('chip.controlsClose') : t('chip.controls')}
         >
           <span aria-hidden>{controlsSheetOpen ? '✕' : '☰'}</span>
-          <span>{controlsSheetOpen ? t('chip.controlsClose') : t('chip.controls')}</span>
         </button>
       )}
 

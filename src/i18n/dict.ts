@@ -15,6 +15,7 @@ export type Locale = 'it' | 'en';
 const it: Record<string, string> = {
   // Header / chip
   'chip.today': '📍 Oggi',
+  'chip.date': 'Data',
   'chip.events': '☄ Eventi',
   'chip.sky': '🌍 Cielo',
   'chip.quiz': '🧠 Quiz',
@@ -202,6 +203,7 @@ const it: Record<string, string> = {
 const en: Record<string, string> = {
   // Header / chips
   'chip.today': '📍 Today',
+  'chip.date': 'Date',
   'chip.events': '☄ Events',
   'chip.sky': '🌍 Sky',
   'chip.quiz': '🧠 Quiz',

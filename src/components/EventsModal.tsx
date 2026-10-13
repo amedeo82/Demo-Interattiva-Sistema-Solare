@@ -12,7 +12,12 @@
  */
 import { useEffect, useState } from 'react';
 import { useT, localeTag } from '../i18n';
-import { findConjunctions, findOppositions, type CelestialEvent } from '../utils/celestialEvents';
+import {
+  findConjunctions,
+  findOppositions,
+  eventLabel,
+  type CelestialEvent,
+} from '../utils/celestialEvents';
 
 interface EventsModalProps {
   open: boolean;
@@ -30,15 +35,6 @@ function fmtDate(d: Date): string {
     month: '2-digit',
     year: 'numeric',
   });
-}
-
-function eventLabel(
-  e: CelestialEvent,
-  t: (k: string, vars?: Record<string, string | number>) => string
-): string {
-  if (e.kind === 'conjunction') return t('events.conjunction', { a: e.a, b: e.b ?? '' });
-  if (e.kind === 'opposition') return t('events.opposition', { a: e.a });
-  return t('events.opposition', { a: e.a });
 }
 
 export function EventsModal({ open, onClose, onGoTo, from, rangeMonths = 12 }: EventsModalProps) {

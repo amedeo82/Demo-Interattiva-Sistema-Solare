@@ -186,3 +186,16 @@ export function findOppositions(from: Date, to: Date): CelestialEvent[] {
   events.sort((x, y) => x.date.getTime() - y.date.getTime());
   return events;
 }
+
+/**
+ * Label localizzata di un evento (usata da EventsModal e dai marker
+ * della timeline). La traduzione è demandata al chiamante via callback
+ * `t(key, vars)`, come nel resto dell'app.
+ */
+export function eventLabel(
+  e: CelestialEvent,
+  t: (k: string, vars?: Record<string, string | number>) => string
+): string {
+  if (e.kind === 'conjunction') return t('events.conjunction', { a: e.a, b: e.b ?? '' });
+  return t('events.opposition', { a: e.a });
+}
