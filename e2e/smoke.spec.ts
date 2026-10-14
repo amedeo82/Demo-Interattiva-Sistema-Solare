@@ -27,6 +27,28 @@ async function waitForScene(page: Page): Promise<void> {
   );
 }
 
+/**
+ * Forza il locale italiano prima di interagire con la UI.
+ *
+ * La app legge `localStorage[PREFS_KEYS.lang]` al mount del modulo i18n
+ * (`loadLocale()` in `src/i18n/index.ts`): se è `'en'` setta `locale='en'`,
+ * altrimenti default italiano. In un contesto Playwright fresco
+ * normalmente è 'it' (default), ma se un test precedente (in CI con
+ * riuso del browser profile) avesse lasciato `lang='en'` le stringhe
+ * cercate dai locator cambierebbero ("Dati" → "Data", "Domanda" →
+ * "Question") e i test fallirebbero. Settare `lang='it'` esplicitamente
+ * elimina la dipendenza dallo stato persistente fra run.
+ */
+async function forceItalianLocale(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem('solarsys.lang', 'it');
+    } catch {
+      /* storage non disponibile: usa default */
+    }
+  });
+}
+
 test.describe('smoke', () => {
   test('la scena 3D è visibile e al centro viewport', async ({ page }) => {
     const errors: string[] = [];
@@ -67,6 +89,7 @@ test.describe('smoke', () => {
   });
 
   test('selezionare un pianeta apre il pannello info', async ({ page, isMobile }) => {
+    await forceItalianLocale(page);
     await page.goto('/');
     await waitForScene(page);
 
@@ -76,14 +99,21 @@ test.describe('smoke', () => {
       await fab.click();
     }
 
-    // Clicca "Terra" nella lista pianeti
+    // Clicca "Terra" nella lista pianeti. Il click è asincrono (state
+    // update → re-render): attendi che il dialog sia in DOM prima di
+    // verificare le tab, così il test fallisce con un errore chiaro
+    // invece di un timeout generico su CI lenti.
     await page.getByRole('button', { name: /terra/i }).first().click();
+    const dialog = page.getByRole('dialog', { name: /Informazioni su Terra/i });
+    await expect(dialog).toBeVisible({ timeout: 10_000 });
 
-    // Il pannello info appare (ha tab "Dati" / "Atmosfera" / "Missioni" / "Curiosità")
-    await expect(page.getByRole('tab', { name: /dati/i }).first()).toBeVisible({ timeout: 5_000 });
+    // Il pannello info espone le tab "Dati" / "Atmosfera" / "Missioni" /
+    // "Curiosità". 10s di timeout per tollerare GC pause su CI Ubuntu.
+    await expect(page.getByRole('tab', { name: /dati/i }).first()).toBeVisible({ timeout: 10_000 });
   });
 
   test('il quiz si apre', async ({ page, isMobile }) => {
+    await forceItalianLocale(page);
     await page.goto('/');
     await waitForScene(page);
 
@@ -96,7 +126,13 @@ test.describe('smoke', () => {
     const quizButton = page.getByRole('button', { name: /quiz/i }).first();
     await quizButton.click();
 
-    // Il modal Quiz mostra "Prossima domanda →" o "Domanda 1 di N"
-    await expect(page.getByText(/domanda|risposta/i).first()).toBeVisible({ timeout: 5_000 });
+    // QuizModal è lazy-loaded: la prima apertura deve scaricare il chunk.
+    // Aspettiamo prima il dialog (segnale forte che il modal è montato),
+    // poi il testo "Domanda N di M" — la regex copre sia "Domanda 1 di 5"
+    // sia "Prossima domanda →" (visibile dopo la prima risposta).
+    // Timeout 10s per coprire download del chunk + GC pause su CI.
+    const quizDialog = page.getByRole('dialog', { name: /Quiz/i });
+    await expect(quizDialog).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/domanda|risposta/i).first()).toBeVisible({ timeout: 10_000 });
   });
 });
