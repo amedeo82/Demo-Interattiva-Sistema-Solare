@@ -494,7 +494,7 @@ body,
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-radius: 10px;
   text-align: left;
   cursor: pointer;
@@ -524,6 +524,21 @@ body,
   background: rgba(255, 255, 255, 0.06);
   font-size: 10px;
   font-family: inherit;
+}
+
+/* Sidebar: il <details> delle scorciatoie tastiera è collassato di default.
+   Nasconde la chevron di default del browser (Safari/Chrome vecchi) e
+   ripristina il cursore pointer sul summary. */
+.sidebar-details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.sidebar-details > summary::-webkit-details-marker {
+  display: none;
+}
+.sidebar-details[open] > summary {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px 8px 0 0;
 }
 
 /* ---------- Accessibilità: riduci movimento ---------- */

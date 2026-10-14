@@ -1022,7 +1022,7 @@ export default function App({ quizRnd }: AppProps = {}) {
             className={
               isMobile
                 ? `mobile-sheet pointer-events-auto ${controlsSheetOpen ? 'open' : ''}`
-                : 'relative'
+                : 'relative flex h-full min-h-0 flex-col'
             }
           >
             {isMobile && (
